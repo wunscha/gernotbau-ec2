@@ -1,6 +1,6 @@
 from django.shortcuts import render
-from .forms import FirmaNeuForm, FirmenAdminNeuForm
-from .models import Firma
+from .forms import FirmaNeuForm, FirmenAdminNeuForm, ProjektNeuForm
+from .models import Firma, Projekt, Projekt_Firma_Mail
 from django.contrib.auth import get_user_model
 from django.http import HttpResponseRedirect
 
@@ -33,5 +33,29 @@ def firmaNeuView(request):
             'firma_neu_form':firma_neu_form,
             'firmenadmin_neu_form':firmenadmin_neu_form
         }
-        # Weiterleitung zur Neue-Firma-Erfolgsseite
+        # Weiterleitung zur Formularseite für Neue Firma
         return render(request, 'firma_neu_formular.html', context)
+
+def projektNeuView(request):
+    # Wenn Post-Request, dann neues Projekt anlegen
+    if request.method == 'POST':
+        projekt_neu_daten = ProjektNeuForm(request.POST)
+        if projekt_neu_daten.is_valid():
+            # Neues Projekt aus den Formulardaten anlegen:
+            neues_projekt = Projekt.objects.create(
+                bezeichnung = projekt_neu_daten.cleaned_data['bezeichnung'],
+                kurzbezeichnung = projekt_neu_daten.cleaned_data['kurzbezeichnung']
+            )
+            # Eintrag in Through-Tabelle Projekt_Firma_Email
+            neues_projekt_mail = Projekt_Firma_Mail.objects.create(
+                ist_projektadmin = True,
+                email = neues_projekt.kurzbezeichnung + "@gernotbau.at",
+                projekt = neues_projekt,
+                firma = projekt_neu_daten.cleaned_data['firma']
+            )
+            #Weiterleitung zur Neues-Projekt-Erfolgsseite
+            return render(request, 'projekt_neu_bestätigung.html')
+    else:
+        projekt_neu_form = ProjektNeuForm()
+        # Weiterleitung zur Formularseite für Neues Projekt
+        return render(request, 'projekt_neu_formular.html', {'projekt_neu_form':projekt_neu_form})

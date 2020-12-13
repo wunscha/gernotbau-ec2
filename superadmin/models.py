@@ -37,14 +37,23 @@ class Projekt(models.Model):
         through_fields = ('projekt', 'firma'),
     )
 
+    def __str__(self):
+        return self.kurzbezeichnung
+
 class Projekt_Mitarbeiter_Mail(models.Model):
     ist_projektadmin = models.BooleanField()
     email = models.EmailField()
     projekt = models.ForeignKey('Projekt', on_delete = models.CASCADE)
     mitarbeiter = models.ForeignKey('Mitarbeiter', on_delete = models.CASCADE)
 
+    def __str__(self):
+        return str(self.projekt + '-' + self.mitarbeiter)
+
 class Projekt_Firma_Mail(models.Model):
     ist_projektadmin = models.BooleanField()
     email = models.EmailField()
     projekt = models.ForeignKey('Projekt', on_delete = models.CASCADE)
     firma = models.ForeignKey('Firma', on_delete = models.CASCADE)
+
+    def __str__(self):
+        return str(self.projekt.kurzbezeichnung + '-' + self.firma.kurzbezeichnung)

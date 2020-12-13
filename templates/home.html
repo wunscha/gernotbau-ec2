@@ -3,5 +3,8 @@
 {% block titel %}Home{% endblock titel %}
 
 {% block inhalt %}
-<h1>Willkommen zu Hause!</h1>
+    <h1>Willkommen zu Hause!</h1>
+    {% if user.is_superuser %}
+    <a href = {% url 'firma_neu' %}>Neue Firma anlegen</a>
+    {% endif %}
 {% endblock inhalt %}

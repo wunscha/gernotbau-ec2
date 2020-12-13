@@ -23,4 +23,28 @@ class Mitarbeiter(AbstractUser):
     def __str__(self):
         return self.username
 
-# Create your models here.
+class Projekt(models.Model):
+    bezeichnung = models.CharField(max_length=50)
+    kurzbezeichnung = models.CharField(max_length=10)
+    mitarbeiter = models.ManyToManyField(
+        'Mitarbeiter',
+        through = 'Projekt_Mitarbeiter_Mail',
+        through_fields = ('projekt', 'mitarbeiter'),
+    )
+    firma = models.ManyToManyField(
+        Firma,
+        through = 'Projekt_Firma_Mail',
+        through_fields = ('projekt', 'firma'),
+    )
+
+class Projekt_Mitarbeiter_Mail(models.Model):
+    ist_projektadmin = models.BooleanField()
+    email = models.EmailField()
+    projekt = models.ForeignKey('Projekt', on_delete = models.CASCADE)
+    mitarbeiter = models.ForeignKey('Mitarbeiter', on_delete = models.CASCADE)
+
+class Projekt_Firma_Mail(models.Model):
+    ist_projektadmin = models.BooleanField()
+    email = models.EmailField()
+    projekt = models.ForeignKey('Projekt', on_delete = models.CASCADE)
+    firma = models.ForeignKey('Firma', on_delete = models.CASCADE)

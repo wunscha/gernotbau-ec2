@@ -39,7 +39,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     # Eigene Apps
-    'superadmin'
+    'superadmin',
+    'projektadmin'
 ]
 
 MIDDLEWARE = [

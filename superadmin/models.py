@@ -47,7 +47,7 @@ class Projekt_Mitarbeiter_Mail(models.Model):
     mitarbeiter = models.ForeignKey('Mitarbeiter', on_delete = models.CASCADE)
 
     def __str__(self):
-        return str(self.projekt + '-' + self.mitarbeiter)
+        return str('%s - %s, %s' % (self.projekt.kurzbezeichnung, self.mitarbeiter.last_name, self.mitarbeiter.first_name,))
 
 class Projekt_Firma_Mail(models.Model):
     ist_projektadmin = models.BooleanField()

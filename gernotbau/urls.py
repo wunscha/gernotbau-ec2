@@ -26,6 +26,6 @@ urlpatterns = [
     # Weiterleitung zu Superadmin
     path('', include('superadmin.urls')),
 
-    # Weiterleitung zur Heimseite
-    path('', TemplateView.as_view(template_name='home.html'), name='home')
+    # Weiterleitung zu Projektadmin
+    path('', include('projektadmin.urls')),
 ]

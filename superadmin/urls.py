@@ -6,4 +6,6 @@ from . import views
 urlpatterns = [
     path('firma_neu/',views.firmaNeuView, name='firma_neu'),
     path('projekt_neu/',views.projektNeuView, name='projekt_neu'),
+     # Weiterleitung zur Heimseite
+    path('', views.homeView, name='home')
 ]

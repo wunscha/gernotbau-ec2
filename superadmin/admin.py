@@ -9,5 +9,3 @@ admin.site.register(Firma)
 admin.site.register(Projekt)
 admin.site.register(Projekt_Firma_Mail)
 admin.site.register(Projekt_Mitarbeiter_Mail)
-
-# Register your models here.

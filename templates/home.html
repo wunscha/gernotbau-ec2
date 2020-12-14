@@ -8,4 +8,13 @@
     <a href = {% url 'firma_neu' %}>Neue Firma anlegen</a><br>
     <a href = {% url 'projekt_neu' %}>Neues Projekt anlegen</a>
     {% endif %}
+
+    {% if liste_projekte%}
+    <p>Sie sind Projektadmin für folgende Projekte:</p>
+    <ul>
+        {% for projekt in liste_projekte %}
+        <a href={% url 'workflowschemata' projekt.id %}>{{projekt.bezeichnung}}</a>
+        {% endfor %}
+    </ul>
+    {% endif %}
 {% endblock inhalt %}

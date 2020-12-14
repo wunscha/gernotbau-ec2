@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from .forms import FirmaNeuForm, FirmenAdminNeuForm, ProjektNeuForm
-from .models import Firma, Projekt, Projekt_Firma_Mail
+from .models import Firma, Projekt, Projekt_Firma_Mail, Projekt_Mitarbeiter_Mail
 from django.contrib.auth import get_user_model
 from django.http import HttpResponseRedirect
 
@@ -59,3 +59,14 @@ def projektNeuView(request):
         projekt_neu_form = ProjektNeuForm()
         # Weiterleitung zur Formularseite für Neues Projekt
         return render(request, 'projekt_neu_formular.html', {'projekt_neu_form':projekt_neu_form})
+
+def homeView(request):
+    # Projekte holen, für die der User Projektadmin ist
+    if request.user.is_authenticated:
+        liste_pj_ma_mail = Projekt_Mitarbeiter_Mail.objects.filter(mitarbeiter = request.user, ist_projektadmin=True)
+        liste_projekte = []
+        for projekt in liste_pj_ma_mail:
+            liste_projekte.append(projekt.projekt)
+        context = {'liste_projekte':liste_projekte}
+    else: context = {}
+    return render(request, 'home.html', context)

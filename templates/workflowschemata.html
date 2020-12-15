@@ -1,0 +1,57 @@
+{% extends '_base.html' %}
+
+{% block titel %}Workflowschemata{% endblock titel %}
+
+{% block inhalt %}
+    {% if user.is_authenticated %}
+        <!--Verstecke Formulare mit den IDs der Workfloschemata,
+        auf diese Formulare beziehen sich die Buttons "Stufe hinzufügen", siehe unten-->
+        {% for workflowschema_id in liste_workflowschemata_id %}
+            <form id={{forloop.counter}} action={% url 'wfschStufe_neu' %} method="POST">
+                {% csrf_token %}
+                <input hidden type="text" name="wfsch_id" value={{workflowschema_id}}>
+                <input hidden type="text" name="projekt_id" value={{projekt_id}}>
+            </form>
+        {% endfor %}
+
+
+
+        <h2>Workflowschemata</h2>
+        <!-- Erstelle Liste der Workflow-Schemata -->
+        {% for key, value in dict_workflowschemata.items %}
+            <!-- Erstelle Liste der Workflow-Schema-Stufen -->
+            <h3>{{key}}</h3>
+                <!-- Erstelle Liste Prüffirmen -->
+                {% for stufe in value %}
+                    <h4>Stufe {{forloop.counter}}</h4>
+                    <ul>
+                        {% for firma in stufe.prüffirma.all %}
+                        <li>{{firma.bezeichnung}} </li>
+                        {% endfor %}
+                    </ul>
+
+                    <!--Formular, um Prüffirma hinzuzfügen-->
+                    <form action={% url 'prüffirma_hinzufügen' %} method="POST">
+                    {% csrf_token %}
+                        <input hidden type="text" name="projekt_id" value={{projekt_id}}>    
+                        <input hidden type="text" name="wfsch_stufe_id" value={{stufe.id}}>
+                        {{prüffirma_neu_form}}
+                        <button type="submit">Prüffirma hinzufügen</button>
+                    </form>
+
+                {% endfor %}
+                
+                
+            <!--Formular, um WFSch-Stufe hinzuzufügen. Bezieht sich auf die Versteckten Formulare am Anfang-->    
+            <button form={{forloop.counter}} type="submit">Stufe hinzufügen</button>
+        {% endfor %}
+    
+        <!--Formular, um Neues Workflowschema hinzuzufügen-->
+        <form action={% url 'workflowschema_neu' %} method="POST">
+        {% csrf_token %}
+            <input hidden type="text" name="projekt_id" value={{projekt_id}}>
+            <input type="text" name="bezeichnung">
+            <button type="submit">Neues Workflowschema</button>
+        </form>
+    {% endif %}
+{% endblock inhalt %}

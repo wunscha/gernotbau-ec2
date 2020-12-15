@@ -1,0 +1,14 @@
+{% extends '_base.html' %}
+
+{% block titel %}Neue Firma{% endblock titel %}
+
+{% block inhalt %}
+    <form method="POST">
+    {% csrf_token %}
+        <h2>Firmendaten</h2>
+        {{firma_neu_form.as_p}}
+        <h2>Zugangsdaten</h2>
+        {{firmenadmin_neu_form.as_p}}
+        <button type="submit">Firma anlegen</button>
+    </form>
+{% endblock inhalt %}

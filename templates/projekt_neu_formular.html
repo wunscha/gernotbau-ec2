@@ -1,0 +1,12 @@
+{% extends '_base.html' %}
+
+{% block titel %}Neues Projekt{% endblock titel %}
+
+{% block inhalt %}
+    <form method="POST">
+    {% csrf_token %}
+        <h2>Neues Projekt</h2>
+        {{projekt_neu_form.as_p}}
+        <button type="submit">Projekt anlegen</button>
+    </form>
+{% endblock inhalt %}

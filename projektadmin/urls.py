@@ -14,6 +14,6 @@ urlpatterns = [
 
     # Ordner-Verwaltung
     path('<projekt_id>/ordner_übersicht/', views.ordnerÜbersichtView, name = 'ordner_übersicht'),
-    path('ordner_neu/', views.ordnerNeuView, name = 'ordner_neu'),
+    path('<überordner_id>/ordner_neu/', views.ordnerNeuView, name = 'ordner_neu'),
     path('wfsch_ändern', views.wfschÄndernView, name = 'wfsch_ändern')
 ]

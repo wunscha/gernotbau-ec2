@@ -177,14 +177,15 @@ def ordnerÜbersichtView(request, projekt_id):
         projekt = Projekt.objects.get(pk = projekt_id)
         liste_ordner = Ordner.objects.filter(projekt = projekt)
         ordner_root = Ordner.objects.get(projekt = projekt, ist_root_ordner = True)
+        # Dropdownfeld für Workflowschema (Auswahlmöglichkeiten: WFSch für das Projekt)
+        wfsch_wählen_form = WFSchWählenForm()
+        wfsch_wählen_form.fields['wfsch'].queryset = Workflow_Schema.objects.filter(projekt = projekt)
         # Erstelle Instanz von Ordnerbau und befülle dict_ordnerbaum für context
         ordnerbaum_instanz = Ordnerbaum()
         dict_ordnerbaum = ordnerbaum_instanz.erstelle_dict_ordnerbaum(liste_ordner, ordner_root)
-        # Dropdownfeld für Workflowschema
-        wfsch_wählen_form = WFSchWählenForm()
-        # Befülle Context und Render Template für Ordnerübersicht
+        # Befülle Context und Rendere Template für Ordnerübersicht
         context = {
-            'dict_ordnerbaum':dict_ordnerbaum,
+            'dict_ordnerbaum':dict_ordnerbaum, # Muss als Funktion eingefügt werden, damit dict bei jedem Aufruf neu befüllt wird
             'wfsch_wählen_form':wfsch_wählen_form,
             'ordner_root':ordner_root,
             'projekt_id':projekt_id
@@ -193,10 +194,55 @@ def ordnerÜbersichtView(request, projekt_id):
 
     # Wenn nicht Projektadmin Weiterleitung auf Zugriff-Vereweigert-Seite
     else:
-            return render(request, 'projektadmin_zugriff_verweigert.html')
+        return render(request, 'projektadmin_zugriff_verweigert.html')
 
-def ordnerNeuView(request):
-    return HttpResponse('Ordner Neu')
+def ordnerNeuView(request, überordner_id):
+# Wenn POST-Anfragen, dann erstelle neuen Ordner und leite zu Ordnerübersicht weiter
+# Wenn keine POST-Anfrage, dann zeige Formular für Erstellen von neuem Ordner
+    überordner = Ordner.objects.get(pk = überordner_id)
+    projekt = überordner.projekt
+
+    # Prüfe ob Projektadmin
+    if user_ist_projektadmin(request.user, projekt.id):
+        
+        # Wenn POST, dann erstelle Ordner
+        if request.method == 'POST':
+            neuer_ordner = Ordner.objects.create(
+                bezeichnung = request.POST['bezeichnung'],
+                projekt = projekt,
+                ist_root_ordner = False,
+                überordner = überordner
+                )
+
+            # Weiterleitung zur Ordnerübersicht
+            return HttpResponseRedirect(reverse('ordner_übersicht', args=[projekt.id]))
+        
+        # Wenn nicht POST, dann zeige Formular für neuen Ordner
+        else:
+            return render(request, 'ordner_neu.html', {'überordner':überordner})
+
+    # Wenn nicht Projektadmin Weiterleitung auf Zugriff-Vereweigert-Seite
+    else:
+        return render(request, 'projektadmin_zugriff_verweigert.html')
 
 def wfschÄndernView(request):
-    return HttpResponse('Workflow Schema ändern')
+# Wenn POST, dann aktualisiere WFSch für den Ordner
+# Wenn nicht POST, dann passiert nichts
+    ordner_id = request.POST['ordner_id']
+    ordner = Ordner.objects.get(pk = ordner_id)
+    projekt = ordner.projekt
+
+    if request.method == 'POST':
+        # Hole und validiere Formulardaten
+        wfsch_ändern_daten = WFSchWählenForm(request.POST)
+        if wfsch_ändern_daten.is_valid():
+            # Ändere Workflowschema für den Ordner
+            workflowschema = wfsch_ändern_daten.cleaned_data['wfsch']
+            ordner.workflow_schema = workflowschema
+            ordner.save()
+
+        # Aktualisiere Ordnerübersicht
+        return HttpResponseRedirect(reverse('ordner_übersicht', args=[projekt.id]))
+    
+    else:
+        return HttpResponseRedirect(reverse('ordner_übersicht', args=[projekt.id]))

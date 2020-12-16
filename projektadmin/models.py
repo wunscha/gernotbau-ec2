@@ -29,6 +29,7 @@ class Ordner(models.Model):
     ist_root_ordner = models.BooleanField(default = False)
     überordner = models.ForeignKey('self', on_delete = models.CASCADE, null = True, blank = True)
     firma = models.ManyToManyField(Firma, through = 'Ordner_Firma_Freigabe')
+    workflow_schema = models.ForeignKey(Workflow_Schema, on_delete = models.PROTECT, null = True, blank = True)
     projekt = models.ForeignKey(Projekt, on_delete = models.CASCADE)
 
     def __str__(self):

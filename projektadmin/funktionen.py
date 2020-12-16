@@ -87,10 +87,15 @@ def user_ist_projektadmin(user, projekt_id):
 #########################################################
 # Funktionen für Ordner
 
+# Klasse für die Erstellung des Ordnerbaums für das Ordner-Übersicht-Template
 class Ordnerbaum():
     # Startwerte
-    ebene = 0
-    dict_ordnerbaum = {}
+    ebene = ''
+    dict_ordnerbaum = ''
+
+    def __init__(self):
+        self.dict_ordnerbaum = {}
+        self.ebene = -1
 
     # Erstelle Dictionary zur Darstellung des Ordnerbaums im Template
     # Rekursive Funktion, die dict_ordnerbaum befüllt mit:
@@ -100,8 +105,11 @@ class Ordnerbaum():
         for o in liste_ordner:
             if o.überordner == überordner:
                     self.ebene += 1
-                    k = self.ebene * '-' + o.bezeichnung
-                    self.dict_ordnerbaum[k] = o.id
+                    if o.überordner.ist_root_ordner:
+                        k = o.bezeichnung
+                    else:
+                        k = self.ebene * '___ ' + o.bezeichnung
+                    self.dict_ordnerbaum[k] = o
                     self.erstelle_dict_ordnerbaum(liste_ordner, o)
                     self.ebene -= 1
         return self.dict_ordnerbaum

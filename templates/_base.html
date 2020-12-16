@@ -1,6 +1,7 @@
 {% load static %}
 <!DOCTYPE html>
 <html>
+
 <head>
   <meta charset="utf-8">
   <title>{% block titel %}Titel{% endblock titel %}</title>
@@ -9,11 +10,11 @@
   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous">
   <link rel="stylesheet" href="{% static 'css/base.css' %}">
 </head>
+
 <body>
   <header>
-    <!-- Fixed navbar -->
-    <div class="d-flex flex-column flex-md-row align-items-center p-3 px-md-4
-     mb-3 bg-white border-bottom shadow-sm">
+    <!-- Navbar mit block "navbar_class" anpassen -->
+    <nav {% block navbar_class %} class="navbar navbar-light bg-light" {% endblock navbar_class %}>
       <a href="{% url 'home' %}" class="navbar-brand my-0 mr-md-auto
       font-weight-normal">
       {% block seitenüberschrift %}Seitenüberschrift{% endblock seitenüberschrift %}
@@ -25,7 +26,11 @@
           <a class="p-2 text-dark" href="{% url 'login' %}">Log In</a>
         {% endif %}
       </nav>
-    </div>
+    </nav>
+
+    {% block nav_tabs %}
+    {% endblock nav_tabs %}
+
   </header>
   <div class="container">
     {% block inhalt %}

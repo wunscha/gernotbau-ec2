@@ -1,0 +1,34 @@
+{% extends '_base_projektadmin.html' %}
+
+{% block tab_ordner_active %}active{% endblock tab_ordner_active %}
+
+{% block titel %}Ordner Übersicht{% endblock titel %}
+
+{% block inhalt %}
+    <h1>Ordnerübersicht</h1>
+    <!--Auflistung Ordner als Tbelle-->
+    <table class="table">
+        {% for key, value in dict_ordnerbaum.items %}
+            <tr>
+                <td>
+                    <strong>{{key}}</strong>
+                </td>
+                <td> 
+                    <a href={% url 'ordner_neu' value.id %}>Unterordner hinzufügen</a>
+                </td>
+                <td>
+                    <form action={% url 'wfsch_ändern' %} method='POST'>
+                    {% csrf_token %}
+                        <input hidden type="text" name="ordner_id" value={{value.id}}>
+                        Aktuelles WF-Schema: {{value.workflow_schema.bezeichnung}}<br>
+                        {{wfsch_wählen_form.wfsch}}
+                        <button type="submit" class="btn btn-outline-success">WF ändern</button>
+                    </form>
+                </td>
+            </tr>
+        {% endfor %}
+    </table>
+    
+    <a href={% url 'ordner_neu' ordner_root.id %}>Unterordner hinzufügen</a>
+
+{% endblock inhalt %}

@@ -1,4 +1,6 @@
-{% extends '_base.html' %}
+{% extends '_base_projektadmin.html' %}
+
+{% block tab_workflows_active %}active{% endblock tab_workflows_active %}
 
 {% block titel %}Workflowschemata{% endblock titel %}
 
@@ -19,15 +21,21 @@
         <h2>Workflowschemata</h2>
         <!-- Erstelle Liste der Workflow-Schemata -->
         {% for key, value in dict_workflowschemata.items %}
-            <h4>{{key}}</h4>
+            <div class="container">
             <table class="table">
                 <!-- Erstelle Liste der Workflow-Schema-Stufen -->
-                
+                    <thead class="thead-light">
+                        <th>{{key}}</th>
+                        <th></th>
+                        <th>
+                            <button form={{forloop.counter}} type="submit" class="btn btn-outline-secondary">Stufe hinzufügen</button>
+                        </th>
+                    </thead>
                     <!-- Erstelle Liste Prüffirmen -->
                     {% for stufe in value %}
                     <tr>
                         <td>
-                            <strong>Stufe {{forloop.counter}}</strong>
+                            Stufe {{forloop.counter}}
                         </td>
                         <td>
                             <ul>
@@ -43,17 +51,17 @@
                                 <input hidden type="text" name="projekt_id" value={{projekt_id}}>    
                                 <input hidden type="text" name="wfsch_stufe_id" value={{stufe.id}}>
                                 {{prüffirma_neu_form.firma}}
-                                <button type="submit">Prüffirma hinzufügen</button>
+                                <button type="submit" class="btn btn-outline-success">Prüffirma hinzufügen</button>
                             </form>
                         </td>
                     </tr>
                     {% endfor %}
                     <tr>
                         <!--Formular, um WFSch-Stufe hinzuzufügen. Bezieht sich auf die Versteckten Formulare am Anfang-->    
-                        <button form={{forloop.counter}} type="submit">Stufe hinzufügen</button>
+                        
                     </tr>
             </table>
-        
+            </div>
         {% endfor %}
     
         <!--Formular, um Neues Workflowschema hinzuzufügen-->

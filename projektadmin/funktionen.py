@@ -108,7 +108,7 @@ class Ordnerbaum():
                     if o.überordner.ist_root_ordner:
                         k = o.bezeichnung
                     else:
-                        k = self.ebene * '___ ' + o.bezeichnung
+                        k = '|' + self.ebene * '____' + o.bezeichnung
                     self.dict_ordnerbaum[k] = o
                     self.erstelle_dict_ordnerbaum(liste_ordner, o)
                     self.ebene -= 1

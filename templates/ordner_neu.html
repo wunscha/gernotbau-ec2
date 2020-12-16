@@ -1,0 +1,17 @@
+{% extends '_base_projektadmin.html' %}
+
+{% block tab_ordner_active %}active{% endblock tab_ordner_active %}
+
+{% block titel %}Ordner Neu{% endblock titel %}
+
+{% block inhalt %}
+    <h1>Neuer Ordner</h1>
+    <form method="POST">
+    {% csrf_token %}
+        <p>Überordner: {{überordner.bezeichnung}}</p>
+        <label for="bezeichnung">Bezeichnung Neuer Ordner:</label>
+        <input type="text" id="bezeichnung" name="bezeichnung"><br>
+        <button type="submit">Ordner erstellen</button>
+    </form>
+
+{% endblock inhalt %}

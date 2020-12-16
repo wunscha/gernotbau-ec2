@@ -1,0 +1,33 @@
+{% extends '_base_projektadmin.html' %}
+
+{% block tab_firmen_active %}active{% endblock tab_firmen_active %}
+
+{% block titel %}Projektfirmen Übersicht{% endblock titel %}
+
+{% block inhalt %}
+
+    <h1>Übersicht Projektfirmen</h1>
+    <table class="table">
+        <th></th>
+        {% for firma in liste_pj_fa_mail %}
+        <tr>
+            <td>
+            {{firma.firma.bezeichnung}}
+            {% if firma.ist_projektadmin %}(Projektadmin){% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+
+        <tr>
+            <td>
+            <form action={% url 'firma_hinzufügen' %} method='POST'>
+            {% csrf_token %}
+                <input hidden type="text" name="projekt_id" value={{projekt_id}}>
+                {{firma_hinzufügen_form.firma}}
+                <button type="submit" class="btn btn-outline-success">Firma hinzufügen</button>
+            </form>
+            </td>
+        </tr>
+    </table>
+
+{% endblock inhalt %}

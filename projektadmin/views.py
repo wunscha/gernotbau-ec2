@@ -1,7 +1,7 @@
 from django.shortcuts import render
-from .funktionen import user_ist_projektadmin, sortierte_stufenliste, suche_letzte_stufe
-from .models import Workflow_Schema, Workflow_Schema_Stufe
-from .forms import FirmaNeuForm
+from .funktionen import user_ist_projektadmin, sortierte_stufenliste, suche_letzte_stufe, Ordnerbaum
+from .models import Workflow_Schema, Workflow_Schema_Stufe, Ordner, Ordner_Firma_Freigabe
+from .forms import FirmaNeuForm, WFSchWählenForm
 from superadmin.models import Projekt, Firma, Projekt_Firma_Mail
 from django.urls import reverse
 from django.http import HttpResponse, HttpResponseRedirect
@@ -107,7 +107,7 @@ def prüffirmaHinzufügenView(request):
         return HttpResponseRedirect(reverse('home'))
 
 ################################################
-# View für Firmenverwaltung
+# Views für Firmenverwaltung
 
 def firmenÜbersichtView(request, projekt_id):
 # Zeige Auflistung der Firmen, die mit dem Projekt verbunden sind.
@@ -162,3 +162,41 @@ def firmaHinzufügenView(request):
         return HttpResponseRedirect(reverse('firmen_übersicht', args=[request.POST['projekt_id']]))
     else:
         return HttpResponseRedirect(reverse('home'))
+
+################################################
+# Views für Ordnerverwaltung
+
+def ordnerÜbersichtView(request, projekt_id):
+# Zeige Ordnerstruktur
+# F. jdn Ordner Formular zum Hinzufügen von Unterordner
+# F. jdn Ordner Formular zum Einstellen des Workflowschemas
+
+    #Prüfen, ob Projektadmin
+    if user_ist_projektadmin(request.user, projekt_id):
+        # Hole Ordnerstruktur
+        projekt = Projekt.objects.get(pk = projekt_id)
+        liste_ordner = Ordner.objects.filter(projekt = projekt)
+        ordner_root = Ordner.objects.get(projekt = projekt, ist_root_ordner = True)
+        # Erstelle Instanz von Ordnerbau und befülle dict_ordnerbaum für context
+        ordnerbaum_instanz = Ordnerbaum()
+        dict_ordnerbaum = ordnerbaum_instanz.erstelle_dict_ordnerbaum(liste_ordner, ordner_root)
+        # Dropdownfeld für Workflowschema
+        wfsch_wählen_form = WFSchWählenForm()
+        # Befülle Context und Render Template für Ordnerübersicht
+        context = {
+            'dict_ordnerbaum':dict_ordnerbaum,
+            'wfsch_wählen_form':wfsch_wählen_form,
+            'ordner_root':ordner_root,
+            'projekt_id':projekt_id
+        }
+        return render(request, 'ordner_übersicht.html', context)
+
+    # Wenn nicht Projektadmin Weiterleitung auf Zugriff-Vereweigert-Seite
+    else:
+            return render(request, 'projektadmin_zugriff_verweigert.html')
+
+def ordnerNeuView(request):
+    return HttpResponse('Ordner Neu')
+
+def wfschÄndernView(request):
+    return HttpResponse('Workflow Schema ändern')

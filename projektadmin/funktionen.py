@@ -1,7 +1,7 @@
 #########################################################
 # Funktionen für Workflowschema-Stufen
 
-from .models import Workflow_Schema, Workflow_Schema_Stufe
+from .models import Workflow_Schema, Workflow_Schema_Stufe, Ordner
 from superadmin.models import Projekt, Projekt_Mitarbeiter_Mail
 
 #Gib die WFSCh-Stufe zurück, die die aktuelle Stufe als Vorstufe hat
@@ -83,3 +83,25 @@ def user_ist_projektadmin(user, projekt_id):
     pj_ma_mail = Projekt_Mitarbeiter_Mail.objects.filter(mitarbeiter = user, projekt = projekt)[0]
     if pj_ma_mail:
         return pj_ma_mail.ist_projektadmin
+
+#########################################################
+# Funktionen für Ordner
+
+class Ordnerbaum():
+    # Startwerte
+    ebene = 0
+    dict_ordnerbaum = {}
+
+    # Erstelle Dictionary zur Darstellung des Ordnerbaums im Template
+    # Rekursive Funktion, die dict_ordnerbaum befüllt mit:
+    # Key = String mit Ordnerbezeichnung; Ordnerebene wird durch Kette von Bindestrichen dargestellt
+    # Value = Ordner-ID
+    def erstelle_dict_ordnerbaum(self, liste_ordner, überordner):
+        for o in liste_ordner:
+            if o.überordner == überordner:
+                    self.ebene += 1
+                    k = self.ebene * '-' + o.bezeichnung
+                    self.dict_ordnerbaum[k] = o.id
+                    self.erstelle_dict_ordnerbaum(liste_ordner, o)
+                    self.ebene -= 1
+        return self.dict_ordnerbaum

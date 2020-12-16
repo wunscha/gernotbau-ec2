@@ -11,4 +11,9 @@ urlpatterns = [
     # Projektfirmen-Verwaltung
     path('<projekt_id>/firmen_übersicht/', views.firmenÜbersichtView, name = 'firmen_übersicht'),
     path('firma_hinzufügen/', views.firmaHinzufügenView, name = 'firma_hinzufügen'),
+
+    # Ordner-Verwaltung
+    path('<projekt_id>/ordner_übersicht/', views.ordnerÜbersichtView, name = 'ordner_übersicht'),
+    path('ordner_neu/', views.ordnerNeuView, name = 'ordner_neu'),
+    path('wfsch_ändern', views.wfschÄndernView, name = 'wfsch_ändern')
 ]

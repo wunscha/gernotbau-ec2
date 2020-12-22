@@ -27,5 +27,8 @@ urlpatterns = [
     path('', include('superadmin.urls')),
 
     # Weiterleitung zu Projektadmin
-    path('', include('projektadmin.urls')),
+    path('projektadmin/', include('projektadmin.urls')),
+
+    # Weiterleitung zu Firmenadmin
+    path('firmenadmin/', include('firmenadmin.urls'))
 ]

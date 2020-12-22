@@ -1,0 +1,32 @@
+{% extends '_base_firmenadmin.html' %}
+
+{% block tab_mitarbeiter_active %}active{% endblock tab_mitarbeiter_active %}
+
+{% block titel %}Mitarbeiter Übersicht{% endblock titel %}
+
+{% block inhalt %}
+
+    <h1>Übersicht Mitarbeiter</h1>
+
+    {% for key, value in dict_mitarbeiter.items %}
+        <table class="table">
+
+            <th>{{ key }}</th>
+            
+            {% for pj_ma_mail in value %}
+
+                <tr>
+                    <td>
+                    {{ pj_ma_mail.projekt.bezeichnung }}
+                    {% if pj_ma_mail.ist_projektadmin %}(Projektadmin){% endif %}
+                    </td>
+                </tr>
+            
+            {% endfor %}
+
+        </table>
+    {% endfor %}
+
+    <a href={% url 'mitarbeiter_neu' %}>Neuen Mitarbeiter anlegen</a>
+
+{% endblock inhalt %}

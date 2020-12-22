@@ -1,0 +1,21 @@
+<!-- Head -->
+
+{% extends '_base.html' %}
+
+{% block seitenüberschrift %}FirmenAdmin{% endblock seitenüberschrift %}
+
+{% block nav_tabs %}
+    <ul class="nav nav-tabs">
+        <li class="nav-item">
+            <a class="nav-link {% block tab_mitarbeiter_active %}{% endblock tab_mitarbeiter_active %}" href={% url 'mitarbeiter_übersicht' %}>Mitarbeiter</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% block tab_projekte_active %}{% endblock tab_projekte_active %}" href={% url 'projekte_übersicht' %}>Projekte</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% block tab_workflows_active %}{% endblock tab_workflows_active %}" href={% url 'workflows_übersicht' %}>Workflows</a>
+        </li>
+    </ul>
+{% endblock nav_tabs %}
+
+<!-- /Head -->

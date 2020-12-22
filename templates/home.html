@@ -13,7 +13,7 @@
     <p>Sie sind Projektadmin für folgende Projekte:</p>
     <ul>
         {% for projekt in liste_projekte %}
-        <a href={% url 'workflowschemata' projekt.id %}>{{projekt.bezeichnung}}</a>
+        <a href={% url 'firmen_übersicht' projekt.id %}>{{projekt.bezeichnung}}</a>
         {% endfor %}
     </ul>
     {% endif %}

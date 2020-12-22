@@ -201,6 +201,7 @@ def ordnerNeuView(request, überordner_id):
 # Wenn keine POST-Anfrage, dann zeige Formular für Erstellen von neuem Ordner
     überordner = Ordner.objects.get(pk = überordner_id)
     projekt = überordner.projekt
+    projekt_id = projekt.id
 
     # Prüfe ob Projektadmin
     if user_ist_projektadmin(request.user, projekt.id):
@@ -219,7 +220,9 @@ def ordnerNeuView(request, überordner_id):
         
         # Wenn nicht POST, dann zeige Formular für neuen Ordner
         else:
-            return render(request, 'ordner_neu.html', {'überordner':überordner})
+            
+            context = {'projekt_id':projekt_id, 'überordner':überordner}
+            return render(request, 'ordner_neu.html', context)
 
     # Wenn nicht Projektadmin Weiterleitung auf Zugriff-Vereweigert-Seite
     else:

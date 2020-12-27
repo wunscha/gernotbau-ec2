@@ -1,8 +1,9 @@
 from django.shortcuts import render
 from django.contrib.auth import get_user_model
-from superadmin.models import Projekt_Mitarbeiter_Mail
-from django.http import HttpResponse
-
+from superadmin.models import Projekt_Mitarbeiter_Mail, Projekt_Firma_Mail, Projekt
+from django.http import HttpResponse, HttpResponseRedirect
+from .forms import MitarbeiterNeuForm
+from django.urls import reverse
 
 def mitarbeiterÜbersichtView(request):
 # Wenn User Firmenadmin ist, dann zeige Auflistung der Mitarbeiter seiner Firma,
@@ -27,10 +28,95 @@ def mitarbeiterÜbersichtView(request):
         return render(request, 'firmenadmin_zugriff_verweigert.html')
     
 def mitarbeiterNeuView(request):
-    return HttpResponse("Mitarbeiter Neu")
+# Wenn User Firmenadmin ist:
+# Wenn POST dann lege neuen Mitarbeiter an
+# Wenn nicht POST dann zeige Formular für neuen Mitarbeiter,
+# Wenn User nicht Firmenadmin, dann leite weiter auf Zugriff-verweiger-Template
+
+    if request.user.ist_firmenadmin:
+        # Wenn POST: Lege neuen Mitarbeiter aus Formulardaten an
+        if request.method == 'POST':
+            firma = request.user.firma
+            vorname = request.POST['vorname']
+            nachname = request.POST['nachname']
+            email = request.POST['email']
+            passwort = request.POST['passwort']
+            username = vorname + '.' + nachname
+
+            User = get_user_model()
+            neuer_mitarbeiter = User.objects.create_user(
+                first_name = vorname,
+                last_name = nachname,
+                email = email,
+                password = passwort,
+                username = username,
+                firma = firma,
+                ist_firmenadmin = False,
+            )
+
+            #TODO: Mehrfacheinträge verhindern
+            #TODO: InfoMail
+
+            # Weiterleitung zu Mitarbeiterübersicht
+            return HttpResponseRedirect(reverse('firmenadmin:mitarbeiter_übersicht'))
+        
+        # Wenn nicht POST: Zeige Formular für neuen Mitarbeiter
+        else: 
+            return render(request,'mitarbeiter_neu_formular.html')
+
+    # Wenn nicht Firmenadmin: Zugriff verweigert
+    else:  
+        return render(request, 'firmenadmin_zugriff_verweigert.html')
 
 def projekteÜbersichtView(request):
-    return HttpResponse("Projekte Übersicht")
+# Wenn Firmenadmin: Zeige Projektübersicht
+    if request.user.ist_firmenadmin:
+        # Erstelle Dict mit Projekten und Einträgen in Projekt_Mitarbeiter_Mail
+        firma = request.user.firma
+        liste_pj_fa_mail = Projekt_Firma_Mail.objects.filter(firma = firma)
+        dict_projekte = {}
+        for eintrag in liste_pj_fa_mail:
+            projekt_bezeichnung = eintrag.projekt.bezeichnung
+            projekt_id = eintrag.projekt.id
+            liste_pj_ma_mail = Projekt_Mitarbeiter_Mail.objects.filter(projekt = eintrag.projekt)
+
+            dict_einzelprojekt = {}
+            dict_einzelprojekt['liste_pj_ma_mail'] = liste_pj_ma_mail
+            dict_einzelprojekt['projekt_id'] = projekt_id
+            dict_projekte[projekt_bezeichnung] = dict_einzelprojekt
+
+        # Mitarbeiterliste für Dropdown für Mitarbeiter zuweisen
+        liste_mitarbeiter = firma.mitarbeiter_set.all()
+
+        context = {
+            'dict_projekte':dict_projekte,
+            'liste_mitarbeiter':liste_mitarbeiter
+        }
+        return render(request, 'projekte_übersicht.html', context)
+
+    # Wenn nicht Firmenadmin: Zugriff verweigert
+    else:  
+        return render(request, 'firmenadmin_zugriff_verweigert.html')
+
+def mitarbeiter_zu_projekt(request):
+# Wenn POST: Mitarbeiter zu Projekt hinzufügen
+# Wenn nicht POST passiert nichts
+
+    if request.method == 'POST':
+        mitarbeiter_id = request.POST['mitarbeiter']
+        User = get_user_model()
+        mitarbeiter = User.objects.get(pk = mitarbeiter_id)
+        projekt_id = request.POST['projekt_id']
+        projekt = Projekt.objects.get(pk = projekt_id)
+        email = str('%s.%s.%s@gernotbau.at' % (mitarbeiter.last_name, mitarbeiter.firma.kurzbezeichnung, projekt.kurzbezeichnung))
+        pj_ma_mail_neu = Projekt_Mitarbeiter_Mail.objects.create(
+            email = email,
+            mitarbeiter = mitarbeiter,
+            ist_projektadmin = False,
+            projekt = projekt
+        )
+
+        return HttpResponseRedirect(reverse('firmenadmin:projekte_übersicht'))
 
 def workflowsÜbersichtView(request):
     return HttpResponse("Workflows Übersicht")

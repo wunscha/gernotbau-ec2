@@ -9,7 +9,7 @@
         <!--Verstecke Formulare mit den IDs der Workfloschemata,
         auf diese Formulare beziehen sich die Buttons "Stufe hinzufügen", siehe unten-->
         {% for workflowschema_id in liste_workflowschemata_id %}
-            <form id={{forloop.counter}} action={% url 'wfschStufe_neu' %} method="POST">
+            <form id={{forloop.counter}} action={% url 'projektadmin:wfschStufe_neu' %} method="POST">
                 {% csrf_token %}
                 <input hidden type="text" name="wfsch_id" value={{workflowschema_id}}>
                 <input hidden type="text" name="projekt_id" value={{projekt_id}}>
@@ -46,7 +46,7 @@
                         </td>
                         <td>
                             <!--Formular, um Prüffirma hinzuzfügen-->
-                            <form action={% url 'prüffirma_hinzufügen' %} method="POST">
+                            <form action={% url 'projektadmin:prüffirma_hinzufügen' %} method="POST">
                             {% csrf_token %}
                                 <input hidden type="text" name="projekt_id" value={{projekt_id}}>    
                                 <input hidden type="text" name="wfsch_stufe_id" value={{stufe.id}}>
@@ -65,7 +65,7 @@
         {% endfor %}
     
         <!--Formular, um Neues Workflowschema hinzuzufügen-->
-        <form action={% url 'workflowschema_neu' %} method="POST">
+        <form action={% url 'projektadmin:workflowschema_neu' %} method="POST">
         {% csrf_token %}
             <input hidden type="text" name="projekt_id" value={{projekt_id}}>
             <input type="text" name="bezeichnung">

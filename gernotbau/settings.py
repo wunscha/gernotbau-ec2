@@ -58,6 +58,7 @@ ROOT_URLCONF = 'gernotbau.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        # Suche Templates im Ordner "templates"
         'DIRS': [str(BASE_DIR.joinpath('templates'))],
         'APP_DIRS': True,
         'OPTIONS': {
@@ -151,5 +152,5 @@ AUTH_USER_MODEL = 'superadmin.Mitarbeiter'
 ################################
 # Weiterleitungen für Login und Logout
 
-LOGIN_REDIRECT_URL = 'home'
-LOGOUT_REDIRECT_URL = 'home'
+LOGIN_REDIRECT_URL = 'superadmin:home'
+LOGOUT_REDIRECT_URL = 'superadmin:home'

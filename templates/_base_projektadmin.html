@@ -7,13 +7,13 @@
 {% block nav_tabs %}
     <ul class="nav nav-tabs">
         <li class="nav-item">
-            <a class="nav-link {% block tab_firmen_active %}{% endblock tab_firmen_active %}" href={% url 'firmen_übersicht' projekt_id %}>Firmen</a>
+            <a class="nav-link {% block tab_firmen_active %}{% endblock tab_firmen_active %}" href={% url 'projektadmin:firmen_übersicht' projekt_id %}>Firmen</a>
         </li>
         <li class="nav-item">
-            <a class="nav-link {% block tab_ordner_active %}{% endblock tab_ordner_active %}" href={% url 'ordner_übersicht' projekt_id %}>Ordner</a>
+            <a class="nav-link {% block tab_ordner_active %}{% endblock tab_ordner_active %}" href={% url 'projektadmin:ordner_übersicht' projekt_id %}>Ordner</a>
         </li>
         <li class="nav-item">
-            <a class="nav-link {% block tab_workflows_active %}{% endblock tab_workflows_active %}" href={% url 'workflowschemata' projekt_id %}>Workflows</a>
+            <a class="nav-link {% block tab_workflows_active %}{% endblock tab_workflows_active %}" href={% url 'projektadmin:workflowschemata' projekt_id %}>Workflows</a>
         </li>
     </ul>
 {% endblock nav_tabs %}

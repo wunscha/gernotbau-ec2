@@ -5,16 +5,21 @@
 {% block inhalt %}
     <h1>Willkommen zu Hause!</h1>
     {% if user.is_superuser %}
-    <a href = {% url 'firma_neu' %}>Neue Firma anlegen</a><br>
-    <a href = {% url 'projekt_neu' %}>Neues Projekt anlegen</a>
+    <p>Sie sind Superadmin.</p>
+    <a href = {% url 'superadmin:firma_neu' %}>Neue Firma anlegen</a><br>
+    <a href = {% url 'superadmin:projekt_neu' %}>Neues Projekt anlegen</a>
     {% endif %}
 
     {% if liste_projekte%}
     <p>Sie sind Projektadmin für folgende Projekte:</p>
     <ul>
         {% for projekt in liste_projekte %}
-        <a href={% url 'firmen_übersicht' projekt.id %}>{{projekt.bezeichnung}}</a>
+        <a href={% url 'projektadmin:firmen_übersicht' projekt.id %}>{{projekt.bezeichnung}}</a>
         {% endfor %}
     </ul>
+    {% endif %}
+    {% if user.ist_firmenadmin %}
+        <p>Sie sind Firmenadminsistrator für {{user.firma.kurzbezeichnung}}</p>
+        <a href={% url 'firmenadmin:firmenadmin_home' %}>Zum Firmen-Admin Bereich</a>
     {% endif %}
 {% endblock inhalt %}

@@ -10,6 +10,7 @@ class MitarbeiterNeuForm(UserCreationForm):
     fields = [
         'first_name',
         'last_name',
+        'email',
         'password'
     ]
 

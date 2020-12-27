@@ -14,10 +14,10 @@
                     <strong>{{key}}</strong>
                 </td>
                 <td> 
-                    <a href={% url 'ordner_neu' value.id %}>Unterordner hinzufügen</a>
+                    <a href={% url 'projektadmin:ordner_neu' value.id %}>Unterordner hinzufügen</a>
                 </td>
                 <td>
-                    <form action={% url 'wfsch_ändern' %} method='POST'>
+                    <form action={% url 'projektadmin:wfsch_ändern' %} method='POST'>
                     {% csrf_token %}
                         <input hidden type="text" name="ordner_id" value={{value.id}}>
                         Aktuelles WF-Schema: {{value.workflow_schema.bezeichnung}}<br>
@@ -29,6 +29,6 @@
         {% endfor %}
     </table>
     
-    <a href={% url 'ordner_neu' ordner_root.id %}>Ordner hinzufügen</a>
+    <a href={% url 'projektadmin:ordner_neu' ordner_root.id %}>Ordner hinzufügen</a>
 
 {% endblock inhalt %}

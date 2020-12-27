@@ -2,7 +2,7 @@ from django.shortcuts import render
 from .forms import FirmaNeuForm, FirmenAdminNeuForm, ProjektNeuForm
 from .models import Firma, Projekt, Projekt_Firma_Mail, Projekt_Mitarbeiter_Mail
 from django.contrib.auth import get_user_model
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, HttpResponse
 
 def firmaNeuView(request):
     # Wenn Post-Request, dann neue Firma mitsamt Firmenadmin anlegen
@@ -70,3 +70,4 @@ def homeView(request):
         context = {'liste_projekte':liste_projekte}
     else: context = {}
     return render(request, 'home.html', context)
+    #return HttpResponse('HOME')

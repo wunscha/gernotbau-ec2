@@ -20,7 +20,7 @@
 
         <tr>
             <td>
-            <form action={% url 'firma_hinzufügen' %} method='POST'>
+            <form action={% url 'projektadmin:firma_hinzufügen' %} method='POST'>
             {% csrf_token %}
                 <input hidden type="text" name="projekt_id" value={{projekt_id}}>
                 {{firma_hinzufügen_form.firma}}

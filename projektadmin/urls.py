@@ -1,6 +1,9 @@
 from . import views
 from django.urls import path
 
+# Namespace
+app_name = 'projektadmin'
+
 urlpatterns = [
     # Workflow-Bearbeitung
     path('<projekt_id>/workflowschemata/',views.workflowschemataView, name='workflowschemata'),

@@ -1,0 +1,47 @@
+{% extends '_base_firmenadmin.html' %}
+
+{% block tab_projekte_active %}active{% endblock tab_projekte_active %}
+
+{% block titel %}Projekte Übersicht{% endblock titel %}
+
+{% block inhalt %}
+
+    <h1>Übersicht Projekte</h1>
+
+    {% for key, value in dict_projekte.items %}
+        <table class="table">
+
+            <th>{{ key }}</th>
+            
+            {% for pj_ma_mail in value.liste_pj_ma_mail %}
+
+                <tr>
+                    <td>
+                    {{ pj_ma_mail.mitarbeiter.first_name }} {{ pj_ma_mail.mitarbeiter.last_name }}
+                    {% if pj_ma_mail.ist_projektadmin %}(Projektadmin){% endif %}
+                    </td>
+                </tr>
+            
+            {% endfor %}
+
+                <!--Dropdown für Mitarbeiter zuordnen-->
+                <tr>
+                    <td>
+                        <form action={% url 'firmenadmin:mitarbeiter_zu_projekt' %} method='POST'>
+                        {% csrf_token %}
+                            <select id="mitarbeiter" name="mitarbeiter">
+                            {% for mitarbeiter in liste_mitarbeiter %}
+                            <option value={{mitarbeiter.id}}>{{mitarbeiter.first_name}} {{mitarbeiter.last_name}}</option>
+                            {% endfor %}
+                            </select>
+
+                            <input hidden id="projekt_id" name="projekt_id" type="text" value={{value.projekt_id}}>
+                            <button type="submit" class="btn btn-success">Mitarbeiter Hinzufügen</button>
+                        </form>
+                    </td>
+                </tr>
+
+        </table>
+    {% endfor %}
+
+{% endblock inhalt %}

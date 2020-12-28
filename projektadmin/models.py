@@ -51,4 +51,13 @@ class Ordner_Firma_Freigabe(models.Model):
     projekt = models.ForeignKey(Projekt, on_delete = models.CASCADE)
 
     def __str__(self):
-        return str('%s - %s' % (self.ordner.bezeichnung, self.firma.kurzbezeichnung,))
+
+        lesen = ''
+        if self.freigabe_lesen:
+            lesen = 'Lesen '
+            
+        upload = ''
+        if self.freigabe_upload:
+            upload = 'Upload'
+
+        return str('%s: %s - %s %s%s' % (self.projekt.kurzbezeichnung, self.ordner.bezeichnung, self.firma.kurzbezeichnung, lesen, upload))

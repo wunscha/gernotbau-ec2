@@ -163,6 +163,88 @@ def firmaHinzufügenView(request):
     else:
         return HttpResponseRedirect(reverse('home'))
 
+def firmaDetailView(request, projekt_id, firma_id):
+# Wenn Projektadmin: Zeige Ordnerbaum mit Freigabestufen für die Firma
+    if user_ist_projektadmin(request.user, projekt_id):
+        # Hole Ordnerstruktur
+        projekt = Projekt.objects.get(pk = projekt_id)
+        liste_ordner = Ordner.objects.filter(projekt = projekt)
+        ordner_root = Ordner.objects.get(projekt = projekt, ist_root_ordner = True)
+        # Erstelle Instanz von Ordnerbau und befülle dict_ordnerbaum für context
+        ordnerbaum_instanz = Ordnerbaum()
+        dict_ordnerbaum = ordnerbaum_instanz.erstelle_dict_ordnerbaum(liste_ordner, ordner_root)
+        # Erstelle Liste mit Dictionaries aller Ordner mit Freigabestufen
+        firma = Firma.objects.get(pk = firma_id)
+        liste_ordner_freigabe = []
+        for key, value in dict_ordnerbaum.items():
+            ordner = value
+            # Hole Eintrag in Ordner_Firma_Freigabe, wenn vorhanden, sonst erstelle Neuen Eintrag
+            '''
+            # TODO: 
+            # Vorteil --> Es muüssen nicht alle Freigabe-Einträge neu erstellt wenn neuer Ordner od. Firma angelegt wird; 
+            # Nachteil --> Evtl. Erzeugung von doppelten Einträgen möglich, oder Freigabe werden überschrieben?
+            '''
+            ordner_firma_freigabe = Ordner_Firma_Freigabe.objects.get_or_create(
+                firma = firma, 
+                ordner = ordner, 
+                defaults={
+                    'projekt':projekt,
+                    'freigabe_lesen':False,
+                    'freigabe_upload':False,
+                    }
+            )
+
+            dict_ordner_freigabe = {}
+            dict_ordner_freigabe['ordner_id'] = ordner.id
+            dict_ordner_freigabe['ordner_darstellung'] = key
+            dict_ordner_freigabe['ordner_freigabe_lesen'] = ordner_firma_freigabe[0].freigabe_lesen
+            dict_ordner_freigabe['ordner_freigabe_upload'] = ordner_firma_freigabe[0].freigabe_upload
+            liste_ordner_freigabe.append(dict_ordner_freigabe)
+
+        # Leite Weiter zu Detailansicht Firma
+        context = {
+            'liste_ordner_freigabe':liste_ordner_freigabe,
+            'firma':firma,
+            'projekt_id':projekt_id
+            }
+        return render(request, 'firma_detail.html', context)
+
+    # Wenn nicht Projektadmin: Zugriff verweigert
+    else:
+        return render(request, 'projektadmin_zugriff_verweigert.html')
+
+def ordner_freigabe_ändern(request, projekt_id, firma_id):
+# Wenn POST: Freigabe entsprechend Formulardaten ändern
+# Wenn nicht POST passiert nichts
+
+    if request.method == 'POST':
+        projekt = Projekt.objects.get(pk = projekt_id)
+        firma = Firma.objects.get(pk = firma_id)
+        ordner_id = request.POST['ordner_id']
+        ordner = Ordner.objects.get(pk = ordner_id)
+        
+        ordner_firma_freigabe = Ordner_Firma_Freigabe.objects.get(
+            ordner = ordner,
+            firma = firma
+        )
+
+        # Passe Freigaben entsprechende Daten in POST an
+
+        if 'freigabe_lesen' in request.POST:
+            ordner_firma_freigabe.freigabe_lesen = True
+        else:
+            ordner_firma_freigabe.freigabe_lesen = False
+            
+        if 'freigabe_upload' in request.POST:
+            ordner_firma_freigabe.freigabe_upload = True
+        else:
+            ordner_firma_freigabe.freigabe_upload = False
+
+        ordner_firma_freigabe.save()
+
+        # Weiterleitung zu Detailansicht Firma
+        return HttpResponseRedirect(reverse('projektadmin:firma_detail', args=[projekt_id, firma_id]))
+
 ################################################
 # Views für Ordnerverwaltung
 
@@ -216,7 +298,7 @@ def ordnerNeuView(request, überordner_id):
                 )
 
             # Weiterleitung zur Ordnerübersicht
-            return HttpResponseRedirect(reverse('ordner_übersicht', args=[projekt.id]))
+            return HttpResponseRedirect(reverse('projektadmin:ordner_übersicht', args=[projekt.id]))
         
         # Wenn nicht POST, dann zeige Formular für neuen Ordner
         else:

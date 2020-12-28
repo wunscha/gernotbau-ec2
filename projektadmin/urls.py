@@ -14,6 +14,8 @@ urlpatterns = [
     # Projektfirmen-Verwaltung
     path('<projekt_id>/firmen_übersicht/', views.firmenÜbersichtView, name = 'firmen_übersicht'),
     path('firma_hinzufügen/', views.firmaHinzufügenView, name = 'firma_hinzufügen'),
+    path('<projekt_id>/firma_detail/<firma_id>/', views.firmaDetailView, name = 'firma_detail'),
+    path('<projekt_id>/ordner_freigabe_ändern/<firma_id>/', views.ordner_freigabe_ändern, name = 'ordner_freigabe_ändern'),
 
     # Ordner-Verwaltung
     path('<projekt_id>/ordner_übersicht/', views.ordnerÜbersichtView, name = 'ordner_übersicht'),

@@ -1,0 +1,55 @@
+{% extends '_base_projektadmin.html' %}
+
+{% block tab_firmen_active %}active{% endblock tab_firmen_active %}
+
+{% block titel %}Firma Dtailansicht{% endblock titel %}
+
+{% block inhalt %}
+
+    <h1>Detailansicht {{firma.bezeichnung}}</h1>
+
+    <table class="table">
+
+        <thead>
+            <tr>
+                <th>Ordner</th>
+                <th>Aktuelle Freigabe</th>
+                <th>Freigabe ändern</th>
+            </tr>
+        </thead>
+        
+        <tbody>
+            {% for ordner_freigabe in liste_ordner_freigabe %}
+            <tr>
+                <td>
+                    {{ordner_freigabe.ordner_darstellung}}
+                </td>
+                <!--Anzeige aktuell Freigabe für Ordner-->
+                <td>
+                    {% if ordner_freigabe.ordner_freigabe_lesen %} Lesen {% endif %}
+                    {% if ordner_freigabe.ordner_freigabe_lesen and ordner_freigabe.ordner_freigabe_upload %}, {% endif %}
+                    {% if ordner_freigabe.ordner_freigabe_upload %} Upload {% endif %}
+                </td>
+                <!--Formular um Ordnerfreigabe festulegen-->
+                <td>
+                    <form method="POST" action={% url 'projektadmin:ordner_freigabe_ändern' projekt_id firma.id %}>
+                    {% csrf_token %}
+                        <input hidden type="text" id="ordner_id" name="ordner_id" value={{ordner_freigabe.ordner_id}}>
+
+                        <label for="freigabe_lesen">Lesen: </label>
+                        <input type="checkbox" name="freigabe_lesen" id="freigabe_lesen" value="freigabe_lesen">
+                        
+                        <label for="freigabe_upload">Upload: </label>
+                        <input type="checkbox" name="freigabe_upload" id="freigabe_upload" value="freigabe_upload">
+
+                        <button type="submit" class="btn btn-outline-primary">Bestätigen</button>
+
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        
+    </table>
+
+{% endblock inhalt %}

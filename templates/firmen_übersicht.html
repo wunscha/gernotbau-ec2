@@ -12,7 +12,7 @@
         {% for firma in liste_pj_fa_mail %}
         <tr>
             <td>
-            {{firma.firma.bezeichnung}}
+            <a href={% url 'projektadmin:firma_detail' projekt_id firma.firma.id %}>{{firma.firma.bezeichnung}}</a>
             {% if firma.ist_projektadmin %}(Projektadmin){% endif %}
             </td>
         </tr>

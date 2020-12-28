@@ -11,5 +11,6 @@ urlpatterns = [
     path('mitarbeiter_neu/', views.mitarbeiterNeuView, name = 'mitarbeiter_neu'),
     path('projekte_übersicht/',views.projekteÜbersichtView, name='projekte_übersicht'),
     path('mitarbeiter_zu_projekt/',views.mitarbeiter_zu_projekt, name='mitarbeiter_zu_projekt'),
+    path('mitarbeiter_als_projektadmin/',views.mitarbeiter_als_projektadmin, name='mitarbeiter_als_projektadmin'),
     path('workflows_übersicht/',views.workflowsÜbersichtView, name='workflows_übersicht'),
 ]

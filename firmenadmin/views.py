@@ -78,10 +78,12 @@ def projekteÜbersichtView(request):
         for eintrag in liste_pj_fa_mail:
             projekt_bezeichnung = eintrag.projekt.bezeichnung
             projekt_id = eintrag.projekt.id
+            pj_fa_mail = Projekt_Firma_Mail.objects.get(projekt = eintrag.projekt, firma = firma)
             liste_pj_ma_mail = Projekt_Mitarbeiter_Mail.objects.filter(projekt = eintrag.projekt)
 
             dict_einzelprojekt = {}
             dict_einzelprojekt['liste_pj_ma_mail'] = liste_pj_ma_mail
+            dict_einzelprojekt['pj_fa_mail'] = pj_fa_mail
             dict_einzelprojekt['projekt_id'] = projekt_id
             dict_projekte[projekt_bezeichnung] = dict_einzelprojekt
 
@@ -116,6 +118,32 @@ def mitarbeiter_zu_projekt(request):
             projekt = projekt
         )
 
+        return HttpResponseRedirect(reverse('firmenadmin:projekte_übersicht'))
+
+def mitarbeiter_als_projektadmin(request):
+# Wenn POST: Lege Mitarbeiter als Projektadmin fest
+    if request.method == 'POST':
+        # Hole Eintrage in Projekt_Mitarbeiter_Mail
+        firma = request.user.firma
+        projekt_id = request.POST['projekt_id']
+        projekt = Projekt.objects.get(pk = projekt_id)
+        User = get_user_model()
+        mitarbeiter_id = request.POST['mitarbeiter_projektadmin']
+        mitarbeiter = User.objects.get(pk = mitarbeiter_id)
+        liste_pj_ma_mail = Projekt_Mitarbeiter_Mail.objects.filter(mitarbeiter__firma = firma)
+
+        for eintrag in liste_pj_ma_mail:
+            # Wenn gewählter Mitarbeiter: Lege als Projektadmin fest
+            if eintrag.mitarbeiter == mitarbeiter:
+                eintrag.ist_projektadmin = True
+                eintrag.save()
+
+            # Sonst: Ist nicht Projektadmin
+            else:
+                eintrag.ist_projektadmin = False
+                eintrag.save()
+                
+        # Weiterleitung zur Projektübersicht
         return HttpResponseRedirect(reverse('firmenadmin:projekte_übersicht'))
 
 def workflowsÜbersichtView(request):

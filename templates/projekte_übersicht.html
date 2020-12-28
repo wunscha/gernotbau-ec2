@@ -12,6 +12,24 @@
         <table class="table">
 
             <th>{{ key }}</th>
+                <!--Wenn Firma Prjojektadmin: Dropdown um Mitarbeiter als Projektadmin festzulegen -->
+                {% if value.pj_fa_mail.ist_projektadmin %}
+                <tr>
+                    <td>
+                        <form action={% url 'firmenadmin:mitarbeiter_als_projektadmin' %} method='POST'>
+                        {% csrf_token %}
+                            <select id="mitarbeiter_projekadmin" name="mitarbeiter_projektadmin">
+                            {% for mitarbeiter in liste_mitarbeiter %}
+                            <option value={{mitarbeiter.id}}>{{mitarbeiter.first_name}} {{mitarbeiter.last_name}}</option>
+                            {% endfor %}
+                            </select>
+
+                            <input hidden id="projekt_id" name="projekt_id" type="text" value={{value.projekt_id}}>
+                            <button type="submit" class="btn btn-primary">Projektadmin festlegen</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endif %}
             
             {% for pj_ma_mail in value.liste_pj_ma_mail %}
 

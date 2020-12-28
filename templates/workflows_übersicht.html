@@ -1,0 +1,50 @@
+{% extends '_base_firmenadmin.html' %}
+
+{% block tab_workflows_active %}active{% endblock tab_workflows_active %}
+
+{% block titel %}Workflows Übersicht{% endblock titel %}
+
+{% block inhalt %}
+
+    <h1>Übersicht Workflows</h1>
+
+    {% for wfsch_stufe in liste_wfsch_stufen %}
+
+        <table class="table">
+
+                <tr>
+                    <td>
+                    {{ wfsch_stufe.wfsch_stufe_fa.workflow_schema.projekt.bezeichnung }}
+                    </td>
+
+                    <td>
+                    {{ wfsch_stufe.wfsch_stufe_fa.workflow_schema.bezeichnung }}
+                    </td>
+
+                    <td>
+                    <ul>
+                        {% for prüfer in wfsch_stufe.liste_wfsch_stufe_prüfer %}
+                        <li>{{prüfer.mitarbeiter.first_name}} {{prüfer.mitarbeiter.last_name}}</li>
+                        {% endfor %}
+                    </ul>
+                    </td>
+
+                    <td>
+                        <form action={% url 'firmenadmin:wfsch_prüfer_zuordnen' %} method='POST'>
+                            {% csrf_token %}
+                            <select name="prüfer_id" id="prüfer_id">
+                                {% for mitarbeiter in liste_mitarbeiter %}
+                                <option value={{mitarbeiter.id}}>{{mitarbeiter.first_name}} {{mitarbeiter.last_name}}</option>
+                                {% endfor %}
+                            </select>
+                            <input hidden id="wfsch_stufe_id" name="wfsch_stufe_id" type="text" value={{wfsch_stufe.wfsch_stufe_id}}>
+                            <button type="submit" class="btn btn-success">Prüfer hinzufügen</button> 
+                        </form>
+                    </td>
+                </tr>
+
+        </table>
+
+    {% endfor %}
+
+{% endblock inhalt %}

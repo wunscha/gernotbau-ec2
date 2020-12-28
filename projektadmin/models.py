@@ -1,5 +1,5 @@
 from django.db import models
-from superadmin.models import Projekt, Firma
+from superadmin.models import Projekt, Firma, Mitarbeiter
 
 #########################################
 # Workflows
@@ -16,10 +16,18 @@ class Workflow_Schema_Stufe(models.Model):
     vorstufe = models.ForeignKey('self', on_delete = models.PROTECT, null=True, blank=True)
     prüffirma = models.ManyToManyField(Firma)
     projekt = models.ForeignKey(Projekt, on_delete = models.CASCADE)
-    # Feld 'mitarbeiter' wird bei der Implementierung der app firmenadmin eingefügt
-
+    mitarbeiter = models.ManyToManyField(Mitarbeiter, through='WFSch_Stufe_Mitarbeiter')
+    
     def __str__(self):
         return str('WFSch-Stufe_für_' + self.workflow_schema.bezeichnung)
+
+class WFSch_Stufe_Mitarbeiter(models.Model):
+    immer_erforderlich = models.BooleanField()
+    wfsch_stufe = models.ForeignKey(Workflow_Schema_Stufe, on_delete = models.CASCADE)
+    mitarbeiter = models.ForeignKey(Mitarbeiter, on_delete = models.CASCADE)
+
+    def __str__(self):
+        return str('%s - %s' % (self.wfsch_stufe.workflow_schema.bezeichnung, self.mitarbeiter.last_name,))
 
 #########################################
 # Ordner

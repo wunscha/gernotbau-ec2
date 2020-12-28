@@ -102,7 +102,7 @@ def prüffirmaHinzufügenView(request):
 
             #TODO: InfoMail an Prüffirma
 
-        return HttpResponseRedirect(reverse('workflowschemata', args=[request.POST['projekt_id']]))
+        return HttpResponseRedirect(reverse('projektadmin:workflowschemata', args=[request.POST['projekt_id']]))
     else:
         return HttpResponseRedirect(reverse('home'))
 

@@ -13,4 +13,5 @@ urlpatterns = [
     path('mitarbeiter_zu_projekt/',views.mitarbeiter_zu_projekt, name='mitarbeiter_zu_projekt'),
     path('mitarbeiter_als_projektadmin/',views.mitarbeiter_als_projektadmin, name='mitarbeiter_als_projektadmin'),
     path('workflows_übersicht/',views.workflowsÜbersichtView, name='workflows_übersicht'),
+    path('wfsch_prüfer_zuordnen/',views.wfsch_prüfer_zuordnen, name='wfsch_prüfer_zuordnen')
 ]

@@ -1,6 +1,7 @@
 from django.shortcuts import render
 from django.contrib.auth import get_user_model
 from superadmin.models import Projekt_Mitarbeiter_Mail, Projekt_Firma_Mail, Projekt
+from projektadmin.models import Workflow_Schema_Stufe, WFSch_Stufe_Mitarbeiter
 from django.http import HttpResponse, HttpResponseRedirect
 from .forms import MitarbeiterNeuForm
 from django.urls import reverse
@@ -79,7 +80,7 @@ def projekteÜbersichtView(request):
             projekt_bezeichnung = eintrag.projekt.bezeichnung
             projekt_id = eintrag.projekt.id
             pj_fa_mail = Projekt_Firma_Mail.objects.get(projekt = eintrag.projekt, firma = firma)
-            liste_pj_ma_mail = Projekt_Mitarbeiter_Mail.objects.filter(projekt = eintrag.projekt)
+            liste_pj_ma_mail = Projekt_Mitarbeiter_Mail.objects.filter(projekt = eintrag.projekt, mitarbeiter__firma = firma)
 
             dict_einzelprojekt = {}
             dict_einzelprojekt['liste_pj_ma_mail'] = liste_pj_ma_mail
@@ -147,4 +148,46 @@ def mitarbeiter_als_projektadmin(request):
         return HttpResponseRedirect(reverse('firmenadmin:projekte_übersicht'))
 
 def workflowsÜbersichtView(request):
-    return HttpResponse("Workflows Übersicht")
+# Wenn Firmenadmin: Zeige Workflows an, die der Firma zugewiesen wurdne
+    if request.user.ist_firmenadmin:
+        # Hole alle Workflow-Schema-Stufen, die der Firma zugeordnet wurden
+        firma = request.user.firma
+        liste_wfsch_stufen = []
+        liste_wfsch_stufen_fa = Workflow_Schema_Stufe.objects.filter(prüffirma = firma)
+        for wfsch_stufe_fa in liste_wfsch_stufen_fa:
+            dict_stufe = {}
+            dict_stufe['wfsch_stufe_fa'] = wfsch_stufe_fa
+            dict_stufe['wfsch_stufe_id'] = wfsch_stufe_fa.id
+            liste_wfsch_stufe_prüfer = WFSch_Stufe_Mitarbeiter.objects.filter(mitarbeiter__firma = firma, wfsch_stufe = wfsch_stufe_fa)
+            dict_stufe['liste_wfsch_stufe_prüfer'] = liste_wfsch_stufe_prüfer
+            liste_wfsch_stufen.append(dict_stufe)
+        
+        # Mitarbeiterliste für Dropdown für Mitarbeiter zuweisen
+        liste_mitarbeiter = firma.mitarbeiter_set.all()
+
+        context = {
+            'liste_wfsch_stufen':liste_wfsch_stufen,
+            'liste_mitarbeiter':liste_mitarbeiter
+            }
+
+        return render(request, 'workflows_übersicht.html', context)
+
+def wfsch_prüfer_zuordnen(request):
+# Wenn POST, dann füge Prüfer zu WFSch-Stufe hinzu, sonst passiert nichts
+    if request.method == 'POST':
+        prüfer_id = request.POST['prüfer_id']
+        User = get_user_model()
+        prüfer = User.objects.get(pk = prüfer_id)
+        wfsch_stufe_id = request.POST['wfsch_stufe_id']
+        wfsch_stufe = Workflow_Schema_Stufe.objects.get(pk = wfsch_stufe_id)
+        neuer_eintrag = WFSch_Stufe_Mitarbeiter.objects.create(
+            mitarbeiter = prüfer,
+            immer_erforderlich = False,
+            wfsch_stufe = wfsch_stufe
+        )
+        
+        return HttpResponseRedirect(reverse('firmenadmin:workflows_übersicht'))
+
+
+
+    

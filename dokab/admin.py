@@ -1,3 +1,5 @@
 from django.contrib import admin
+from .models import Paket, Dokument
 
-# Register your models here.
+admin.site.register(Paket)
+admin.site.register(Dokument)

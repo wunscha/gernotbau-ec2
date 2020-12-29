@@ -186,8 +186,7 @@ def wfsch_prüfer_zuordnen(request):
             wfsch_stufe = wfsch_stufe
         )
         
+        # TODO: InfoMails
+        # TODO: Alle bestehenden Workflows dieses Schemas schließen (Davor Warnhinweis)
+
         return HttpResponseRedirect(reverse('firmenadmin:workflows_übersicht'))
-
-
-
-    

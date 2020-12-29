@@ -11,5 +11,8 @@ urlpatterns = [
     path('<projekt_id>/ordner/<ordner_id>/', views.ordner_inhalt, name = 'ordner_inhalt'),
 
     # Workflows
-    path('<projekt_id>/', views.workflows_übersicht, name = 'workflows_übersicht')
+    path('<projekt_id>/', views.workflows_übersicht, name = 'workflows_übersicht'),
+
+    # Dokumente
+    path('<projekt_id>/upload/<ordner_id>/', views.upload, name = 'upload')
 ]

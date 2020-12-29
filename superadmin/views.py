@@ -3,6 +3,7 @@ from .forms import FirmaNeuForm, FirmenAdminNeuForm, ProjektNeuForm
 from .models import Firma, Projekt, Projekt_Firma_Mail, Projekt_Mitarbeiter_Mail
 from django.contrib.auth import get_user_model
 from django.http import HttpResponseRedirect, HttpResponse
+from django.conf import settings
 
 def firmaNeuView(request):
     # Wenn Post-Request, dann neue Firma mitsamt Firmenadmin anlegen
@@ -68,6 +69,8 @@ def homeView(request):
         context = {'liste_pj_ma_mail':liste_pj_ma_mail}
         # Projekte holen, denen der User zugeordnet sind
 
+        return render(request, 'home.html', context)
+        #return HttpResponse('HOME')
 
-    return render(request, 'home.html', context)
-    #return HttpResponse('HOME')
+    else:
+        return HttpResponseRedirect(settings.LOGIN_URL)

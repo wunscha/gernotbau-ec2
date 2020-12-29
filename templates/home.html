@@ -3,23 +3,29 @@
 {% block titel %}Home{% endblock titel %}
 
 {% block inhalt %}
+
     <h1>Willkommen zu Hause!</h1>
+
+    <!--Links für Superuser-->
     {% if user.is_superuser %}
-    <p>Sie sind Superadmin.</p>
-    <a href = {% url 'superadmin:firma_neu' %}>Neue Firma anlegen</a><br>
-    <a href = {% url 'superadmin:projekt_neu' %}>Neues Projekt anlegen</a>
+        <p>Sie sind Superadmin.</p>
+        <a href = {% url 'superadmin:firma_neu' %}>Neue Firma anlegen</a><br>
+        <a href = {% url 'superadmin:projekt_neu' %}>Neues Projekt anlegen</a>
     {% endif %}
 
-    {% if liste_projekte%}
-    <p>Sie sind Projektadmin für folgende Projekte:</p>
+    <!--Links zu Projekten-->
+    <p>Ihre Projekte:</p>
     <ul>
-        {% for projekt in liste_projekte %}
-        <a href={% url 'projektadmin:firmen_übersicht' projekt.id %}>{{projekt.bezeichnung}}</a>
+        {% for pj_ma_mail in liste_pj_ma_mail %}
+            <a href={% url 'dokab:weiterleitung_root' pj_ma_mail.projekt.id %}>{{pj_ma_mail.projekt.bezeichnung}}</a>
+            {% if pj_ma_mail.ist_projektadmin %} / <a href={% url 'projektadmin:firmen_übersicht' pj_ma_mail.projekt.id %}>ProjektAdmin Bereich</a>{% endif %}
         {% endfor %}
     </ul>
-    {% endif %}
+
+    <!--Links für Firmenadmin-->
     {% if user.ist_firmenadmin %}
         <p>Sie sind Firmenadminsistrator für {{user.firma.kurzbezeichnung}}</p>
         <a href={% url 'firmenadmin:firmenadmin_home' %}>Zum Firmen-Admin Bereich</a>
     {% endif %}
+
 {% endblock inhalt %}

@@ -1,0 +1,39 @@
+{% extends '_base_dokab.html' %}
+
+{% block tab_ordner_active %}active{% endblock tab_ordner_active %}
+
+{% block titel %}Ordner Inhalt{% endblock titel %}
+
+
+    <div class="row">
+
+        <div class="col-sm">
+            {% block navigation_sidebar %}
+                <!--Navigationsleiste-->
+                <div class="col-md-3 col-xl-2 bd-sidebar">
+                    <nav class="nav flex-column">
+                        {% for ordner in ordnerbaum %}
+                        
+                            <a  href={% url 'dokab:ordner_inhalt' projekt_id ordner.ordner.id %}
+                                class="nav-link {% if ordner.ordner_freigabe_lesen is False and ordner.ordner_freigabe_upload is False %} disabled{% endif %}">
+                            {{ordner.ordner_darstellung}}
+                            </a>
+
+                        {% endfor %}
+                    </nav>
+                </div>
+            {% endblock navigation_sidebar %}
+        </div>
+
+        <div class="col-sm">
+            {% block inhalt %}
+
+                <!--Ordnerinhalt-->
+                <main class="col-md-9 col-xl-8 py-md-3 pl-md-5 bd-content" role="main">
+                    <p>Ordnerinhalt</p>
+                </main>
+                
+            {% endblock inhalt %}
+        </div>
+
+    </div>

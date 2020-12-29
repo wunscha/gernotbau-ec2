@@ -61,13 +61,13 @@ def projektNeuView(request):
         return render(request, 'projekt_neu_formular.html', {'projekt_neu_form':projekt_neu_form})
 
 def homeView(request):
-    # Projekte holen, für die der User Projektadmin ist
+    
     if request.user.is_authenticated:
-        liste_pj_ma_mail = Projekt_Mitarbeiter_Mail.objects.filter(mitarbeiter = request.user, ist_projektadmin=True)
-        liste_projekte = []
-        for projekt in liste_pj_ma_mail:
-            liste_projekte.append(projekt.projekt)
-        context = {'liste_projekte':liste_projekte}
-    else: context = {}
+        # Projekte holen, für die der User Projektadmin ist
+        liste_pj_ma_mail = Projekt_Mitarbeiter_Mail.objects.filter(mitarbeiter = request.user)
+        context = {'liste_pj_ma_mail':liste_pj_ma_mail}
+        # Projekte holen, denen der User zugeordnet sind
+
+
     return render(request, 'home.html', context)
     #return HttpResponse('HOME')

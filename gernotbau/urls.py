@@ -30,5 +30,8 @@ urlpatterns = [
     path('projektadmin/', include('projektadmin.urls')),
 
     # Weiterleitung zu Firmenadmin
-    path('firmenadmin/', include('firmenadmin.urls'))
+    path('firmenadmin/', include('firmenadmin.urls')),
+
+    # Weiterleitung zu DokAb
+    path('dokab/', include('dokab.urls'))
 ]

@@ -1,0 +1,31 @@
+{% extends '_base_dokab.html' %}
+
+{% block tab_ordner_active %}active{% endblock tab_ordner_active %}
+
+{% block titel %}Ordner Zugriff verweigert{% endblock titel %}
+
+{% block navigation_sidebar %}
+
+    <!--Navigationsleiste-->
+    <div class="col-3">
+        <nav class="sidebar">
+                {% for ordner in ordnerbaum %}
+                
+                    <a  href={% url 'dokab:ordner_inhalt' projekt_id ordner.ordner.id %}
+                        class="nav-link {% if ordner.ordner_freigabe_lesen is False and ordner.ordner_freigabe_upload is False %} disabled{% endif %}">
+                    {{ordner.ordner_darstellung}}
+                    </a>
+
+                {% endfor %}
+        </nav>
+    </div>
+    
+{% endblock navigation_sidebar %}
+
+{% block inhalt %}
+
+    <!--Seiteninhalt-->
+    <p>Sie haben keinen Zugriff auf den gewünschten Ordner</p>
+    
+    
+{% endblock inhalt %}

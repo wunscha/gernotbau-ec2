@@ -40,7 +40,9 @@ INSTALLED_APPS = [
 
     # Eigene Apps
     'superadmin',
-    'projektadmin'
+    'projektadmin',
+    'firmenadmin',
+    'dokab'
 ]
 
 MIDDLEWARE = [

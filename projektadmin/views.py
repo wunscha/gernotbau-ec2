@@ -197,8 +197,8 @@ def firmaDetailView(request, projekt_id, firma_id):
             dict_ordner_freigabe = {}
             dict_ordner_freigabe['ordner_id'] = ordner.id
             dict_ordner_freigabe['ordner_darstellung'] = key
-            dict_ordner_freigabe['ordner_freigabe_lesen'] = ordner_firma_freigabe[0].freigabe_lesen
-            dict_ordner_freigabe['ordner_freigabe_upload'] = ordner_firma_freigabe[0].freigabe_upload
+            dict_ordner_freigabe['ordner_freigabe_lesen'] = ordner_firma_freigabe[0].freigabe_lesen # Index erforderlich wegen 'get_or_create'
+            dict_ordner_freigabe['ordner_freigabe_upload'] = ordner_firma_freigabe[0].freigabe_upload # Index erforderlich wegen 'get_or_create'
             liste_ordner_freigabe.append(dict_ordner_freigabe)
 
         # Leite Weiter zu Detailansicht Firma

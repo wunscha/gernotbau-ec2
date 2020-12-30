@@ -327,7 +327,7 @@ def wfschÄndernView(request):
             ordner.save()
 
         # Aktualisiere Ordnerübersicht
-        return HttpResponseRedirect(reverse('ordner_übersicht', args=[projekt.id]))
+        return HttpResponseRedirect(reverse('projektadmin:ordner_übersicht', args=[projekt.id]))
     
     else:
-        return HttpResponseRedirect(reverse('ordner_übersicht', args=[projekt.id]))
+        return HttpResponseRedirect(reverse('projektadmin:ordner_übersicht', args=[projekt.id]))

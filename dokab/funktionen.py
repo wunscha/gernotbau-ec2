@@ -27,3 +27,11 @@ def user_hat_ordnerzugriff(user, ordner_id, projekt_id):
         return True
     else:
         return False
+
+###################################
+# DATEIEN
+
+def speichere_datei_chunks(datei, zielpfad):
+    with open(zielpfad + datei.name, 'wb+') as ziel:
+        for chunk in datei.chunks():
+            ziel.write(chunk)

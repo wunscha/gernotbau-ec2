@@ -31,6 +31,10 @@
         </a>
     {% endif %}
 
+    <!--Überschrift-->
+    <h1>Ordner {{ordner.bezeichnung}}</h1>
+    <h3>{% if ordner.workflow_schema %} Workflowschma: {{ordner.workflow_schema.bezeichnung}} {% endif %}</h3>
+
     <!--Ordnerinhalt-->
     <table class="table">
 

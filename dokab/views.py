@@ -2,12 +2,14 @@ from django.shortcuts import render
 from django.urls import reverse
 from django.http import HttpResponse, HttpResponseRedirect
 from django.utils import timezone
+import datetime
 
-from projektadmin.funktionen import Ordnerbaum
-from projektadmin.models import Ordner_Firma_Freigabe, Ordner
+from gernotbau.settings import BASE_DIR
+from projektadmin.funktionen import Ordnerbaum, sortierte_stufenliste
+from projektadmin.models import Ordner_Firma_Freigabe, Ordner, Workflow_Schema, Workflow_Schema_Stufe, WFSch_Stufe_Mitarbeiter
 from superadmin.models import Firma, Projekt
-from .models import Dokument
-from .funktionen import user_hat_ordnerzugriff
+from .models import Dokument, Paket, Status, Workflow, Workflow_Stufe, Mitarbeiter_Stufe_Status, Dokumentenhistorie_Eintrag, Anhang, Ereignis
+from .funktionen import user_hat_ordnerzugriff, speichere_datei_chunks
 
 #############################################################
 # Ordner
@@ -65,9 +67,11 @@ def ordner_inhalt(request, projekt_id, ordner_id):
 
         
         # Packe Context für Ordnerbaum
+        ordner = Ordner.objects.get(pk = ordner_id)
         context = {
             'projekt_id':projekt_id,
             'ordner_id':ordner_id,
+            'ordner':ordner,
             'ordnerbaum':ordnerbaum
         }
 
@@ -91,6 +95,20 @@ def ordner_inhalt(request, projekt_id, ordner_id):
             return render(request, 'dokab_ordner_zugriff_verweigert.html', context)
 
 #############################################################
+# Konstanten für Stati (Indizes wegen 'get_or_create')
+STATI = {}
+STATI['in_bearbeitung'] = Status.objects.get_or_create(bezeichnung = 'In Bearbeitung')[0]
+STATI['warten_auf_vorstufe'] = Status.objects.get_or_create(bezeichnung = 'Warten auf Vorstufe')[0]
+STATI['rückfrage'] = Status.objects.get_or_create(bezeichnung = 'Rückfrage')[0]
+STATI['abgelehnt'] = Status.objects.get_or_create(bezeichnung = 'Abgelehnt')[0]
+STATI['freigegeben'] = Status.objects.get_or_create(bezeichnung = 'Freigegeben')[0]
+
+# Konstanten für Ereignisse (Indizes wegen 'get_or_create')
+EREIGNISSE = {}
+EREIGNISSE['upload'] = Ereignis.objects.get_or_create(bezeichnung = 'Upload')[0]
+EREIGNISSE['workflow_eröffnet'] = Ereignis.objects.get_or_create(bezeichnung = 'Workflow Eröffnet')[0]
+
+#############################################################
 # Dokumente
 
 def upload(request, projekt_id, ordner_id):
@@ -104,17 +122,92 @@ def upload(request, projekt_id, ordner_id):
     if ordner_firma_freigabe.freigabe_upload:
 
         if request.method == 'POST':
-            pass
-        # Wenn POST:
-        # --> Führe Dateiupload durch
-        # --> Lege Dokument in DB an
-        # --> Erzeuge DokHist-Eintrag
-        # --> InfoMails
+            datei = request.FILES['datei']
+            
+            # Lege Paket und Dokument in DB an
+            paket_bezeichnung = request.POST['paket']
+            paket = Paket.objects.create(bezeichnung = paket_bezeichnung)
+            zielpfad = str(BASE_DIR) + '/_DATEIABLAGE/' #TODO: Verwaltung Ablagepfad anpassen
+
+            neues_dokument = Dokument.objects.create(
+                bezeichnung = datei.name,
+                pfad = zielpfad + datei.name,
+                zeitstempel = timezone.now(),
+                mitarbeiter = request.user,
+                paket = paket,
+                ordner = ordner
+            )
+
+            # Lege DokHist Eintrag an
+            text = 'Dokument {neues_dokumen.bezeichnung} wurde hochgeladen'
+            Dokumentenhistorie_Eintrag.objects.create(
+                zeitstempel = timezone.now(),
+                mitarbeiter = request.user,
+                dokument = neues_dokument,
+                text = text, 
+                ereignis = EREIGNISSE['upload']
+            )
+
+            # Datei hochladen
+            speichere_datei_chunks(datei, zielpfad)
+
+            # -------- WORKFLOW ANLEGEN ---------
+            # Lege neuen Workflow an, wenn Workflow-Schema vorhanden
+            workflow_schema = ordner.workflow_schema
+            if workflow_schema:
+                workflow = Workflow.objects.create(
+                    dokument = neues_dokument,
+                    workflow_schema = workflow_schema,
+                    status = STATI['in_bearbeitung'],
+                    abgeschlossen = False
+                )
+                text = 'Workflow {workflow_schema.bezeichnung} für Dokument {neues_dokument.bezeichnung} wurde eröffnet'
+                Dokumentenhistorie_Eintrag.objects.create(
+                    zeitstempel = timezone.now(),
+                    mitarbeiter = request.user,
+                    dokument = neues_dokument,
+                    text = text, 
+                    ereignis = EREIGNISSE['workflow_eröffnet']
+                )
+
+                # Lege Workflow-Stufen an
+                liste_wfsch_stufen = Workflow_Schema_Stufe.objects.filter(workflow_schema = workflow_schema)
+                liste_wfsch_stufen = sortierte_stufenliste(liste_wfsch_stufen)
+                aktuelle_stufe = None
+                for wfsch_stufe in liste_wfsch_stufen:
+                    # Erzeuge Stufe
+                    vorstufe = aktuelle_stufe
+                    aktuelle_wfsch_stufe = wfsch_stufe
+                    aktuelle_stufe = Workflow_Stufe(workflow = workflow, vorstufe = vorstufe)
+                    aktuelle_stufe.save()
+                    
+                    # Lege MA_Stufe_Stati an
+                    liste_wfsch_stufe_ma = WFSch_Stufe_Mitarbeiter.objects.filter(wfsch_stufe = aktuelle_wfsch_stufe)
+                    for wfsch_stufe_ma in liste_wfsch_stufe_ma:
+                        if vorstufe:
+                            status = STATI['warten_auf_vorstufe']
+                        else:
+                            status = STATI['in_bearbeitung']
+                        Mitarbeiter_Stufe_Status.objects.create(
+                                mitarbeiter = wfsch_stufe_ma.mitarbeiter, 
+                                status = status,
+                                workflow_stufe = aktuelle_stufe,
+                                immer_erforderlich = wfsch_stufe_ma.immer_erforderlich
+                                )
+
+            # TODO: InfoMails
+
+            return HttpResponseRedirect(reverse('dokab:ordner_inhalt',args=[projekt_id, ordner_id]))
 
         else:
         # Wenn nicht POST:
         # --> Zeige Upload-Formular für Ordner
-            context = {'ordner':ordner}
+            context = {
+                'ordner':ordner,
+                'ordner_id':ordner_id,
+                'projekt_id':projekt_id
+                }
+
             return render(request, 'upload.html', context)
 
 #############################################################

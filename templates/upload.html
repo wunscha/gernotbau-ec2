@@ -1,0 +1,30 @@
+{% extends '_base.html' %}
+
+{% block inhalt %}
+    <h1>Upload</h1>
+
+    <form action={% url 'dokab:upload' projekt_id ordner_id %} method="POST" enctype="multipart/form-data">
+    {% csrf_token %}
+
+        <p>
+        <label for="ordner">Ordner: </label>
+        <input readonly type="text" id="ordner" name="ordner" value={{ordner.bezeichnung}}>
+        </p>
+
+        <p>
+        <label for="paket">Paket:</label>
+        <input type="text" id="paket" name="paket">
+        </p>
+
+        <p>
+        <label for="datei">Datei: </label>
+        <input type="file" id="datei" name="datei">
+        </p>
+
+        <button type="submit" class="btn btn-primary">Upload</button>
+    </form>
+
+    <div class="container">
+        <a href={% url 'dokab:ordner_inhalt' projekt_id ordner_id %}>ZURÜCK</a>
+    </div>
+{% endblock inhalt %}

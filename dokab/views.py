@@ -9,7 +9,7 @@ from projektadmin.funktionen import Ordnerbaum, sortierte_stufenliste
 from projektadmin.models import Ordner_Firma_Freigabe, Ordner, Workflow_Schema, Workflow_Schema_Stufe, WFSch_Stufe_Mitarbeiter
 from superadmin.models import Firma, Projekt
 from .models import Dokument, Paket, Status, Workflow, Workflow_Stufe, Mitarbeiter_Stufe_Status, Dokumentenhistorie_Eintrag, Anhang, Ereignis
-from .funktionen import user_hat_ordnerzugriff, speichere_datei_chunks
+from .funktionen import user_hat_ordnerzugriff, speichere_datei_chunks, workflow_stufe_ist_aktuell
 
 #############################################################
 # Ordner
@@ -214,13 +214,32 @@ def upload(request, projekt_id, ordner_id):
 # Workflows
 
 def workflows_übersicht(request, projekt_id):
-    pass
-    # Hole Workflows für Dokumente des Users
-    # Ermittle für jeden Workflow die aktive Stufe (die erste, die nicht abgeschlossen ist)
+# Hole alle Workflows für Dokumente des Users und für der User Prüfer ist
+# und Leite zu Workflow-Übersicht weiter
 
-    # Hole Workflows für die der User Prüfer ist
-    # Ermittle für jeden Workflow die aktive Stufe (die erste, die nicht abgeschlossen ist)
+    # Hole Workflows für die Dokumente des Users
+    liste_workflows_userdok = Workflow.objects.filter(dokument__mitarbeiter = request.user)
     
+    # Hole Workflows, für die Prüfung durch User ausständig ist (Wenn Stufe aktuell, für die User Prüfer)
+    liste_ma_stufe_status = Mitarbeiter_Stufe_Status.objects.filter(mitarbeiter = request.user)
+    liste_workflows_userprüfer = []
+    
+    for ma_stufe_status in liste_ma_stufe_status:
+        workflow_stufe = ma_stufe_status.workflow_stufe
+        workflow = workflow_stufe.workflow
+
+        if workflow_stufe_ist_aktuell(workflow_stufe):
+            liste_workflows_userprüfer.append(workflow)
+
+    # Fülle Context und Rendere Workflow-Übersicht
+    context = {
+        'projekt_id':projekt_id,
+        'liste_workflows_userdok':liste_workflows_userdok,
+        'liste_workflows_userprüfer':liste_workflows_userprüfer
+    }
+
+    return render(request, 'dokab_workflows_übersicht.html', context)
+
     # Rendere "dokab_workflows_übersicht.html"
 
 def aktualisiere_workflow(request, projekt_id):

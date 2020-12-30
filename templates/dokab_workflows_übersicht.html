@@ -6,10 +6,46 @@
 
 {% block inhalt %}
 
-    <!--Zeige jeden Workflow, für den der User Prüfer ist 
-        (wenn seine Stufe aktiv: Formular mit Dropdown für Status, Hidden-Feld für WF-Id, Submit-Button; Action = url aktualisiere_workflow)-->
-
+    <h2>Workflows Eigene Dokumente</h2>
     <!--Zeige jeden Workflow, für eigene Dokumente des Users-->
     
+    <table class="table">
+
+        <thead>
+            <th>Dokument</th>
+            <th>Workflowstatus</th>
+        </thead>
+
+        <tbody>
+            {% for workflow_userdok in liste_workflows_userdok %}
+            <tr>
+                <td>{{workflow_userdok.dokument.bezeichnung}}</td>
+                <td>{{workflow_userdok.status.bezeichnung}}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+
+    </table>
+ 
+    <h2>Workflows Zur Prüfung</h2>
+    <!--Zeige jeden Workflow, für den der User Prüfer ist (wenn seine Stufe aktiv: Formular mit Dropdown für Status, Hidden-Feld für WF-Id, Submit-Button; Action = url aktualisiere_workflow)-->
+
+    <table class="table">
+
+        <thead>
+            <th>Dokument</th>
+            <th>Workflowstatus</th>
+        </thead>
+
+        <tbody>
+            {% for workflow_userprüfer in liste_workflows_userprüfer %}
+            <tr>
+                <td>{{workflow_userprüfer.dokument.bezeichnung}}</td>
+                <td>{{workflow_userprüfer.status.bezeichnung}}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+
+    </table>
+    
 {% endblock inhalt %}
-        

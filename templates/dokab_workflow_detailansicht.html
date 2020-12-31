@@ -1,0 +1,39 @@
+{% extends '_base_dokab.html' %}
+
+{% block tab_workflows_active %}active{% endblock tab_workflows_active %}
+
+{% block titel %}Workflow {{workflow.dokument.bezeichnung}}{% endblock titel %}
+
+{% block inhalt %}
+
+    <h1>Workflow {{workflow.dokument.bezeichnung}}</h1>
+    
+    <!--Zeige Stufen des Workflows mit zugehörigen Prüffirmen-->
+
+    {% for stufe in liste_wf_stufen %}
+
+        <table class="table">
+
+            <thead>
+                <tr>
+                    <th>
+                        Stufe {{ forloop.counter }}
+                        {% if stufe is aktuelle_stufe %} (aktuell){% endif %}
+                    </th>
+                </tr>
+                <tr>
+                    <th>Prüffirma</th>
+                    <th>Prüfer</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                
+            </tbody>
+        
+        </table>
+ 
+    {% endfor %}
+    
+    
+{% endblock inhalt %}

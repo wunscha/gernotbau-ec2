@@ -19,7 +19,9 @@
         <tbody>
             {% for workflow_userdok in liste_workflows_userdok %}
             <tr>
-                <td>{{workflow_userdok.dokument.bezeichnung}}</td>
+                <td>
+                    <a href={% url 'dokab:workflow_detailansicht' projekt_id workflow_userdok.id %}>{{workflow_userdok.dokument.bezeichnung}}</a>
+                </td>
                 <td>{{workflow_userdok.status.bezeichnung}}</td>
             </tr>
             {% endfor %}

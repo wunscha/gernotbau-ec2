@@ -12,6 +12,7 @@ urlpatterns = [
 
     # Workflows
     path('<projekt_id>/workflows_übersicht/', views.workflows_übersicht, name = 'workflows_übersicht'),
+    path('<projekt_id>/workflow_detailansicht/<workflow_id>/', views.workflow_detailansicht, name = 'workflow_detailansicht'),
 
     # Dokumente
     path('<projekt_id>/upload/<ordner_id>/', views.upload, name = 'upload')

@@ -37,8 +37,8 @@ class Workflow(models.Model):
 class Workflow_Stufe(models.Model):
     workflow = models.ForeignKey(Workflow, on_delete = models.CASCADE)
     vorstufe = models.ForeignKey('self', on_delete = models.CASCADE, null = True)
+    abgeschlossen = models.BooleanField(default = False)
     mitarbeiter = models.ManyToManyField(Mitarbeiter, through = 'Mitarbeiter_Stufe_Status')
-    abgeschlossen = models.BooleanField
 
     def __str__(self):
         return str('WF_Stufe_für_%s' % self.workflow)

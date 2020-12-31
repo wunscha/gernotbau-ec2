@@ -9,7 +9,7 @@ from projektadmin.funktionen import Ordnerbaum, sortierte_stufenliste
 from projektadmin.models import Ordner_Firma_Freigabe, Ordner, Workflow_Schema, Workflow_Schema_Stufe, WFSch_Stufe_Mitarbeiter
 from superadmin.models import Firma, Projekt
 from .models import Dokument, Paket, Status, Workflow, Workflow_Stufe, Mitarbeiter_Stufe_Status, Dokumentenhistorie_Eintrag, Anhang, Ereignis
-from .funktionen import user_hat_ordnerzugriff, speichere_datei_chunks, workflow_stufe_ist_aktuell
+from .funktionen import user_hat_ordnerzugriff, speichere_datei_chunks, workflow_stufe_ist_aktuell, liste_prüffirmen, aktuelle_workflow_stufe
 
 #############################################################
 # Ordner
@@ -178,7 +178,7 @@ def upload(request, projekt_id, ordner_id):
                     # Erzeuge Stufe
                     vorstufe = aktuelle_stufe
                     aktuelle_wfsch_stufe = wfsch_stufe
-                    aktuelle_stufe = Workflow_Stufe(workflow = workflow, vorstufe = vorstufe)
+                    aktuelle_stufe = Workflow_Stufe(workflow = workflow, vorstufe = vorstufe, abgeschlossen = False)
                     aktuelle_stufe.save()
                     
                     # Lege MA_Stufe_Stati an
@@ -241,6 +241,42 @@ def workflows_übersicht(request, projekt_id):
     return render(request, 'dokab_workflows_übersicht.html', context)
 
     # Rendere "dokab_workflows_übersicht.html"
+
+def workflow_detailansicht(request, projekt_id, workflow_id):
+# Zeige Workflow an, Dropdown für Änderung Status, wenn user == Prüfer
+
+    workflow = Workflow.objects.get(pk = workflow_id)
+    # liste_wf_stufen_firmen enthält eine Liste mit dicts f. jede Stufe: KEY = Firmenbezeichnung, VALUE = Liste der Prüfer
+    iterierungsliste_workflow_stufen = Workflow_Stufe.objects.filter(workflow = workflow) # Liste dient nur zum Iterieren
+    
+    liste_wf_stufen = []
+    
+    # Erzeuge für jede Stufe Listeneintrag
+    for workflow_stufe in iterierungsliste_workflow_stufen:
+
+        # Erzeuge dict für jede Prüffirma in der Stufe: KEY = prüffirma.bezeichnung, VALUE = Liste MA_Stufe_Status
+        dict_prüffirmen_stufe = {}
+        iterierungsliste_prüffirmen = liste_prüffirmen(workflow_stufe) # Liste dient nur zum iterieren
+        for prüffirma in iterierungsliste_prüffirmen:
+            # Hole alle Prüfer der Prüffirma für die Stufe
+            liste_ma_stufe_status = Mitarbeiter_Stufe_Status.objects.filter(mitarbeiter__firma = prüffirma, workflow_stufe = workflow_stufe)
+            
+            dict_prüffirmen_stufe[prüffirma.bezeichnung] = liste_ma_stufe_status
+        
+        liste_wf_stufen.append(dict_prüffirmen_stufe)
+
+    # Suche aktuelle Stufe
+    aktuelle_stufe = aktuelle_workflow_stufe(workflow)
+    
+    # Fülle Context und Rendere Workflow-Detailansicht
+    context = {
+        'projekt_id':projekt_id,
+        'workflow':workflow,
+        'liste_wf_stufen':liste_wf_stufen,
+        'aktuelle_stufe':aktuelle_stufe
+    }
+
+    return render(request, 'dokab_workflow_detailansicht.html', context)
 
 def aktualisiere_workflow(request, projekt_id):
     pass

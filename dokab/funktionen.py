@@ -55,6 +55,21 @@ def workflow_stufe_ist_aktuell(workflow_stufe):
     else:
         return False
 
+def aktuelle_workflow_stufe(workflow):
+# Gibt die aktuelle Stufe des Workflows zurück (Stufe ist aktuell, wenn nicht abgeschlossen und Vorstufe abgeschlossen, bzw. keine Vorstufe)
+    liste_workflow_stufen = Workflow_Stufe.objects.filter(workflow = workflow)
+    for workflow_stufe in liste_workflow_stufen:
+        if not workflow_stufe.abgeschlossen:
+            
+            # Wenn Vorstufe abgeschlossen: Stufe ist aktuell
+            if workflow_stufe.vorstufe:
+                if workflow_stufe.vorstufe.abgeschlossen:
+                    return workflow_stufe
+            
+            # Wenn keine Vorstufe: Stufe ist erste Stufe und daher aktuell
+            else:
+                return workflow_stufe
+
 def stufenstatus_firma(workflow_stufe, firma):
 # Gib den Status für die Firma anhand der Stati der einzelenen Prüfer zurück
 
@@ -85,14 +100,14 @@ def stufenstatus_firma(workflow_stufe, firma):
 
         # Wenn erforderlicher Prüfer fehlt: keine Freigabe
         elif wfsch_stufe_mitarbeiter.immer_erforderlich:
-            return view.STATI['in_bearbeitung']
+            return views.STATI['in_bearbeitung']
 
     return stufenstatus_firma
 
 def liste_prüffirmen(workflow_stufe):
 # Gib Liste mit allen Prfüffirmen der Workflow-Stufe zurück
     liste_prüffirmen = []
-    liste_prüfer = workflow_stufe.mitarbeiter
+    liste_prüfer = workflow_stufe.mitarbeiter.all()
 
     for prüfer in liste_prüfer:
         if prüfer.firma not in liste_prüffirmen:

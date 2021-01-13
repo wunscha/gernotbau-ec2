@@ -1,0 +1,49 @@
+{% extends '_base_test_multidb.html' %}
+
+{% block tab_1_active %}
+    {% if projekt_id == 1 %}active{% endif %}
+{% endblock tab_1_active %}
+
+{% block tab_2_active %}
+    {% if projekt_id == 2 %}active{% endif %}
+{% endblock tab_2_active %}
+
+
+{% block titel %}Dokumente Projekt {{projekt_id}}{% endblock titel %}
+
+{% block inhalt %}
+    
+    <!--Überschrift-->
+    <h1>Dokumente Projekt {{projekt_id}}</h1>
+    
+    <!--Auflistung Dokumente-->
+    <table class="table">
+
+        <thead>
+            <th scope="col">Bezeichnung</th>
+            <th scope="col">Datum</th>
+            <th scope="col">Von</th>
+        </thead>
+
+        <tbody>
+
+            {% for dokument in liste_dokumente %}
+                <tr>
+                    <td>{{dokument.bezeichnung}}</td>
+                    <td>{{dokument.zeit_erstellung}}</td>
+                    <td>{{dokument.mitarbeiter}}</td>
+                </tr>
+            {% endfor %}
+
+        </tbody>
+    </table>
+
+    <!--Formular für neuse Dokument-->
+    <form action={% url 'test_multidb:test_dokumente' projekt_id %} method="POST">
+        {% csrf_token %}
+        <labe for="dokument_bezeichnung">Bezeichnung Dokument:</labe>
+        <input type="text" name="dokument_bezeichnung" id="dokument_bezeichnung">
+        <button type="submit">Dokument anlegen</button>
+    </form>
+    
+{% endblock inhalt %}

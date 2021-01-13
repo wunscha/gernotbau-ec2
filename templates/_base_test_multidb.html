@@ -1,0 +1,21 @@
+<!-- Head -->
+
+{% extends '_base.html' %}
+
+{% block seitenüberschrift %}Test Multidb{% endblock seitenüberschrift %}
+
+{% block nav_tabs %}
+    <ul class="nav nav-tabs">
+
+        <li class="nav-item">
+            <a class="nav-link {% block tab_1_active %}{% endblock tab_1_active %}" href={% url 'test_multidb:test_dokumente' 1 %}>Projekt 1</a>
+        </li>
+
+        <li class="nav-item">
+            <a class="nav-link {% block tab_2_active %}{% endblock tab_2_active %}" href={% url 'test_multidb:test_dokumente' 2 %}>Projekt 2</a>
+        </li>
+        
+    </ul>
+{% endblock nav_tabs %}
+
+<!-- /Head -->

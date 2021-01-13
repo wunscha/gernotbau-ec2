@@ -1,12 +1,48 @@
-{% extends '_base.html' %}
+<!-- Vererbung -->
+{% extends '_base_.html' %}
 
 {% block titel %}Log In{% endblock titel %}
 
+{% block titel_app %}Log In{% endblock titel_app %}
+
+{% block href_titel_app %}{% url 'superadmin:superadmin_home' %}{% endblock href_titel_app %}
+
+{% block navigationsleiste %}{% endblock navigationsleiste %}
+
+{% block login_button %}{% endblock login_button %}
+
 {% block inhalt %}
-  <h2>Log In</h2>
-  <form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Log In</button>
+
+<div class="container">
+
+  <!-- Seitenüberschrift -->
+  <h1 class="mb-5 text-center">Log In</h1>
+
+  <!-- Formular Log In -->
+  <form class="p-2" action="{% url 'login' %}" method="POST" style="border: 1px solid #dee2e6;">
+      
+      <!-- CSRF Token -->
+      {% csrf_token %}
+
+      <!-- Formular Log In --> 
+      <div class="form-group">
+          <label for="id_username">Benutzername</label>
+          <input type="text" class="form-control" name="username" autofocus autocapitalize="none" autocomplete="username" maxlenght="150" required id="id_username">
+      </div>
+
+      <div class="form-group">
+          <label for="id_password">Passwort</label>
+          <input type="password" class="form-control" name="password" autocomplete="current-password" required id="id_password">
+      </div>
+      
+      <!-- Submit Button -->
+      <button type="submit" class="btn btn-primary">Log In</button>
+
   </form>
+  
+  <!-- Anzeige Fehlermeldung, wenn Login fehlgeschlagen -->
+  <p style="color: red;">{{fehlermeldung}}</p>
+  
+</div>
+
 {% endblock inhalt %}

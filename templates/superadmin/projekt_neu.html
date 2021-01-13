@@ -1,0 +1,60 @@
+<!-- Vererbung -->
+{% extends './_base_superadmin.html' %}
+
+<!-- Titel -->
+{% block titel %}
+    Projekt Neu
+{% endblock titel %}
+
+<!-- nav-tab aktiv -->
+{% block projekt_neu_active %}
+    active
+{% endblock projekt_neu_active %}
+
+<!-- Seiteninhalt -->
+{% block inhalt %}
+
+<div class="container">
+
+    <!-- Seitenüberschrift -->
+    <h1 class="mb-5 text-center">Neues Projekt</h1>
+
+    <!-- Formular Neue Firma -->
+    <form class="p-2" action="{% url 'superadmin:projekt_neu' %}" method="POST" style="border: 1px solid #dee2e6;">
+        
+        <!-- CSRF Token -->
+        {% csrf_token %}
+
+        <!-- Textfeld Projektbezeichnung -->
+        <div class="form-group">
+            <label for="bezeichnung">Projektbezeichnung</label>
+            <input type="text" class="form-control" name="bezeichnung" id="bezeichnung" required> 
+        </div>
+
+        <!-- Textfeld Kurzbezeichnung Projekt -->
+        <div class="form-group">
+            <label for="kurzbezeichnung">Kurzebezeichnung Projekt (keine Leerzeichen)</label>
+            <input type="text" class="form-control" name="kurzbezeichnung" id="kurzbezeichnung" pattern="^\S*$" required>
+        </div>
+
+        <!-- Dropdown Firmen -->
+        <div class="form-group">
+            <label for="firma_id">Projektadmin-Firma</label>
+            <select class="form-control col-6" name="firma_id" id="firma_id">
+                {% for firma in liste_firmen %}
+                    <option value={{firma.id}}>{{firma.kurzbezeichnung}}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Submit Button -->
+        <button type="submit" class="btn btn-primary">Projekt anlegen</button>
+
+    </form>
+    
+    <p style="color: green;">
+        {{erfolgsmeldung}}
+    </p>
+
+
+{% endblock inhalt %}

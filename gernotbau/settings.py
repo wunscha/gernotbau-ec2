@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/3.1/ref/settings/
 """
 
 from pathlib import Path
+from django.urls import reverse
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -42,7 +43,8 @@ INSTALLED_APPS = [
     'superadmin',
     'projektadmin',
     'firmenadmin',
-    'dokab'
+    'dokab',
+    'test_multidb'
 ]
 
 MIDDLEWARE = [
@@ -83,12 +85,29 @@ WSGI_APPLICATION = 'gernotbau.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'postgres',
+        'NAME': 'postgres', # TODO: DB-Namen auf 'benutzer' ändern
         'USER': 'postgres',
         'PASSWORD': 'postgres',
         'HOST': 'db',
         'PORT': 5432
-    }
+    },
+    '1': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': '1',
+        'USER': 'postgres',
+        'PASSWORD': 'postgres',
+        'HOST': 'db',
+        'PORT': 5432
+    },
+    '2': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': '2',
+        'USER': 'postgres',
+        'PASSWORD': 'postgres',
+        'HOST': 'db',
+        'PORT': 5432
+    },
+
 }
 
 
@@ -154,5 +173,5 @@ AUTH_USER_MODEL = 'superadmin.Mitarbeiter'
 ################################
 # Weiterleitungen für Login und Logout
 
-LOGIN_REDIRECT_URL = 'superadmin:home'
-LOGOUT_REDIRECT_URL = 'superadmin:home'
+LOGIN_REDIRECT_URL = 'home' #reverse('home')
+LOGOUT_REDIRECT_URL = 'home' #reverse('home')

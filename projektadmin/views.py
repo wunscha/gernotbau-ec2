@@ -7,6 +7,61 @@ from django.urls import reverse
 from django.http import HttpResponse, HttpResponseRedirect
 from django import forms
 
+def übersicht_firmen_view(request, projekt_id):
+    # Prüfung Login
+    if not request.user.is_authenticated:
+        return HttpResponseRedirect('login')
+    else:
+
+        # Prüfung Projektadmin
+        if not user_ist_projektadmin(request.user, projekt_id):
+            fehlermeldung = 'Melden Sie sich bitte als Projektadmin für das gewünschte Projekt an'
+            context = {
+                'fehlermeldung': fehlermeldung,
+            }
+            return render(request, './registration/login.html', context)
+        else:
+
+            projekt = Projekt.objects.using('default').get(pk = projekt_id)
+                
+            # Wenn POST: Verbinde Projekt mit Firma aus Forumlardaten
+            if request.method == 'POST':
+                firma = Firma.objects.using('default').get(pk = request.POST['firma_id'])
+                neu_projekt_firma_mail = Projekt_Firma_Mail(
+                    email = projekt.kurzbezeichnung + firma.email,
+                    firma = firma, 
+                    ist_projektadmin = False,
+                    projekt = projekt
+                )
+                neu_projekt_firma_mail.save(using='default')
+
+                # TODO: Log-Einträge
+                # TODO: InfoMails
+            
+            # Liste aller Firmen im Projekt für context
+            liste_firmen_projekt_obj = projekt.firma.all()
+            liste_firmen_projekt = []
+            for firma in liste_firmen_projekt_obj:
+                liste_firmen_projekt.append(firma.bezeichnung)
+            
+            # Liste aller Firmen, die nicht im Projekt sind für context
+            liste_firmen_außerhalb_obj = Firma.objects.exclude(projekt = projekt)
+            liste_firmen_außerhalb = []
+            for firma in liste_firmen_außerhalb_obj:
+                dict_firma = {}
+                dict_firma['id'] = firma.id
+                dict_firma['kurzbezeichnung'] = firma.kurzbezeichnung
+                liste_firmen_außerhalb.append(dict_firma)
+            
+            # Lade Template
+            context = {
+                'projekt_id': projekt_id,
+                'liste_firmen_projekt': liste_firmen_projekt,
+                'liste_firmen_außerhalb': liste_firmen_außerhalb,
+            }
+            return render(request, './projektadmin/übersicht_firmen.html', context)
+            
+
 ################################################
 # View für Workflows
 
@@ -103,63 +158,6 @@ def prüffirmaHinzufügenView(request):
             #TODO: InfoMail an Prüffirma
 
         return HttpResponseRedirect(reverse('projektadmin:workflowschemata', args=[request.POST['projekt_id']]))
-    else:
-        return HttpResponseRedirect(reverse('home'))
-
-################################################
-# Views für Firmenverwaltung
-
-def firmenÜbersichtView(request, projekt_id):
-# Zeige Auflistung der Firmen, die mit dem Projekt verbunden sind.
-# Klick auf Firmennamen leitet zur Detailansicht der Firma weiter
-
-# Prüfung Projektadmin
-    if user_ist_projektadmin(request.user, projekt_id):
-        projekt = Projekt.objects.get(pk = projekt_id)
-        # Hole Einträge aus PJ-Fa-Througtabelle für das aktuelle Projekt
-        liste_pj_fa_mail = Projekt_Firma_Mail.objects.filter(projekt = projekt)
-        # Formular für Firmenauswahl vorbereiten (Auswahlmöglichkeiten: Firmen, die noch nicht bei Projekt)
-        alle_firmen = Firma.objects.all()
-        firmen_im_projekt = projekt.firma.all()
-        firmen_außerhalb_projekt = alle_firmen.difference(firmen_im_projekt)
-        firma_hinzufügen_form = FirmaNeuForm()
-        firma_hinzufügen_form.fields['firma'].queryset = firmen_außerhalb_projekt
-        # Packe Context und Leite Weiter auf Firmenübersicht
-        context = {
-            'liste_pj_fa_mail':liste_pj_fa_mail,
-            'firma_hinzufügen_form':firma_hinzufügen_form,
-            'projekt_id':projekt_id
-        }
-        return render(request, 'firmen_übersicht.html', context)
-
-    # Wenn nicht Projektadmin Weiterleitung auf Zugriff-Vereweigert-Seite
-    else:
-        return render(request, 'projektadmin_zugriff_verweigert.html')
-
-def firmaHinzufügenView(request):
-# Wenn POST-Anfrage, dann füge ausgewählte Firma zum Projekt hinzu
-# Wenn keine POST-Anfrage, dann passiert nichts
-
-    if request.method == 'POST':
-        # Hole Daten aus Formular und validiere
-        firma_hinzufügen_daten = FirmaNeuForm(request.POST)
-        if firma_hinzufügen_daten.is_valid():
-            # Bereite Daten vor
-            projekt = Projekt.objects.get(pk = request.POST['projekt_id'])
-            firma = firma_hinzufügen_daten.cleaned_data['firma']
-            email = str('%s.%s' % (projekt.kurzbezeichnung, firma.email))
-            # Lege Eintrag in Through-Tabelle Projekt_Firma_Mail an
-            neu_pj_fa_mail = Projekt_Firma_Mail.objects.create(
-                email = email,
-                firma = firma,
-                ist_projektadmin = False,
-                projekt = projekt
-            )
-
-            #TODO: InfoMail an Firma
-
-        # Weiterleigung zur Projektfirmen-Übersicht
-        return HttpResponseRedirect(reverse('firmen_übersicht', args=[request.POST['projekt_id']]))
     else:
         return HttpResponseRedirect(reverse('home'))
 

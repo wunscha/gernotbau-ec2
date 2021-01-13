@@ -77,12 +77,15 @@ def sortierte_stufenliste(liste_stufen):
 
 # Prüft ob User Projektadmin ist
 def user_ist_projektadmin(user, projekt_id):
-    projekt = Projekt.objects.get(pk=projekt_id)
     # Hole Eintrag für Projekt-Mitarbeiter-ManyToMany-Beziehung aus der Through-Tabelle
     # und gib Wert für 'ist_projektadmin' zurück.
-    pj_ma_mail = Projekt_Mitarbeiter_Mail.objects.filter(mitarbeiter = user, projekt = projekt)[0]
-    if pj_ma_mail:
-        return pj_ma_mail.ist_projektadmin
+    projekt = Projekt.objects.using('default').get(pk=projekt_id)
+    try:
+        pj_ma_mail = Projekt_Mitarbeiter_Mail.objects.get(mitarbeiter = user, projekt = projekt)
+    except Projekt_Mitarbeiter_Mail.DoesNotExist:
+        return False
+    
+    return pj_ma_mail.ist_projektadmin
 
 #########################################################
 # Funktionen für Ordner

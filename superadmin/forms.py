@@ -10,7 +10,6 @@ class FirmaNeuForm(ModelForm):
         fields = [
             'bezeichnung',
             'kurzbezeichnung',
-            'adresse',
             'postleitzahl',
             'ort',
             'email_office'

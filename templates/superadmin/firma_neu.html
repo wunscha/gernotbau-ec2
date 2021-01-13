@@ -1,0 +1,95 @@
+<!-- Vererbung -->
+{% extends './_base_superadmin.html' %}
+
+<!-- Titel -->
+{% block titel %}
+    Firma Neu
+{% endblock titel %}
+
+<!-- nav-tab aktiv -->
+{% block firma_neu_active %}
+    active
+{% endblock firma_neu_active %}
+
+<!-- Seiteninhalt -->
+{% block inhalt %}
+
+<div class="container">
+
+    <!-- Seitenüberschrift -->
+    <h1 class="mb-5 text-center">Neue Firma</h1>
+
+    <!-- Formular Neue Firma -->
+    <form class="p-2" action="{% url 'superadmin:firma_neu' %}" method="POST" style="border: 1px solid #dee2e6;">
+        
+        <!-- CSRF Token -->
+        {% csrf_token %}
+
+        <!-- Textfeld Firmenbezeichnung -->
+        <div class="form-group">
+            <label for="bezeichnung">Firmenbezeichnung</label>
+            <input type="text" class="form-control" name="bezeichnung" id="bezeichnung" required> 
+        </div>
+
+        <!-- Textfeld Kurzbezeichnung -->
+        <div class="form-group">
+            <label for="kurzbezeichnung">Kurzebezeichnung (keine Leerzeichen)</label>
+            <input type="text" class="form-control" name="kurzbezeichnung" id="kurzbezeichnung" pattern="^\S*$" required>
+        </div>
+
+        <!-- Textfelder Straße/HNr -->
+        <div class="form-row">
+            <!-- Straße -->
+            <div class="form-group col-9">
+                <label for="strasse">Adresse</label>
+                <input type="text" class="form-control" name="strasse" id="strasse">
+            </div>
+
+            <!-- HNr -->
+            <div class="form-group col-3">
+                <label for="hausnummer">Hausnummer</label>
+                <input type="text" class="form-control" name="hausnummer" id="hausnummer">
+            </div>
+        </div>
+
+        <!-- Textfelder PLZ/Ort -->
+        <div class="form-row">
+            
+            <!-- PLZ -->
+            <div class="form-group col-3">
+                <label for="postleitzahl">PLZ</label>
+                <input type="text" class="form-control" name="postleitzahl" text="postleitzahl">
+            </div>
+
+            <!-- Ort -->
+            <div class="form-group col-9">
+                <label for="ort">Ort</label>
+                <input type="text" class="form-control" name="ort" id="ort">
+            </div>
+
+        </div>
+
+        <!-- Textfeld Office-Mail -->
+        <div class="form-group">
+            <label for="email_office">Office E-Mail Adresse</label>
+            <input type="email" class="form-control" name="email_office" id="email_office" autocomplete="none" required>
+        </div>
+
+        <!-- Eingabefeld Passwort -->
+        <div class="form-group border-top">
+            <label for="passwort">Passwort Firmenadmin</label>
+            <input type="password" class="form-control" name="passwort" id="passwort" autocomplete="none" required>
+        </div>
+
+        <!-- Submit Button -->
+        <button type="submit" class="btn btn-primary">Firma anlegen</button>
+
+    </form>
+    
+    <p style="color: green;">
+        {{erfolgsmeldung}}
+    </p>
+
+</div>
+
+{% endblock inhalt %}

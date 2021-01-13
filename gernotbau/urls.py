@@ -16,6 +16,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from django.views.generic.base import TemplateView
+from . import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -24,7 +25,7 @@ urlpatterns = [
     path('accounts/', include('django.contrib.auth.urls')),
 
     # Weiterleitung zu Superadmin
-    path('', include('superadmin.urls')),
+    path('superadmin/', include('superadmin.urls')),
 
     # Weiterleitung zu Projektadmin
     path('projektadmin/', include('projektadmin.urls')),
@@ -33,5 +34,14 @@ urlpatterns = [
     path('firmenadmin/', include('firmenadmin.urls')),
 
     # Weiterleitung zu DokAb
-    path('dokab/', include('dokab.urls'))
+    path('dokab/', include('dokab.urls')),
+
+    # Weiterleitung zu Test MultiDB
+    path('test_multidb/', include('test_multidb.urls')),
+
+    # Home
+    path('', views.home_view, name='home'),
+
+    # Login-Formular
+    path('login/', views.login_view, name = 'login'),
 ]

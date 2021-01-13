@@ -1,0 +1,50 @@
+<!-- Vererbung -->
+{% extends './_base_projektadmin.html' %}
+
+<!-- Titel -->
+{% block titel %}
+    Übersicht Projektfirmen
+{% endblock titel %}
+
+<!-- nav-tab aktiv -->
+{% block übersicht_firmen_active %}
+    active
+{% endblock übersicht_firmen_active %}
+
+<!-- Seiteninhalt -->
+{% block inhalt %}
+<div class="container">
+
+    <h1 class="mb-5 text-center">Übersicht Firmen</h1>
+
+    <!-- Liste Projektfirmen -->
+    {% for firma in liste_firmen_projekt %}
+        <ul class="my-3 list-group">
+            <li class="list-group-item font-weight-bolder">{{firma}}</li>
+        </ul>
+    {% endfor %}
+
+    <!-- Formular "Neue Firma zuordnen" -->
+    <ul class="my-3 list-group">
+        <li class="list-group-item" style="background-color: lightblue;">
+            
+            <form class="form-inline" action="{% url 'projektadmin:übersicht_firmen' projekt_id %}" method='POST'>
+                {% csrf_token %}
+
+                <label class="mx-1" for="firma_id">Firma zum Projekt hinzufügen:</label>
+                <select class="mx-1 form-control" name="firma_id" id="firma_id">
+                    {% for firma in liste_firmen_außerhalb %}
+                        <option value="{{firma.id}}">{{firma.kurzbezeichnung}}</option>
+                    {% endfor %}
+                </select>
+
+                <button class="mx-1 btn btn-outline-dark" type="submit">Firma hinzufügen</button>
+
+            </form>
+
+        </li>
+    </ul>
+
+
+</div>
+{% endblock inhalt %}

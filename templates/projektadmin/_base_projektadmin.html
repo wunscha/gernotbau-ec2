@@ -1,0 +1,25 @@
+<!-- Vererbung -->
+{% extends '../_base_.html' %}
+
+<!-- Link App-Titel -->
+{% block href_titel_app %}
+    {% url 'projektadmin:übersicht_firmen' projekt_id %}
+{% endblock href_titel_app %}
+
+<!-- App-Titel -->
+{% block titel_app %}
+    Projektadmin
+{% endblock titel_app %}
+
+<!-- Navgationsleiste -->
+{% block navigationsleiste %}
+
+    <ul class="nav nav-tabs">
+
+        <li class="nav-item">
+            <a href="{% url 'projektadmin:übersicht_firmen' projekt_id %}" class="nav-link {% block übersicht_firmen_active %}{% endblock übersicht_firmen_active %}">Firma Neu</a>
+        </li>
+
+    </ul>
+
+{% endblock navigationsleiste %}

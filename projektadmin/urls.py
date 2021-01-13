@@ -12,8 +12,7 @@ urlpatterns = [
     path('prüffirma_hinzufügen/', views.prüffirmaHinzufügenView, name = 'prüffirma_hinzufügen'),
     
     # Projektfirmen-Verwaltung
-    path('<projekt_id>/firmen_übersicht/', views.firmenÜbersichtView, name = 'firmen_übersicht'),
-    path('firma_hinzufügen/', views.firmaHinzufügenView, name = 'firma_hinzufügen'),
+    path('<projekt_id>/übersicht_firmen/', views.übersicht_firmen_view, name = 'übersicht_firmen'),
     path('<projekt_id>/firma_detail/<firma_id>/', views.firmaDetailView, name = 'firma_detail'),
     path('<projekt_id>/ordner_freigabe_ändern/<firma_id>/', views.ordner_freigabe_ändern, name = 'ordner_freigabe_ändern'),
 

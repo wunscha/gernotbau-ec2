@@ -4,7 +4,8 @@ from django.contrib.auth.models import AbstractUser
 class Firma(models.Model):
     bezeichnung = models.CharField(max_length=50)
     kurzbezeichnung = models.CharField(max_length=10)
-    adresse = models.CharField(max_length=50)
+    strasse = models.CharField(max_length=50, null=True)
+    hausnummer = models.CharField(max_length=50, null=True)
     postleitzahl = models.IntegerField()
     ort = models.CharField(max_length=50)
     email_office = models.EmailField()
@@ -19,6 +20,7 @@ class Mitarbeiter(AbstractUser):
         on_delete=models.CASCADE,
         null = True)
     ist_firmenadmin = models.BooleanField(default = False)
+    ist_superadmin = models.BooleanField(default = False)
 
     def __str__(self):
         return self.username

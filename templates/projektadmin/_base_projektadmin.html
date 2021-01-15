@@ -17,7 +17,11 @@
     <ul class="nav nav-tabs">
 
         <li class="nav-item">
-            <a href="{% url 'projektadmin:übersicht_firmen' projekt_id %}" class="nav-link {% block übersicht_firmen_active %}{% endblock übersicht_firmen_active %}">Firma Neu</a>
+            <a href="{% url 'projektadmin:übersicht_firmen' projekt_id %}" class="nav-link {% block übersicht_firmen_active %}{% endblock übersicht_firmen_active %}">Firmen</a>
+        </li>
+
+        <li class="nav-item">
+            <a href="{% url 'projektadmin:übersicht_workflowschemata' projekt_id %}" class="nav-link {% block übersicht_wf_schemata_active %}{% endblock übersicht_wf_schemata_active %}">Workflowschemata</a>
         </li>
 
     </ul>

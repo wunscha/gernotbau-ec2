@@ -99,7 +99,7 @@ DATABASES = {
         'HOST': 'db',
         'PORT': 5432
     },
-    '2': {
+    '5': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': '2',
         'USER': 'postgres',

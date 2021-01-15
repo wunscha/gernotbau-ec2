@@ -21,6 +21,13 @@ class Workflow_Schema_Stufe(models.Model):
     def __str__(self):
         return str('WFSch-Stufe_für_' + self.workflow_schema.bezeichnung)
 
+class WFSch_Stufe_Firma(models.Model):
+    workflow_schema_stufe = models.ForeignKey(Workflow_Schema_Stufe, on_delete = models.CASCADE)
+    firma_id = models.CharField(max_length=20)
+
+    def __str__(self):
+        return str('Prüffirma für ' + self.workflow_schema_stufe.workflow_schema.bezeichnung)
+
 class WFSch_Stufe_Mitarbeiter(models.Model):
     immer_erforderlich = models.BooleanField()
     wfsch_stufe = models.ForeignKey(Workflow_Schema_Stufe, on_delete = models.CASCADE)

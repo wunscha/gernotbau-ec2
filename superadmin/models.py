@@ -6,10 +6,11 @@ class Firma(models.Model):
     kurzbezeichnung = models.CharField(max_length=10)
     strasse = models.CharField(max_length=50, null=True)
     hausnummer = models.CharField(max_length=50, null=True)
-    postleitzahl = models.IntegerField()
+    postleitzahl = models.CharField(max_length = 10)
     ort = models.CharField(max_length=50)
     email_office = models.EmailField()
     email = models.EmailField()
+    aktiv = models.BooleanField(default = True)
 
     def __str__(self):
         return self.kurzbezeichnung
@@ -21,6 +22,7 @@ class Mitarbeiter(AbstractUser):
         null = True)
     ist_firmenadmin = models.BooleanField(default = False)
     ist_superadmin = models.BooleanField(default = False)
+    aktiv = models.BooleanField(default = True)
 
     def __str__(self):
         return self.username
@@ -38,6 +40,7 @@ class Projekt(models.Model):
         through = 'Projekt_Firma_Mail',
         through_fields = ('projekt', 'firma'),
     )
+    aktiv = models.BooleanField(default = True)
 
     def __str__(self):
         return self.kurzbezeichnung
@@ -51,6 +54,11 @@ class Projekt_Mitarbeiter_Mail(models.Model):
     def __str__(self):
         return str('%s - %s, %s' % (self.projekt.kurzbezeichnung, self.mitarbeiter.last_name, self.mitarbeiter.first_name,))
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields = ['projekt', 'mitarbeiter'], name = 'verbindung_pj-ma_unique'), # Verbindung Projekt-Mitarbeiter soll unique sein
+        ]
+
 class Projekt_Firma_Mail(models.Model):
     ist_projektadmin = models.BooleanField()
     email = models.EmailField()
@@ -59,3 +67,8 @@ class Projekt_Firma_Mail(models.Model):
 
     def __str__(self):
         return str(self.projekt.kurzbezeichnung + '-' + self.firma.kurzbezeichnung)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields = ['projekt', 'firma'], name = 'verbindung_pj-fa_unique') # Verbindung Projekt-Firma soll unique sein
+        ]

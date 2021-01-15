@@ -1,11 +1,12 @@
 from django.shortcuts import render
 from .funktionen import user_ist_projektadmin, sortierte_stufenliste, suche_letzte_stufe, Ordnerbaum
-from .models import Workflow_Schema, Workflow_Schema_Stufe, Ordner, Ordner_Firma_Freigabe
+from .models import Workflow_Schema, Workflow_Schema_Stufe, WFSch_Stufe_Firma, Ordner, Ordner_Firma_Freigabe
 from .forms import FirmaNeuForm, WFSchWählenForm
 from superadmin.models import Projekt, Firma, Projekt_Firma_Mail
 from django.urls import reverse
 from django.http import HttpResponse, HttpResponseRedirect
 from django import forms
+from funktionen import hole_objs, hole_dicts
 
 def übersicht_firmen_view(request, projekt_id):
     # Prüfung Login
@@ -23,26 +24,51 @@ def übersicht_firmen_view(request, projekt_id):
         else:
 
             projekt = Projekt.objects.using('default').get(pk = projekt_id)
+            fehlermeldung = '' # Fehlermeldung für context
                 
-            # Wenn POST: Verbinde Projekt mit Firma aus Forumlardaten
+            # Wenn POST: Verbinde/Löse Projekt mit/von Firma aus Forumlardaten
             if request.method == 'POST':
-                firma = Firma.objects.using('default').get(pk = request.POST['firma_id'])
-                neu_projekt_firma_mail = Projekt_Firma_Mail(
-                    email = projekt.kurzbezeichnung + firma.email,
-                    firma = firma, 
-                    ist_projektadmin = False,
-                    projekt = projekt
-                )
-                neu_projekt_firma_mail.save(using='default')
 
-                # TODO: Log-Einträge
-                # TODO: InfoMails
+                # Wenn Aufruf von "Firma lösen Formular": Entferne Verbindung Projekt-Firma aus Formulardaten
+                if 'firma_lösen_id' in request.POST:
+                    firma_lösen = Firma.objects.get(pk = request.POST['firma_lösen_id'])
+                    projekt_firma_mail = Projekt_Firma_Mail.objects.get(projekt = projekt_id, firma = firma_lösen)
+                    
+                    # Wenn Projektadmin-Firma: Fehlermeldung für context
+                    if projekt_firma_mail.ist_projektadmin:
+                        fehlermeldung = 'Die Projektadmin-Firma kann nicht vom Projekt gelöst werden'
+                        
+                    else:
+                        projekt_firma_mail.delete(using = 'default')
+
+                    # TODO: Warnhinweis "Wollen Sie wirklich löschen?"
+
+                # Wenn Aufruf von "Firma verbinden Formular": Verbinde Projekt mit Firma aus Forumlardaten
+                if 'firma_verbinden_id' in request.POST:
+                    firma = Firma.objects.using('default').get(pk = request.POST['firma_verbinden_id'])
+                    neu_projekt_firma_mail = Projekt_Firma_Mail(
+                        email = projekt.kurzbezeichnung + firma.email,
+                        firma = firma, 
+                        ist_projektadmin = False,
+                        projekt = projekt
+                    )
+                    neu_projekt_firma_mail.save(using='default')
+
+                    # Fehlermeldung für context leeren
+                    fehlermeldung=''
+
+                    # TODO: Log-Einträge
+                    # TODO: InfoMails
             
             # Liste aller Firmen im Projekt für context
-            liste_firmen_projekt_obj = projekt.firma.all()
+            liste_pj_fa_mail = Projekt_Firma_Mail.objects.filter(projekt = projekt)
             liste_firmen_projekt = []
-            for firma in liste_firmen_projekt_obj:
-                liste_firmen_projekt.append(firma.bezeichnung)
+            for eintrag in liste_pj_fa_mail:
+                dict_firma = {}
+                dict_firma['id'] = eintrag.firma.id
+                dict_firma['bezeichnung'] = eintrag.firma.bezeichnung
+                dict_firma['ist_projektadmin'] = eintrag.ist_projektadmin
+                liste_firmen_projekt.append(dict_firma)
             
             # Liste aller Firmen, die nicht im Projekt sind für context
             liste_firmen_außerhalb_obj = Firma.objects.exclude(projekt = projekt)
@@ -55,6 +81,7 @@ def übersicht_firmen_view(request, projekt_id):
             
             # Lade Template
             context = {
+                'fehlermeldung': fehlermeldung,
                 'projekt_id': projekt_id,
                 'liste_firmen_projekt': liste_firmen_projekt,
                 'liste_firmen_außerhalb': liste_firmen_außerhalb,
@@ -65,40 +92,91 @@ def übersicht_firmen_view(request, projekt_id):
 ################################################
 # View für Workflows
 
-# Erzeuge Strukturierte Listenansicht für die Workflowschemata
-def workflowschemataView(request, projekt_id):
-    projekt = Projekt.objects.get(pk = projekt_id)
-    
-    if user_ist_projektadmin(user = request.user, projekt_id = projekt_id):
-        liste_workflowschemata = Workflow_Schema.objects.filter(projekt = projekt)
-        dict_workflowschemata = {}
-        liste_workflowschemata_id =[]
-        
-        # Dict für Workfloschemata und -stufen befüllen
-        for wfsch in liste_workflowschemata:
-            liste_wfsch_stufen = Workflow_Schema_Stufe.objects.filter(workflow_schema = wfsch)
-            liste_wfsch_stufen = sortierte_stufenliste(liste_wfsch_stufen)
-            # Dict für Workfloschemata und -stufen befüllen
-            dict_workflowschemata[wfsch.bezeichnung] = liste_wfsch_stufen
-            # Liste mit Worklfowschemata-IDs befüllen --> wird gebraucht für die verstecken Forms
-            # für das Hinzufügen von WFSch-Stufen
-            liste_workflowschemata_id.append(wfsch.id)
-
-        # Formular für Auswahl Prüffirmen (Auswahlmöglichkeiten: Nur Firmen, die mit Projekt verbunden)
-        prüffirma_neu_form = FirmaNeuForm()
-        prüffirma_neu_form.fields['firma'].queryset = projekt.firma
-        
-        # Context für Template-Rendering zusammenstellen
-        context = {
-            'dict_workflowschemata':dict_workflowschemata,
-            'liste_workflowschemata_id':liste_workflowschemata_id,
-            'prüffirma_neu_form':prüffirma_neu_form,
-            'projekt_id':projekt_id
-        }
-
-        return render(request, 'workflowschemata.html', context)
+def übersicht_workflowschemata(request, projekt_id):
+    # Prüfung Login
+    if not request.user.is_authenticated:
+        return HttpResponseRedirect('login')
     else:
-        return render(request, 'projektadmin_zugriff_verweigert.html')
+
+        # Prüfung Projektadmin
+        if not user_ist_projektadmin(request.user, projekt_id):
+            fehlermeldung = 'Melden Sie sich bitte als Projektadmin für das gewünschte Projekt an'
+            context = {
+                'fehlermeldung': fehlermeldung,
+            }
+            return render(request, './registration/login.html', context)
+        else:
+
+            projekt = Projekt.objects.using('default').get(pk = projekt_id)
+            fehlermeldung = '' # Fehlermeldung für context
+
+            # Wenn POST: 
+            # - Füge Workflowschmea hinzu/ Entferne Workflowschema, oder
+            # - Füge Stufe hinzu/ Entferne Stufe, oder
+            # - Füge Prüffirma hinzu/ Entferne Prüffirma
+            if request.method == 'POST':
+
+                # Workflowschema erstellen
+                if 'wfsch_neu_bezeichnung' in request.POST:
+                    pass
+
+                # Workflowschema löschen
+                if 'wfsch_löschen_id' in request.POST:
+                    pass
+
+                # Workflowschema_Stufe hinzufügen
+                if 'wfsch_stufe_neu_id' in request.POST:
+                    pass
+                
+                # Workflowschema_Stufe löschen
+                if 'wfsch_stufe_löschen_id' in request.POST:
+                    pass
+                
+                # Prüffirma mit Stufe verbinden
+                if 'prüffirma_verbinden_id' in request.POST:
+                    pass
+                
+                # Prüffirma lösen
+                if 'prüffirma_lösen_id' in request.POST:
+                    pass
+                
+                # TODO: Weiterleitung zu Warnhinweis
+                # TODO: Logs
+                # TODO: Infomails
+
+            # Erzeuge Liste Workflowschemata für context
+            # Hole Workflowschemata
+            liste_workflowschemata_obj = Workflow_Schema.objects.using(projekt_id).filter(projekt = projekt)
+            liste_workflowschemata = []
+            for workflow_schema in liste_workflowschemata_obj:
+                # Hole Workflowschema Stufen
+                liste_wfsch_stufen_obj = Workflow_Schema_Stufe.objects.using(projekt_id).filter(workflow_schema = workflow_schema)
+                liste_wfsch_stufen_obj = sortierte_stufenliste(liste_wfsch_stufen_obj)
+                liste_wfsch_stufen = []
+                for wfsch_stufe in liste_wfsch_stufen_obj:
+                    # Hole Prüffirmen
+                    liste_prüffirmen = hole_dicts.prüffirmen(projekt, wfsch_stufe)
+                    # Hole Firmen, die nicht in Stufe
+                    liste_nicht_prüffirmen = hole_dicts.nicht_prüffirmen(projekt, wfsch_stufe)
+                    
+                    dict_wfsch_stufe = {}
+                    dict_wfsch_stufe['liste_prüffirmen'] = liste_prüffirmen
+                    dict_wfsch_stufe['liste_nicht_prüffirmen'] = liste_nicht_prüffirmen
+                    dict_wfsch_stufe['id'] = wfsch_stufe.id
+                    liste_wfsch_stufen.append(dict_wfsch_stufe)
+                    
+                dict_workflow_schema = {}
+                dict_workflow_schema['liste_wfsch_stufen'] = liste_wfsch_stufen
+                dict_workflow_schema['id'] = workflow_schema.id
+                dict_workflow_schema['bezeichnung'] = workflow_schema.bezeichnung
+                liste_workflowschemata.append(dict_workflow_schema)
+            
+            context = {
+                'liste_workflowschemata': liste_workflowschemata,
+                'projekt_id': projekt_id,
+            }
+
+            return render(request, './projektadmin/übersicht_workflowschemata.html', context)
 
 def workflowschemaNeuView(request):
     # Wenn Post-Anfrage, dann wird neues Workflowschema angelegt 

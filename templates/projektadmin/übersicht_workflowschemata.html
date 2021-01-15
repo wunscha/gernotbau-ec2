@@ -1,0 +1,98 @@
+<!-- Vererbung -->
+{% extends './_base_projektadmin.html' %}
+
+<!-- Titel -->
+{% block titel %}
+    Übersicht Workflowschemata
+{% endblock titel %}
+
+<!-- nav-tab aktiv -->
+{% block übersicht_wf_schemata_active %}
+    active
+{% endblock übersicht_wf_schemata_active %}
+
+<!-- Seiteninhalt -->
+{% block inhalt %}
+<div class="container">
+
+    <!-- Seitenüberschrift -->
+    <h1 class="mb-5 text-center">Übersicht Workflowschemata</h1>
+
+    <!-- Formular "Neues Workflowschema anlegen" -->
+    <ul class="my-3 list-group">
+
+        <li class="list-group-item font-weight-bolder">
+            Neues Workflowschema anlegen
+        </li>
+        
+        <li class="list-group-item">
+            <form class="form-inline" action="{% url 'projektadmin:übersicht_workflowschemata' projekt_id %}" method="POST">
+                {% csrf_token %}
+                <label class="mx-1" for="wfsch_neu_bezeichnung">Bezeichnung Workflowschema</label>
+                <input class="mx-1 form-control" type="text" name="wfsch_neu_bezeichnung" id="wfsch_neu_bezeichnung">
+                <button class="mx-q btn btn-outline-success" type="submit">Erstellen</button>
+            </form>
+        </li>
+
+    </ul>
+
+    <!-- Auflistung Workflowschemata -->
+    {% for workflowschema in liste_workflowschemata %}
+    <ul class="my-3 list-group">
+
+        <!-- WFSch Bezeichnung -->
+        <li class="list-group-item font-weight-bolder" style="background-color: lightblue;"><div class="d-flex flex-row">
+            <div class="p-2 flex-grow-1 font-weight-bolder">{{workflowschema.bezeichnung}}</div>
+                <div class="p-2 justify-content-end">
+                    <form class="form-inline" action="{% url 'projektadmin:übersicht_workflowschemata' projekt_id %}" method="POST">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-danger align-middle p-0" name="wfsch_löschen_id" style="height: 20px; width: 20px; font-size: small" value="{{workflowschema.id}}">-</button>
+                    </form>
+                </div>
+            </div>
+        </li>
+
+        <!-- WFSch Stufe -->
+        {% for wfsch_stufe in workflowschema.liste_wfsch_stufen %}
+        <li class="list-group-item">
+            <div class="d-flex flex-row">
+                <div class="p-2 flex-grow-1 font-weight-bolder">Stufe {{forloop.counter}}</div>
+                <div class="p-2 justify-content-end">
+                    <form class="form-inline" action="{% url 'projektadmin:übersicht_workflowschemata' projekt_id %}" method="POST">
+                        <button type="submit" class="btn btn-outline-danger align-middle p-0" name="wfsch_stufe_löschen_id" value="{{wfsch_stufe.id}}">-</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Auflistung Prüffirmen -->
+            {% for prüffirma in wfsch_stufe.liste_prüffirmen %}
+            <li>
+                <form class="form-inline" action="{% url 'projektadmin:übersicht_workflows' projekt_id %}" method="POST">
+                    <label for="button_prüffirma_lösen">{{prüffirma.bezeichnung}}</label>
+                    <button type="submit" 
+                            class="btn btn-outline-danger align-middle p-0 m-2" 
+                            name="prüffirma_lösen_id" 
+                            id="button_prüffirma_lösen" 
+                            style="height: 20px; width: 20px; font-size: small"
+                            value="{{prüffirma.id}}">-</button>
+                </form>
+            </li>
+
+            <!-- Formular "Prüffirma hinzufügen" -->
+            <form class="form-inline">
+                <select class="form-control" name="prüffirma_verbinden_id">
+                    {% for nicht_prüffirma in wfsch_stufe.liste_nicht_prüffirmen %
+                        <option value="{{nicht_prüffirma.id}}">{{nicht_prüffirma.kurzbezeichnung}}</option>
+                    {% endfor %}}
+                </select>
+            </form>
+            {% endfor %}
+
+        </li>
+        {% endfor %}
+
+    </ul>
+    {% endfor %}
+
+</div>
+{% endblock inhalt %}

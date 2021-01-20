@@ -1,0 +1,93 @@
+<!-- Vererbung -->
+{% extends './_base_projektadmin.html' %}
+
+<!-- Titel -->
+{% block titel %}
+    Übersicht Ordner
+{% endblock titel %}
+
+<!-- nav-tab aktiv -->
+{% block übersicht_ordner_active %}
+    active
+{% endblock übersicht_ordner_active %}
+
+<!-- Seiteninhalt -->
+{% block inhalt %}
+<div class="container">
+
+    <!-- Seitenüberschrift -->
+    <h1 class="mb-5 text-center">Übersicht Ordner</h1>
+
+    <!-- Auflistung Ordner -->
+    <ul class="list-group">
+
+        <!-- Formular "Ordner hinzufügen" -->
+        <li class="list-group-item" style="background-color: #f8f9fa;">
+            <form class="p-2 form-inline" action="{% url 'projektadmin:übersicht_ordner' projekt_id %}" method="POST">
+                {% csrf_token %}
+                <input hidden type="text" name="anwendungsfall" value="ordner_anlegen">
+                <input type="text" class="form-control" name="unterordner_bezeichnung">
+                <button class="mx-2 btn btn-outline-primary" type="submit" name="ordner_id" value="{{root_ordner_id}}">Ordner hinzufügen</button>
+            </form>
+        </li>
+
+        <!-- Ordner -->
+        {% for ordner in liste_ordner %}
+        <li class="list-group-item">
+            <!-- Ordnerbezeichnung inkl. Lösch-Button -->
+            <div class="d-flex flex-row bd-highlight">
+                <div class="p-3 flex-grow-1 bd-highlight">
+                    <form class="form-inline" action="{% url 'projektadmin:übersicht_ordner' projekt_id %}" method="POST">
+                        {% csrf_token %}
+                        <input hidden type="text" name="anwendungsfall" value="ordner_löschen">
+                        <label for="button_ordner_löschen" class="font-">
+                            <strong>{{ordner.darstellung}}{{ordner.bezeichnung}}</strong>
+                        </label>
+                        <button type="submit" 
+                                class="btn btn-outline-danger align-middle p-0 m-2" 
+                                name="ordner_löschen_id" 
+                                id="button_ordner_löschen" 
+                                style="height: 20px; width: 20px; font-size: small"
+                                value="{{ordner.id}}">-</button>
+                    </form>
+                </div>
+            
+                <!-- Formular "Unterordner hinzufügen" -->
+                <div class="p-2 border-right bd-highlight">
+                    <form class="form-inline" action="{% url 'projektadmin:übersicht_ordner' projekt_id %}" method="POST">
+                        <input hidden type="text" name="anwendungsfall" value="ordner_anlegen">
+                        {% csrf_token %}
+                        <input type="text" class="form-control" name="unterordner_bezeichnung">
+                        <button class="mx-2 btn btn-outline-primary" name="ordner_id" value="{{ordner.id}}">Unterordner hinzufügen</button>
+                    </form>
+                </div>
+        
+                <!-- Anzeige aktuelles Workflowschema -->
+                <div class="p-2 col-2 text-center border-right bd-highlight">
+                    {{ordner.workflowschema_bezeichnung}}
+                </div>
+
+                <!-- Formular "Workflowschema zuweisen" -->
+                <div class="p-2 bd-highlight">
+                    <form class="form-inline" action="{% url 'projektadmin:übersicht_ordner' projekt_id %}" method="POST">
+                        {% csrf_token %}
+                        <input hidden type="text" name="anwendungsfall" value="workflowschema_zuweisen">
+                        <!-- Auswahlliste Workflowschemata -->
+                        <select class="mx-1 form-control" name="workflowschema_id" id="workflowschema_id">
+                            {% for workflowschema in liste_workflowschemata %}
+                            <option value="{{workflowschema.id}}">{{workflowschema.bezeichnung}}</option>
+                            {% endfor %}
+                        </select>
+                        <button class="mx-1 btn btn-outline-success" type="submit" name="ordner_id" value="{{ordner.id}}"> 
+                            OK
+                        </button>    
+                    </form>
+                </div>
+
+            </div>
+
+        </li>
+        {% endfor %}
+
+    </ul>
+{% endblock inhalt %}

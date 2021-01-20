@@ -1,6 +1,26 @@
-from superadmin.models import Firma
-from projektadmin.models import WFSch_Stufe_Firma
+from superadmin.models import Firma, Projekt_Mitarbeiter_Mail
+from projektadmin.models import Workflow_Schema, WFSch_Stufe_Firma
 from . import hole_objs
+
+def projekte_user(user):
+# Gibt Liste mit Dictionaries aller Projekte von user zurück
+    liste_projekte_user_objs = hole_objs.projekte_user(user)
+
+    liste_projekte_user = []
+    for projekt in liste_projekte_user_objs:
+        liste_projekte_user.append(projekt.__dict__)
+
+    return liste_projekte_user
+
+def projekte_user_projektadmin(user):
+# Gibt Liste mit Dictionaries aller Projekte zurück, für die user Projektadmin ist
+    liste_projekte_user_projektadmin_objs = hole_objs.projekte_user_projektadmin(user)
+
+    liste_projekte_user_projektadmin = []
+    for projekt in liste_projekte_user_projektadmin_objs:
+        liste_projekte_user_projektadmin.append(projekt.__dict__)
+
+    return liste_projekte_user_projektadmin
 
 def projektfirmen(projekt):
 # Gibt Liste mit Dictionaries aller Projektfirmen zurück
@@ -42,3 +62,13 @@ def nicht_prüffirmen(projekt, wfsch_stufe):
         liste_dicts_nicht_prüffirmen.append(prüffirma.__dict__)
 
     return liste_dicts_nicht_prüffirmen
+
+def workflowschemata(projekt):
+# Gibt Liste mit Dictionaries der Workflowschemata zurück
+    qs_workflowschemata = Workflow_Schema.objects.using(str(projekt.id)).all()
+
+    liste_workflowschemata = []
+    for workflowschema in qs_workflowschemata:
+        liste_workflowschemata.append(workflowschema.__dict__)
+    
+    return liste_workflowschemata

@@ -6,16 +6,13 @@ from superadmin.models import Projekt, Firma, Mitarbeiter
 
 class Workflow_Schema(models.Model):
     bezeichnung = models.CharField(max_length = 50)
-    projekt = models.ForeignKey(Projekt, on_delete = models.CASCADE)
-
+    
     def __str__(self):
         return self.bezeichnung
 
 class Workflow_Schema_Stufe(models.Model):
     workflow_schema = models.ForeignKey(Workflow_Schema, on_delete = models.CASCADE)
-    vorstufe = models.ForeignKey('self', on_delete = models.PROTECT, null=True, blank=True)
-    prüffirma = models.ManyToManyField(Firma)
-    projekt = models.ForeignKey(Projekt, on_delete = models.CASCADE)
+    vorstufe = models.ForeignKey('self', on_delete = models.DO_NOTHING, null=True, blank=True)
     mitarbeiter = models.ManyToManyField(Mitarbeiter, through='WFSch_Stufe_Mitarbeiter')
     
     def __str__(self):
@@ -42,20 +39,24 @@ class WFSch_Stufe_Mitarbeiter(models.Model):
 class Ordner(models.Model):
     bezeichnung = models.CharField(max_length = 50)
     ist_root_ordner = models.BooleanField(default = False)
-    überordner = models.ForeignKey('self', on_delete = models.CASCADE, null = True, blank = True)
-    firma = models.ManyToManyField(Firma, through = 'Ordner_Firma_Freigabe')
     workflow_schema = models.ForeignKey(Workflow_Schema, on_delete = models.PROTECT, null = True, blank = True)
-    projekt = models.ForeignKey(Projekt, on_delete = models.CASCADE)
-
+    # TODO: Beim neuen Aufsetzen von DB: M2M-Feld 'unterordner' mit through = 'Überordner_Unterordner' einfügen
+    
     def __str__(self):
         return self.bezeichnung
+
+class Überordner_Unterordner(models.Model):
+    überordner = models.ForeignKey(Ordner, on_delete = models.CASCADE, related_name = 'rel_überordner') # related_name notwendig, weil es sonst zu 'reverse accessor clash' kommt
+    unterordner = models.ForeignKey(Ordner, on_delete = models.CASCADE, related_name = 'rel_unterordner') # related_name notwendig, weil es sonst zu 'reverse accessor clash' kommt
+
+    def __str__(self):
+        return self.überordner.bezeichnung + '-' + self.unterordner.bezeichnung
 
 class Ordner_Firma_Freigabe(models.Model):
     freigabe_lesen = models.BooleanField()
     freigabe_upload = models.BooleanField()
-    firma = models.ForeignKey(Firma, on_delete = models.CASCADE)
+    firma_id = models.CharField(max_length = 20, null = True) # TODO: 'nullable' entfernen --> war nur für Testphase nötig
     ordner = models.ForeignKey(Ordner, on_delete = models.CASCADE)
-    projekt = models.ForeignKey(Projekt, on_delete = models.CASCADE)
 
     def __str__(self):
 
@@ -67,4 +68,4 @@ class Ordner_Firma_Freigabe(models.Model):
         if self.freigabe_upload:
             upload = 'Upload'
 
-        return str('%s: %s - %s %s%s' % (self.projekt.kurzbezeichnung, self.ordner.bezeichnung, self.firma.kurzbezeichnung, lesen, upload))
+        return str('%s - %s %s%s' % (self.ordner.bezeichnung, self.firma_id, lesen, upload))

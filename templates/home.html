@@ -9,6 +9,29 @@
 
 {% block inhalt %}
 <div class="container">
-    <h1 class="text-center">Willkommen Zuhause!</h1>
+    <h1 class="mb-5 text-center">Willkommen Zuhause!</h1>
+
+    {% if liste_projekte_user %}
+        <!-- Liste Projekte -->
+        <ul class="my-3 list-group">
+            <li class="list-group-item font-weight-bolder" style="background-color: #f8f9fa;">Ihre Projekte</li>
+            {% for projekt in liste_projekte_user %}
+                <li class="list-group-item"><a href="{% url 'dokab:weiterleitung_root' projekt.id %}">{{projekt.bezeichnung}}</a></li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+
+
+    {% if liste_projekte_user_projektadmin %}
+        <!-- Liste Projektadmin-Bereiche -->
+        <ul class="my-3 list-group">
+            <li class="list-group-item font-weight-bolder" style="background-color: #f8f9fa;">Zu den Projekt-Admin-Bereichen</li>
+            {% for projekt in liste_projekte_user_projektadmin %}
+                <li class="list-group-item"><a href="{% url 'projektadmin:übersicht_firmen' projekt.id %}">{{projekt.bezeichnung}}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+
 </div>
+
 {% endblock inhalt %}

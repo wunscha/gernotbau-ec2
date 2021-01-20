@@ -24,7 +24,7 @@
                 <div class="d-flex justify-content-end">
 
                     <div class="p-2 flex-grow-1 font-weight-bolder">
-                        {{firma.bezeichnung}}
+                        <a href="{% url 'projektadmin:freigabeverwaltung_ordner' projekt_id firma.id %}">{{firma.bezeichnung}}</a>
                         {% if firma.ist_projektadmin %} (Projektadmin){% endif %}
                     </div>
 
@@ -34,7 +34,11 @@
                         <div class="p-2">
                             <form class="form-inline" action="{% url 'projektadmin:übersicht_firmen' projekt_id %}" method="POST">
                                 {% csrf_token %}
-                                <button type="submit" class="btn btn-outline-danger align-middle p-0" name="firma_lösen_id" style="height: 20px; width: 20px; font-size: small" value="{{firma.id}}">-</button>
+                                <button type="submit" 
+                                        class="btn btn-outline-danger align-middle p-0" 
+                                        name="firma_lösen_id" 
+                                        style="height: 20px; width: 20px; font-size: small" 
+                                        value="{{firma.id}}">-</button>
                             </form>
                         </div>
                     {% endif %}
@@ -46,7 +50,7 @@
 
     <!-- Formular "Neue Firma zuordnen" -->
     <ul class="my-3 list-group">
-        <li class="list-group-item" style="background-color: lightblue;">
+        <li class="list-group-item" style="background-color: #f9f8fa;">
             
             <form class="form-inline" action="{% url 'projektadmin:übersicht_firmen' projekt_id %}" method='POST'>
                 {% csrf_token %}
@@ -58,7 +62,7 @@
                     {% endfor %}
                 </select>
 
-                <button class="mx-1 btn btn-outline-dark" type="submit">Firma hinzufügen</button>
+                <button class="mx-1 btn btn-outline-success" type="submit">Firma hinzufügen</button>
 
             </form>
 

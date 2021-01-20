@@ -4,6 +4,7 @@ from superadmin.models import Projekt_Mitarbeiter_Mail
 from django.conf import settings
 from django.contrib.auth import authenticate, login
 from django.urls import reverse
+from funktionen import hole_dicts
 
 def home_view(request):
     
@@ -13,10 +14,16 @@ def home_view(request):
     else:
 
         # Projekte holen, für die der User Projektadmin ist
+        liste_projekte_user_projektadmin = hole_dicts.projekte_user_projektadmin(request.user)
         
         # Projekte holen, denen der User zugeordnet sind
+        liste_projekte_user = hole_dicts.projekte_user(request.user)
+        
+        context={
+            'liste_projekte_user_projektadmin': liste_projekte_user_projektadmin,
+            'liste_projekte_user': liste_projekte_user
+        }
 
-        context={}
         return render(request, 'home.html', context)
 
 def login_view(request):

@@ -24,6 +24,10 @@
             <a href="{% url 'projektadmin:übersicht_workflowschemata' projekt_id %}" class="nav-link {% block übersicht_wf_schemata_active %}{% endblock übersicht_wf_schemata_active %}">Workflowschemata</a>
         </li>
 
+        <li class="nav-item">
+            <a href="{% url 'projektadmin:übersicht_ordner' projekt_id %}" class="nav-link {% block übersicht_ordner_active %}{% endblock übersicht_ordner_active %}">Ordner</a>
+        </li>
+
     </ul>
 
 {% endblock navigationsleiste %}

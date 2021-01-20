@@ -1,0 +1,65 @@
+<!-- Vererbung -->
+{% extends './_base_projektadmin.html' %}
+
+<!-- Titel -->
+{% block titel %}
+    Freigabeverwaltung Ordner
+{% endblock titel %}
+
+<!-- Kein nav-tab aktiv -->
+
+<!-- Seiteninhalt -->
+{% block inhalt %}
+<div class="container">
+
+    <!-- Seitenüberschrift -->
+    <h1 class="mb-5 text-center">{{firma.bezeichnung}}: Freigabeverwaltung Ordner</h1>
+
+    <!--- Tabelle mit Freigabeeinstellungen (als ein großes Formular) -->
+    <form action="{% url 'projektadmin:freigabeverwaltung_ordner' projekt_id firma.id %}" method="POST">
+        {% csrf_token %}
+
+        <!-- Submit-Button -->
+        <div class="mb-3 container">
+            <button type="submit" class="btn btn-outline-success">Änderungen Bestätigen</button>
+        </div>
+
+        <!-- Tabelle -->
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Ordnerbezeichnung</th>
+                    <th class="text-center">Lesefregabe</th>
+                    <th class="text-center">Uploadfreigabe</th>
+                    <th class="text-center">Keine Freigabe</th>
+                    <th class="text-center">Freigabevererbung</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for ordner in liste_ordner %}
+                <tr>
+                    <td>{{ordner.bezeichnung}}</td>
+                    <!-- Radiobuttons -->
+                    <fieldset>
+                        <td class="text-center">
+                            <input type="radio" name="freigabe_{{ordner.id}}" value="lesefreigabe" {% if ordner.freigabe_lesen %}selected{% endif %}>
+                        </td>
+                        <td class="text-center">
+                            <input type="radio" name="freigabe_{{ordner.id}}" value="uploadfreigabe" {% if ordner.freigabe_upload %}selected{% endif %}>
+                        </td>
+                        <td>
+                            <input type="checkbox" name="freigabe_{{ordner.id}}" value="keine_freigabe" {% if not ordner.freigabe_lesen and ordner.freigabe_upload %}selected{% endif %}>
+                        </td>
+                    </fieldset>
+                    <td class="text-center">
+                        <input type="checkbox" name="vererbung_{{ordner.id}}" value="freigabevererbung">
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+    </form>
+    
+{% endblock inhalt %}

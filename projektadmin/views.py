@@ -1,12 +1,12 @@
 from django.shortcuts import render
 from .funktionen import user_ist_projektadmin, sortierte_stufenliste, suche_letzte_stufe, Ordnerbaum
-from .models import Workflow_Schema, Workflow_Schema_Stufe, WFSch_Stufe_Firma, Ordner, Ordner_Firma_Freigabe
+from .models import Workflow_Schema, Workflow_Schema_Stufe, WFSch_Stufe_Firma, Ordner, Ordner_Firma_Freigabe, Überordner_Unterordner
 from .forms import FirmaNeuForm, WFSchWählenForm
 from superadmin.models import Projekt, Firma, Projekt_Firma_Mail
 from django.urls import reverse
 from django.http import HttpResponse, HttpResponseRedirect
 from django import forms
-from funktionen import hole_objs, hole_dicts
+from funktionen import hole_objs, hole_dicts, workflows, ordner
 
 def übersicht_firmen_view(request, projekt_id):
     # Prüfung Login
@@ -118,27 +118,56 @@ def übersicht_workflowschemata(request, projekt_id):
 
                 # Workflowschema erstellen
                 if 'wfsch_neu_bezeichnung' in request.POST:
-                    pass
+                    neues_workflowschema = Workflow_Schema(
+                        bezeichnung = request.POST['wfsch_neu_bezeichnung']
+                    )
+                    neues_workflowschema.save(using = projekt_id)
 
                 # Workflowschema löschen
                 if 'wfsch_löschen_id' in request.POST:
-                    pass
+                    wfsch_löschen = Workflow_Schema.objects.using(projekt_id).get(pk = request.POST['wfsch_löschen_id'])
+                    wfsch_löschen.delete(using = projekt_id)
 
                 # Workflowschema_Stufe hinzufügen
-                if 'wfsch_stufe_neu_id' in request.POST:
-                    pass
-                
+                if 'stufe_neu_wfsch_id' in request.POST:
+                    workflow_schema = Workflow_Schema.objects.using(projekt_id).get(pk = request.POST['stufe_neu_wfsch_id'])
+                    liste_stufen = workflows.hole_stufenliste(projekt, workflow_schema)
+                    vorstufe = workflows.letzte_stufe(projekt, workflow_schema)
+                    
+                    neue_wfsch_stufe = Workflow_Schema_Stufe(
+                        workflow_schema = workflow_schema,
+                        vorstufe = vorstufe if liste_stufen else None
+                    )
+                    neue_wfsch_stufe.save(using = projekt_id)
+
                 # Workflowschema_Stufe löschen
                 if 'wfsch_stufe_löschen_id' in request.POST:
-                    pass
+                    wfsch_stufe_löschen = Workflow_Schema_Stufe.objects.using(projekt_id).get(pk = request.POST['wfsch_stufe_löschen_id'])
+                    
+                    # Vorstufe der nächsten Stufe muss neu referenziert werden
+                    nächste_st = workflows.nächste_stufe(projekt, wfsch_stufe_löschen)
+                    if nächste_st:
+                        nächste_st.vorstufe = wfsch_stufe_löschen.vorstufe
+                        nächste_st.save(using = projekt_id)
+                    wfsch_stufe_löschen.delete(using = projekt_id)
                 
                 # Prüffirma mit Stufe verbinden
                 if 'prüffirma_verbinden_id' in request.POST:
-                    pass
-                
+                    wfsch_stufe_pf_verbinden = Workflow_Schema_Stufe.objects.using(projekt_id).get(pk = request.POST['pf_verbinden_wfsch_stufe_id'])
+                    neu_wfsch_stufe_fa = WFSch_Stufe_Firma(
+                        workflow_schema_stufe = wfsch_stufe_pf_verbinden,
+                        firma_id = request.POST['prüffirma_verbinden_id']
+                    )
+                    neu_wfsch_stufe_fa.save(using = projekt_id)
+
                 # Prüffirma lösen
                 if 'prüffirma_lösen_id' in request.POST:
-                    pass
+                    wfsch_stufe = Workflow_Schema_Stufe.objects.using(projekt_id).get(pk = request.POST['pf_lösen_wfsch_stufe_id'])
+                    eintrag_wfsch_stufe_fa = WFSch_Stufe_Firma.objects.using(projekt_id).get(
+                        workflow_schema_stufe = wfsch_stufe,
+                        firma_id = request.POST['prüffirma_lösen_id']
+                        )
+                    eintrag_wfsch_stufe_fa.delete(using = projekt_id)
                 
                 # TODO: Weiterleitung zu Warnhinweis
                 # TODO: Logs
@@ -146,12 +175,12 @@ def übersicht_workflowschemata(request, projekt_id):
 
             # Erzeuge Liste Workflowschemata für context
             # Hole Workflowschemata
-            liste_workflowschemata_obj = Workflow_Schema.objects.using(projekt_id).filter(projekt = projekt)
+            liste_workflowschemata_obj = Workflow_Schema.objects.using(projekt_id).all()
             liste_workflowschemata = []
             for workflow_schema in liste_workflowschemata_obj:
                 # Hole Workflowschema Stufen
+                liste_wfsch_stufen_obj = workflows.sortierte_stufenliste(projekt, workflow_schema)
                 liste_wfsch_stufen_obj = Workflow_Schema_Stufe.objects.using(projekt_id).filter(workflow_schema = workflow_schema)
-                liste_wfsch_stufen_obj = sortierte_stufenliste(liste_wfsch_stufen_obj)
                 liste_wfsch_stufen = []
                 for wfsch_stufe in liste_wfsch_stufen_obj:
                     # Hole Prüffirmen
@@ -163,6 +192,7 @@ def übersicht_workflowschemata(request, projekt_id):
                     dict_wfsch_stufe['liste_prüffirmen'] = liste_prüffirmen
                     dict_wfsch_stufe['liste_nicht_prüffirmen'] = liste_nicht_prüffirmen
                     dict_wfsch_stufe['id'] = wfsch_stufe.id
+                    dict_wfsch_stufe['vorstufe_id'] = wfsch_stufe.vorstufe.id if wfsch_stufe.vorstufe else None
                     liste_wfsch_stufen.append(dict_wfsch_stufe)
                     
                 dict_workflow_schema = {}
@@ -171,73 +201,13 @@ def übersicht_workflowschemata(request, projekt_id):
                 dict_workflow_schema['bezeichnung'] = workflow_schema.bezeichnung
                 liste_workflowschemata.append(dict_workflow_schema)
             
+            # Packe context und lade Übersicht Workflowschemata
             context = {
                 'liste_workflowschemata': liste_workflowschemata,
                 'projekt_id': projekt_id,
             }
 
             return render(request, './projektadmin/übersicht_workflowschemata.html', context)
-
-def workflowschemaNeuView(request):
-    # Wenn Post-Anfrage, dann wird neues Workflowschema angelegt 
-    # (wenn keine Post-Anfrage, dann passiert nichts)
-    if request.method == 'POST':
-        projekt = Projekt.objects.get(pk = request.POST['projekt_id'])
-        neues_workflowschema = Workflow_Schema.objects.create(
-            bezeichnung = request.POST['bezeichnung'],
-            projekt = projekt
-        )
-
-        # Weiterleitung zur Workflowschema-Übersicht
-        return HttpResponseRedirect(reverse('workflowschemata', args=[request.POST['projekt_id']]))
-
-def wfschStufeNeuView(request):
-    # Wenn Post-Anfrage, dann wird neue Workflowschemastufe für das entsprechende Workflowschema angelegt 
-    # (WFSch-ID ist in der POST-Anfrage enthalten).
-    # Wenn keine Post-Anfrage, dann passiert nichts
-    if request.method == 'POST':
-        # Hole Attribute für neue Workflow-Schema-Stufe
-        workflow_schema = Workflow_Schema.objects.get(pk = request.POST['wfsch_id'])
-        liste_wfsch_stufen = Workflow_Schema_Stufe.objects.filter(workflow_schema = workflow_schema)
-        letzte_wfsch_stufe = suche_letzte_stufe(liste_wfsch_stufen)
-        projekt = Projekt.objects.get(pk=request.POST['projekt_id'])
-        # Wenn schon Stufen vorhanden, dann erzeuge Workflow-Schema-Stufe mit letzter Stufe als Vorstufe
-        if liste_wfsch_stufen:
-            Workflow_Schema_Stufe.objects.create(
-                projekt = projekt,
-                workflow_schema = workflow_schema,
-                vorstufe = letzte_wfsch_stufe
-            )
-        # Sonst erzeuge Workflow-Schema-Stufe ohne Vorstufe
-        else:
-            Workflow_Schema_Stufe.objects.create(
-                projekt = projekt,
-                workflow_schema = workflow_schema
-            )
-
-        # Weiterleitung zur Workflowschema-Übersicht
-        return HttpResponseRedirect(reverse('workflowschemata', args=[request.POST['projekt_id']]))
-        
-    else:
-        return HttpResponseRedirect(reverse('home'))
-
-def prüffirmaHinzufügenView(request):
-    # Wenn Post-Anfrage, dann wird neue Prüffirma zu WFSch-Stufe hinzugefügt.
-    # Wenn keine POST-Anfrage ,dann passiert nichts.
-    if request.method == 'POST':
-        # Formulardaten holen
-        prüffirma_daten = FirmaNeuForm(request.POST)
-
-        if prüffirma_daten.is_valid():
-            wfsch_stufe = Workflow_Schema_Stufe.objects.get(pk = request.POST['wfsch_stufe_id'])
-            prüffirma = prüffirma_daten.cleaned_data['firma']
-            wfsch_stufe.prüffirma.add(prüffirma)# Firma als Prüffirma hinzufügen
-
-            #TODO: InfoMail an Prüffirma
-
-        return HttpResponseRedirect(reverse('projektadmin:workflowschemata', args=[request.POST['projekt_id']]))
-    else:
-        return HttpResponseRedirect(reverse('home'))
 
 def firmaDetailView(request, projekt_id, firma_id):
 # Wenn Projektadmin: Zeige Ordnerbaum mit Freigabestufen für die Firma
@@ -324,86 +294,112 @@ def ordner_freigabe_ändern(request, projekt_id, firma_id):
 ################################################
 # Views für Ordnerverwaltung
 
-def ordnerÜbersichtView(request, projekt_id):
-# Zeige Ordnerstruktur
-# F. jdn Ordner Formular zum Hinzufügen von Unterordner
-# F. jdn Ordner Formular zum Einstellen des Workflowschemas
+def übersicht_ordner_view(request, projekt_id):
 
-    #Prüfen, ob Projektadmin
-    if user_ist_projektadmin(request.user, projekt_id):
-        # Hole Ordnerstruktur
-        projekt = Projekt.objects.get(pk = projekt_id)
-        liste_ordner = Ordner.objects.filter(projekt = projekt)
-        ordner_root = Ordner.objects.get(projekt = projekt, ist_root_ordner = True)
-        # Dropdownfeld für Workflowschema (Auswahlmöglichkeiten: WFSch für das Projekt)
-        wfsch_wählen_form = WFSchWählenForm()
-        wfsch_wählen_form.fields['wfsch'].queryset = Workflow_Schema.objects.filter(projekt = projekt)
-        # Erstelle Instanz von Ordnerbau und befülle dict_ordnerbaum für context
-        ordnerbaum_instanz = Ordnerbaum()
-        dict_ordnerbaum = ordnerbaum_instanz.erstelle_dict_ordnerbaum(liste_ordner, ordner_root)
-        # Befülle Context und Rendere Template für Ordnerübersicht
-        context = {
-            'dict_ordnerbaum':dict_ordnerbaum, # Muss als Funktion eingefügt werden, damit dict bei jedem Aufruf neu befüllt wird
-            'wfsch_wählen_form':wfsch_wählen_form,
-            'ordner_root':ordner_root,
-            'projekt_id':projekt_id
-        }
-        return render(request, 'ordner_übersicht.html', context)
-
-    # Wenn nicht Projektadmin Weiterleitung auf Zugriff-Vereweigert-Seite
+    # Prüfung Login
+    if not request.user.is_authenticated:
+        return HttpResponseRedirect('login')
     else:
-        return render(request, 'projektadmin_zugriff_verweigert.html')
 
-def ordnerNeuView(request, überordner_id):
-# Wenn POST-Anfragen, dann erstelle neuen Ordner und leite zu Ordnerübersicht weiter
-# Wenn keine POST-Anfrage, dann zeige Formular für Erstellen von neuem Ordner
-    überordner = Ordner.objects.get(pk = überordner_id)
-    projekt = überordner.projekt
-    projekt_id = projekt.id
-
-    # Prüfe ob Projektadmin
-    if user_ist_projektadmin(request.user, projekt.id):
-        
-        # Wenn POST, dann erstelle Ordner
-        if request.method == 'POST':
-            neuer_ordner = Ordner.objects.create(
-                bezeichnung = request.POST['bezeichnung'],
-                projekt = projekt,
-                ist_root_ordner = False,
-                überordner = überordner
-                )
-
-            # Weiterleitung zur Ordnerübersicht
-            return HttpResponseRedirect(reverse('projektadmin:ordner_übersicht', args=[projekt.id]))
-        
-        # Wenn nicht POST, dann zeige Formular für neuen Ordner
+        # Prüfung Projektadmin
+        if not user_ist_projektadmin(request.user, projekt_id):
+            fehlermeldung = 'Bitte Loggen Sie sich als Projektadministrator für das gewünschte Projekt ein'
+            context = {'fehlermeldung': fehlermeldung}
+            return render(request, './registration/login.html', context)
         else:
             
-            context = {'projekt_id':projekt_id, 'überordner':überordner}
-            return render(request, 'ordner_neu.html', context)
+            projekt = Projekt.objects.using('default').get(pk = projekt_id)
+            # Wenn POST:
+            # - Neuen Ordner anlegen/löschen
+            # - Workflowschema zuordnen
+            if request.method == 'POST':
+                anwendungsfall = request.POST['anwendungsfall']
 
-    # Wenn nicht Projektadmin Weiterleitung auf Zugriff-Vereweigert-Seite
-    else:
-        return render(request, 'projektadmin_zugriff_verweigert.html')
+                if anwendungsfall == 'ordner_anlegen':
+                    # Unterordner anlegen
+                    neuer_ordner = Ordner(
+                        bezeichnung = request.POST['unterordner_bezeichnung'],
+                        ist_root_ordner = False,
+                    )
+                    neuer_ordner.save(using = projekt_id)
+                    
+                    # Unterordner bei Überordner registrieren 
+                    # (nicht mittels 'add()'-Methode weil sonst symmetrische Beziehung entsteht, die zu Endlossschleife bei 'erzeuge_darstellung_ordnerbaum()' führt )
+                    überordner = Ordner.objects.using(projekt_id).get(pk = request.POST['ordner_id'])
+                    neuer_eintrag_überordner_unterordner = Überordner_Unterordner(unterordner = neuer_ordner, überordner = überordner)
+                    neuer_eintrag_überordner_unterordner.save(using = projekt_id)
+                
+                if anwendungsfall == 'ordner_löschen':
+                    ordner_löschen = Ordner.objects.using(projekt_id).get(pk = request.POST['ordner_löschen_id'])
+                    liste_ordner_löschen = hole_objs.unterordner(projekt, ordner = ordner_löschen)
+                    liste_ordner_löschen.append(ordner_löschen)
+                    # TODO: Kontrolle, ob Ordner inhalt hat (wird dzt nur durch on_delete.PROTECT übernommen)
+                    
+                    for löschkandidat in liste_ordner_löschen:
+                        # TODO: Kontrolle, ob Ordner inhalt hat (wird dzt nur durch on_delete.PROTECT übernommen)
+                        # Ordner löschen(Root-Ordner darf nicht gelöscht werden)
+                        if not löschkandidat.ist_root_ordner:
+                            löschkandidat.delete(using = projekt_id)
+                            # Verknüpungen Überordner-Unterordner löschen
+                            liste_einträge_überordner_unterordner = Überordner_Unterordner.objects.using(projekt_id).filter(überordner = löschkandidat)
+                            for eintrag in liste_einträge_überordner_unterordner:
+                                eintrag.delete(using = projekt_id)
 
-def wfschÄndernView(request):
-# Wenn POST, dann aktualisiere WFSch für den Ordner
-# Wenn nicht POST, dann passiert nichts
-    ordner_id = request.POST['ordner_id']
-    ordner = Ordner.objects.get(pk = ordner_id)
-    projekt = ordner.projekt
+                    # TODO: Warnhinweis
+                    
+                if anwendungsfall == 'workflowschema_zuweisen':
+                    workflowschema = Workflow_Schema.objects.using(projekt_id).get(pk = request.POST['workflowschema_id'])
+                    wfsch_ordner = Ordner.objects.using(projekt_id).get(pk = request.POST['ordner_id'])
+                    wfsch_ordner.workflow_schema = workflowschema
+                    wfsch_ordner.save(using = projekt_id)
 
-    if request.method == 'POST':
-        # Hole und validiere Formulardaten
-        wfsch_ändern_daten = WFSchWählenForm(request.POST)
-        if wfsch_ändern_daten.is_valid():
-            # Ändere Workflowschema für den Ordner
-            workflowschema = wfsch_ändern_daten.cleaned_data['wfsch']
-            ordner.workflow_schema = workflowschema
-            ordner.save()
+                # TODO: InfoMails
 
-        # Aktualisiere Ordnerübersicht
-        return HttpResponseRedirect(reverse('projektadmin:ordner_übersicht', args=[projekt.id]))
+            # Packe context und lade Übersicht Workflowschemata
+            root_ordner = Ordner.objects.using(projekt_id).get(ist_root_ordner = True)
+            liste_ordner = ordner.erzeuge_darstellung_ordnerbaum(projekt, root_ordner = root_ordner)
+            liste_workflowschemata = hole_dicts.workflowschemata(projekt)
+
+            context = {
+                'projekt_id': projekt_id,
+                'root_ordner_id': root_ordner.id,
+                'liste_ordner': liste_ordner,
+                'liste_workflowschemata': liste_workflowschemata,
+            }
+
+            return render(request, './projektadmin/übersicht_ordner.html', context)
+         
+def freigabeverwaltung_ordner(request, firma_id, projekt_id):
     
+    # Prüfung Login
+    if not request.user.is_authenticated:
+        return HttpResponseRedirect('login')
     else:
-        return HttpResponseRedirect(reverse('projektadmin:ordner_übersicht', args=[projekt.id]))
+        
+        # Prüfung Projektadmin
+        if not user_ist_projektadmin(request.user, projekt_id):
+            fehlermeldung = 'Bitte loggens Sie sich als Projektadmin für das gewünschte Projekt ein'
+            context = {'fehlermeldung': fehlermeldung}
+            return render(request, './registration/login.html', context)
+        else:
+            projekt = Projekt.objects.using('default').get(pk = projekt_id)
+            firma = Firma.objects.using('default').get(pk = firma_id)
+
+            # POST:
+            # Aktualisiere Ordnerfreigaben
+
+            # Packe Context und Lade Übersicht
+            root_ordner = Ordner.objects.using(projekt_id).get(ist_root_ordner = True)
+            liste_ordner = ordner.erzeuge_darstellung_ordnerbaum(
+                projekt = projekt, 
+                root_ordner = root_ordner,
+                firma = firma
+            )
+
+            context = {
+                'firma': firma.__dict__,
+                'projekt_id': projekt_id,
+                'liste_ordner': liste_ordner,
+            }
+
+            return render(request, './projektadmin/freigabeverwaltung_ordner.html', context)

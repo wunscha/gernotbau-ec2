@@ -21,7 +21,7 @@
     <!-- Formular "Neues Workflowschema anlegen" -->
     <ul class="my-3 list-group">
 
-        <li class="list-group-item font-weight-bolder">
+        <li class="list-group-item font-weight-bolder" style="background-color: #f8f9fa;">
             Neues Workflowschema anlegen
         </li>
         
@@ -30,7 +30,7 @@
                 {% csrf_token %}
                 <label class="mx-1" for="wfsch_neu_bezeichnung">Bezeichnung Workflowschema</label>
                 <input class="mx-1 form-control" type="text" name="wfsch_neu_bezeichnung" id="wfsch_neu_bezeichnung">
-                <button class="mx-q btn btn-outline-success" type="submit">Erstellen</button>
+                <button class="mx-1 btn btn-outline-success" type="submit">Erstellen</button>
             </form>
         </li>
 
@@ -41,13 +41,21 @@
     <ul class="my-3 list-group">
 
         <!-- WFSch Bezeichnung -->
-        <li class="list-group-item font-weight-bolder" style="background-color: lightblue;"><div class="d-flex flex-row">
-            <div class="p-2 flex-grow-1 font-weight-bolder">{{workflowschema.bezeichnung}}</div>
+        <li class="list-group-item font-weight-bolder" style="background-color: #f8f9fa;">
+            <div class="d-flex flex-row">
+                <div class="p-2 flex-grow-1">
+                    {{workflowschema.bezeichnung}}
+                </div>
+                
                 <div class="p-2 justify-content-end">
-                    <form class="form-inline" action="{% url 'projektadmin:übersicht_workflowschemata' projekt_id %}" method="POST">
+                        <form class="form-inline" action="{% url 'projektadmin:übersicht_workflowschemata' projekt_id %}" method="POST">
                         {% csrf_token %}
-                        <button type="submit" class="btn btn-outline-danger align-middle p-0" name="wfsch_löschen_id" style="height: 20px; width: 20px; font-size: small" value="{{workflowschema.id}}">-</button>
-                    </form>
+                        <button type="submit" 
+                                class="btn btn-outline-danger align-middle p-0" 
+                                name="wfsch_löschen_id" 
+                                style="height: 20px; width: 20px; font-size: small" 
+                                value="{{workflowschema.id}}">-</button>
+                        </form>
                 </div>
             </div>
         </li>
@@ -59,37 +67,61 @@
                 <div class="p-2 flex-grow-1 font-weight-bolder">Stufe {{forloop.counter}}</div>
                 <div class="p-2 justify-content-end">
                     <form class="form-inline" action="{% url 'projektadmin:übersicht_workflowschemata' projekt_id %}" method="POST">
-                        <button type="submit" class="btn btn-outline-danger align-middle p-0" name="wfsch_stufe_löschen_id" value="{{wfsch_stufe.id}}">-</button>
+                        {% csrf_token %}
+                        <button type="submit" 
+                                class="btn btn-outline-danger align-middle p-0" 
+                                name="wfsch_stufe_löschen_id"
+                                style="height: 20px; width: 20px; font-size: small"
+                                value="{{wfsch_stufe.id}}">-</button>
                     </form>
                 </div>
             </div>
 
             <!-- Auflistung Prüffirmen -->
-            {% for prüffirma in wfsch_stufe.liste_prüffirmen %}
-            <li>
-                <form class="form-inline" action="{% url 'projektadmin:übersicht_workflows' projekt_id %}" method="POST">
-                    <label for="button_prüffirma_lösen">{{prüffirma.bezeichnung}}</label>
-                    <button type="submit" 
-                            class="btn btn-outline-danger align-middle p-0 m-2" 
-                            name="prüffirma_lösen_id" 
-                            id="button_prüffirma_lösen" 
-                            style="height: 20px; width: 20px; font-size: small"
-                            value="{{prüffirma.id}}">-</button>
-                </form>
-            </li>
+            <ul class="mb-2">
+                {% for prüffirma in wfsch_stufe.liste_prüffirmen %}
+                <li>
+                    <form class="form-inline" action="{% url 'projektadmin:übersicht_workflowschemata' projekt_id %}" method="POST">
+                        {% csrf_token %}
+                        <label for="button_prüffirma_lösen">{{prüffirma.bezeichnung}}</label>
+                        <input hidden name="pf_lösen_wfsch_stufe_id" value="{{wfsch_stufe.id}}">
+                        <button type="submit" 
+                                class="btn btn-outline-danger align-middle p-0 m-2" 
+                                name="prüffirma_lösen_id" 
+                                id="button_prüffirma_lösen" 
+                                style="height: 20px; width: 20px; font-size: small"
+                                value="{{prüffirma.id}}">-</button>
+                    </form>
+                </li>
+                {% endfor %}
+            </ul>
 
             <!-- Formular "Prüffirma hinzufügen" -->
-            <form class="form-inline">
-                <select class="form-control" name="prüffirma_verbinden_id">
-                    {% for nicht_prüffirma in wfsch_stufe.liste_nicht_prüffirmen %
+            <form class="p-2 form-inline border" action="{% url 'projektadmin:übersicht_workflowschemata' projekt_id %}" method="POST">
+                {% csrf_token %}
+                <label for="dropdown_prüffirmen">Prüffirma hinzufügen</label>
+                <select class="m-2 form-control" name="prüffirma_verbinden_id" id="dropdown_prüffirmen">
+                    {% for nicht_prüffirma in wfsch_stufe.liste_nicht_prüffirmen %}
                         <option value="{{nicht_prüffirma.id}}">{{nicht_prüffirma.kurzbezeichnung}}</option>
-                    {% endfor %}}
+                    {% endfor %}
                 </select>
+                <button class="m-2 btn btn-outline-success" name="pf_verbinden_wfsch_stufe_id" value="{{wfsch_stufe.id}}">Hinzufügen</button>
             </form>
-            {% endfor %}
+                
 
         </li>
         {% endfor %}
+
+        <!-- Button "Stufe hinzufügen" -->
+        <li class="list-group-item">
+            <form action="{% url 'projektadmin:übersicht_workflowschemata' projekt_id %}" method="POST">
+                {% csrf_token %}
+                <button class="btn btn-outline-primary" 
+                        type="submit" 
+                        name="stufe_neu_wfsch_id" 
+                        value="{{workflowschema.id}}">Stufe hinzufügen</button>
+            </form>
+        </li>
 
     </ul>
     {% endfor %}

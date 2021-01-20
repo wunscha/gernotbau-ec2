@@ -39,17 +39,17 @@
             <tbody>
                 {% for ordner in liste_ordner %}
                 <tr>
-                    <td>{{ordner.bezeichnung}}</td>
+                    <td>{{ordner.darstellung}}{{ordner.bezeichnung}}</td>
                     <!-- Radiobuttons -->
                     <fieldset>
                         <td class="text-center">
-                            <input type="radio" name="freigabe_{{ordner.id}}" value="lesefreigabe" {% if ordner.freigabe_lesen %}selected{% endif %}>
+                            <input type="radio" name="freigabe_{{ordner.id}}" value="lesefreigabe" {% if ordner.freigabe_lesen %}checked{% endif %}>
                         </td>
                         <td class="text-center">
-                            <input type="radio" name="freigabe_{{ordner.id}}" value="uploadfreigabe" {% if ordner.freigabe_upload %}selected{% endif %}>
+                            <input type="radio" name="freigabe_{{ordner.id}}" value="uploadfreigabe" {% if ordner.freigabe_upload %}checked{% endif %}>
                         </td>
-                        <td>
-                            <input type="checkbox" name="freigabe_{{ordner.id}}" value="keine_freigabe" {% if not ordner.freigabe_lesen and ordner.freigabe_upload %}selected{% endif %}>
+                        <td class="text-center">
+                            <input type="radio" name="freigabe_{{ordner.id}}" value="keine_freigabe" {% if ordner.freigabe_lesen == False and ordner.freigabe_upload == False %}checked{% endif %}>
                         </td>
                     </fieldset>
                     <td class="text-center">

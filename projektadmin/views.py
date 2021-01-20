@@ -6,7 +6,7 @@ from superadmin.models import Projekt, Firma, Projekt_Firma_Mail
 from django.urls import reverse
 from django.http import HttpResponse, HttpResponseRedirect
 from django import forms
-from funktionen import hole_objs, hole_dicts, workflows, ordner
+from funktionen import hole_objs, hole_dicts, workflows, ordnerfunktionen
 
 def übersicht_firmen_view(request, projekt_id):
     # Prüfung Login
@@ -41,6 +41,9 @@ def übersicht_firmen_view(request, projekt_id):
                     else:
                         projekt_firma_mail.delete(using = 'default')
 
+                    # Ordnerfreigaben für die Firma löschen
+                    ordnerfunktionen.lösche_ordnerfreigaben_firma(projekt, firma = firma_lösen)
+
                     # TODO: Warnhinweis "Wollen Sie wirklich löschen?"
 
                 # Wenn Aufruf von "Firma verbinden Formular": Verbinde Projekt mit Firma aus Forumlardaten
@@ -53,6 +56,9 @@ def übersicht_firmen_view(request, projekt_id):
                         projekt = projekt
                     )
                     neu_projekt_firma_mail.save(using='default')
+
+                    # Ordnerfreigabe initialisieren
+                    ordnerfunktionen.initialisiere_ordnerfreigaben_firma(projekt, firma = firma)
 
                     # Fehlermeldung für context leeren
                     fehlermeldung=''
@@ -329,6 +335,9 @@ def übersicht_ordner_view(request, projekt_id):
                     neuer_eintrag_überordner_unterordner = Überordner_Unterordner(unterordner = neuer_ordner, überordner = überordner)
                     neuer_eintrag_überordner_unterordner.save(using = projekt_id)
                 
+                    # Ordnerfreigaben anlegen
+                    ordnerfunktionen.initialisiere_ordnerfreigaben_ordner(projekt, ordner = neuer_ordner)
+
                 if anwendungsfall == 'ordner_löschen':
                     ordner_löschen = Ordner.objects.using(projekt_id).get(pk = request.POST['ordner_löschen_id'])
                     liste_ordner_löschen = hole_objs.unterordner(projekt, ordner = ordner_löschen)
@@ -344,6 +353,8 @@ def übersicht_ordner_view(request, projekt_id):
                             liste_einträge_überordner_unterordner = Überordner_Unterordner.objects.using(projekt_id).filter(überordner = löschkandidat)
                             for eintrag in liste_einträge_überordner_unterordner:
                                 eintrag.delete(using = projekt_id)
+                            # Ordnerfreigaben löschen
+                            ordnerfunktionen.lösche_ordnerfreigaben_ordner(projekt, löschkandidat)
 
                     # TODO: Warnhinweis
                     
@@ -357,7 +368,7 @@ def übersicht_ordner_view(request, projekt_id):
 
             # Packe context und lade Übersicht Workflowschemata
             root_ordner = Ordner.objects.using(projekt_id).get(ist_root_ordner = True)
-            liste_ordner = ordner.erzeuge_darstellung_ordnerbaum(projekt, root_ordner = root_ordner)
+            liste_ordner = ordnerfunktionen.erzeuge_darstellung_ordnerbaum(projekt, root_ordner = root_ordner)
             liste_workflowschemata = hole_dicts.workflowschemata(projekt)
 
             context = {
@@ -387,10 +398,31 @@ def freigabeverwaltung_ordner(request, firma_id, projekt_id):
 
             # POST:
             # Aktualisiere Ordnerfreigaben
+            if request.method == 'POST':
+                for key, value in request.POST.items():
+                    # Suche Freigabeeinstellungen in POST und aktualisiere in DB
+                    if 'freigabe_' in key:
+                        ordner_id = key.split('_')[1] # Extrahiere Ordner-ID aus key
+                        ordner = Ordner.objects.using(projekt_id).get(pk = ordner_id)
+                        freigabeeinstellung = Ordner_Firma_Freigabe.objects.using(projekt_id).get(firma_id = firma.id, ordner = ordner)
+                        if value == 'lesefreigabe':
+                            freigabeeinstellung.freigabe_lesen = True
+                            freigabeeinstellung.freigabe_upload = False
+                        elif value == 'uploadfreigabe':
+                            freigabeeinstellung.freigabe_lesen = False
+                            freigabeeinstellung.freigabe_upload = True
+                        else:
+                            freigabeeinstellung.freigabe_lesen = False
+                            freigabeeinstellung.freigabe_upload = False
+                        freigabeeinstellung.save(using = projekt_id)
+                        # Freigabevererbung
+                        key_freigabevererbung = 'vererbung_' + ordner_id
+                        if key_freigabevererbung in request.POST.keys():
+                            ordnerfunktionen.vererbe_ordnerfreigaben(projekt, ordner = ordner, firma = firma)
 
             # Packe Context und Lade Übersicht
             root_ordner = Ordner.objects.using(projekt_id).get(ist_root_ordner = True)
-            liste_ordner = ordner.erzeuge_darstellung_ordnerbaum(
+            liste_ordner = ordnerfunktionen.erzeuge_darstellung_ordnerbaum(
                 projekt = projekt, 
                 root_ordner = root_ordner,
                 firma = firma

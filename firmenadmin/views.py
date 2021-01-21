@@ -79,37 +79,33 @@ def mitarbeiter_neu_view(request):
             context = {'neuer_mitarbeiter': dict_neuer_mitarbeiter}
             return render(request, './firmenadmin/mitarbeiter_neu.html', context)
 
-def projekteÜbersichtView(request):
-# Wenn Firmenadmin: Zeige Projektübersicht
-    if request.user.ist_firmenadmin:
-        # Erstelle Dict mit Projekten und Einträgen in Projekt_Mitarbeiter_Mail
-        firma = request.user.firma
-        liste_pj_fa_mail = Projekt_Firma_Mail.objects.filter(firma = firma)
-        dict_projekte = {}
-        for eintrag in liste_pj_fa_mail:
-            projekt_bezeichnung = eintrag.projekt.bezeichnung
-            projekt_id = eintrag.projekt.id
-            pj_fa_mail = Projekt_Firma_Mail.objects.get(projekt = eintrag.projekt, firma = firma)
-            liste_pj_ma_mail = Projekt_Mitarbeiter_Mail.objects.filter(projekt = eintrag.projekt, mitarbeiter__firma = firma)
+def übersicht_projekte_view(request):
 
-            dict_einzelprojekt = {}
-            dict_einzelprojekt['liste_pj_ma_mail'] = liste_pj_ma_mail
-            dict_einzelprojekt['pj_fa_mail'] = pj_fa_mail
-            dict_einzelprojekt['projekt_id'] = projekt_id
-            dict_projekte[projekt_bezeichnung] = dict_einzelprojekt
+    # Prüfung Login:
+    if not request.user.is_authenticated:
+        return HttpResponseRedirect('login')
+    else:
 
-        # Mitarbeiterliste für Dropdown für Mitarbeiter zuweisen
-        liste_mitarbeiter = firma.mitarbeiter_set.all()
-
-        context = {
-            'dict_projekte':dict_projekte,
-            'liste_mitarbeiter':liste_mitarbeiter
-        }
-        return render(request, 'projekte_übersicht.html', context)
-
-    # Wenn nicht Firmenadmin: Zugriff verweigert
-    else:  
-        return render(request, 'firmenadmin_zugriff_verweigert.html')
+        # Prüfung Firmenadmin:
+        if not request.user.ist_firmenadmin:
+            fehlermeldung = 'Bitte loggen Sie sich als Firmenadmin für die gewünschte Firma ein'
+            context = {'fehlermeldung': fehlermeldung}
+            return render(request, './firmenadmin/übersicht_projekte.html', context)
+        else:
+            if request.method == 'POST':
+                # Mitarbeiter zu Projekt hinzufügen
+                if request.POST['ereignis'] == 'mitarbeiter_hinzufügen':
+                    pass
+                
+                # Mitarbeiter von Projekt lösen
+                elif request.POST['ereignis'] == 'mitarbeiter_lösen':
+                    pass
+            
+            # context packen und Übersich laden
+            liste_projekte = hole_dicts.projekte_firma(firma = request.user.firma)
+            context = {'liste_projekte': liste_projekte}
+            
+            return render(request, './firmenadmin/übersicht_projekte.html', context)
 
 def mitarbeiter_zu_projekt(request):
 # Wenn POST: Mitarbeiter zu Projekt hinzufügen

@@ -1,0 +1,91 @@
+<!-- Vererbung -->
+{% extends './_base_firmenadmin.html' %}
+
+<!-- Titel -->
+{% block titel %}
+    Übersicht Projekte
+{% endblock titel %}
+
+<!-- nav-tab aktiv -->
+{% block projekte_active %}
+    active
+{% endblock projekte_active %}
+
+<!-- Seiteninhalt -->
+{% block inhalt %}
+<div class="container">
+
+    <h1 class="mb-5 text-center">Übersicht Projekte</h1>
+
+    {% for projekt in liste_projekte %}
+    <ul class="my-3 list-group">
+        <!-- Projektbezeichnung -->
+        <li class="list-group-item font-weight-bolder" style="background-color: #f8f9fa;">
+            {{projekt.bezeichnung}} {% if projekt.firma_ist_projektadmin %} - Projektadmin{% endif %}
+        </li>
+
+        <!-- Auflistung Mitarbeiter -->
+        <li class="list-group-item">
+            <ul>
+                {% for mitarbeiter in projekt.liste_mitarbeiter %}
+                <li>
+                    <form class="form-inline" action="{% url 'firmenadmin:übersciht_projekte' %}" method="POST">
+                        {% csrf_token %}
+                        <input hidden type="text" name="ereignis" value="mitarbeiter_lösen">
+                        <input hidden type="text" name="projekt_id" value="{{projekt.id}}">
+                        <label for="mitarbeiter_lösen_button">{{mitarbeiter.first_name}} {{mitarbeiter.last_name}}</label>
+                        <button type="submit"
+                                class="m-2 p-0 btn btn-outline-danger align-middle"
+                                name="mitarbeiter_id"
+                                id="mitarbeiter_lösen_button"
+                                style="height: 20px; width: 20px; font-size: small"
+                                value="{{mitarbeiter.id}}">-</button>
+                    </form>
+                    {{mitarbeiter.first_name}} {{mitarbeiter.last_name}}
+                </li>
+                {% endfor %}
+            </ul>
+        </li>
+
+        <!-- Mitarbeiter hinzufügen Formular -->
+        <li class="list-group-item">
+            <form class="form-inline" action="{% url 'firmenadmin:übersicht_projekte' %}" method="POST">
+                {% csrf_token %}
+                <label class="mx-1" for="mitarbeiter_id">Mitarbeiter zuordnen:</label>
+
+                <select class="mx-1 form-control" name="mitarbeiter_id" id="mitarbeiter_id">
+                    {% for mitarbeiter in projekt.liste_mitarbeiter_außen %}
+                        <option value="{{mitarbeiter.id}}">{{mittarbeiter.first_name}} {{mitarbeiter.last_name}}</option>
+                    {% endfor %}
+                </select>
+
+                <input hidden type="text" name="ereignis" value="mitarbeiter_hinzufügen">
+
+                <button class="mx-1 btn btn-outline-success" type="submit" name="projekt_id" value="projekt.id">Zuordnen</button>
+            </form>
+        </li>
+
+        <!-- Formular "Projektadmin wählen" -->
+        <li class="list-group-item">
+            <form class="form-inline" action="{% url 'firmenadmin:übersicht_projekte' %}" method="POST">
+                {% csrf_token %}
+                <label class="mx-1" for="mitarbeiter_id">Firmenadmin zuordnen:</label>
+
+                <select class="mx-1 form-control" name="mitarbeiter_id" id="mitarbeiter_id">
+                    {% for mitarbeiter in projekt.liste_mitarbeiter %}
+                        <option value="{{mitarbeiter.id}}">{{mitarbeiter.first_name}} {{mitarbeiter.last_name}}</option>
+                    {% endfor %}
+                </select>
+
+                <input type="text" name="ereignis" value="projektadmin_zuweisen">
+
+                <button class="mx-1 btn btn-outline-primary" type="submit" name="projekt_id" value="projekt.id">Zuordnen</button>
+            </form>
+        </li>
+
+    </ul>
+
+    
+
+</div>
+{% endblock inhalt %}

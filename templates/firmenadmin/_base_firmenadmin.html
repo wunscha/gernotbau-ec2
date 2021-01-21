@@ -20,6 +20,10 @@
             <a href="{% url 'firmenadmin:übersicht_mitarbeiter' %}" class="nav-link {% block mitarbeiter_active %}{% endblock mitarbeiter_active %}">Mitarbeiter</a>
         </li>
 
+        <li class="nav-item">
+            <a href="{% url 'firmenadmin:übersicht_projekte' %}" class="nav-link {% block projekte_active %}{% endblock projekte_active %}">Projekte</a>
+        </li>
+
     </ul>
 
 {% endblock navigationsleiste %}

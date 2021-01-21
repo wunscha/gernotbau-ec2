@@ -1,4 +1,4 @@
-from superadmin.models import Firma, Mitarbeiter, Projekt_Mitarbeiter_Mail
+from superadmin.models import Firma, Mitarbeiter, Projekt, Projekt_Firma_Mail, Projekt_Mitarbeiter_Mail
 from projektadmin.models import Workflow_Schema, WFSch_Stufe_Firma
 from . import hole_objs
 
@@ -96,3 +96,28 @@ def firmenmitarbeiter(*, firma):
             liste_mitarbeiter.append(dict_mitarbeiter)
     
     return liste_mitarbeiter
+
+def projekte_firma(*, firma):
+# Gibt Liste mit Dictionaries der Projekte und zugeordneten Mitarbeiter für firma zurück
+    qs_projekte = Projekt.objects.using('default').filter(firma = firma)
+
+    liste_projekte = []
+    for projekt in qs_projekte:
+        dict_projekt = projekt.__dict__
+        
+        eintrag_pj_fa_mail = Projekt_Firma_Mail.objects.using('default').get(firma = firma, projekt = projekt)
+        dict_projekt['firma_ist_projektadmin'] = eintrag_pj_fa_mail.ist_projektadmin
+
+        liste_mitarbeiter = []
+        qs_einträge_pj_ma_mail = Projekt_Mitarbeiter_Mail.objects.using('default').filter(projekt = projekt, mitarbeiter__firma = firma)
+        for eintrag in qs_einträge_pj_ma_mail:
+            dict_mitarbeiter = eintrag.mitarbeiter.__dict__
+            dict_mitarbeiter['ist_projektadmin'] = eintrag.ist_projektadmin
+        liste_mitarbeiter.append(dict_mitarbeiter)
+        
+        dict_projekt['liste_mitarbeiter'] = liste_mitarbeiter
+
+        liste_projekte.append(dict_projekt)
+
+    return liste_projekte
+    

@@ -6,9 +6,8 @@ app_name = 'firmenadmin'
 
 urlpatterns = [
     # Mitarbeiter
-    path('',views.mitarbeiterÜbersichtView, name='firmenadmin_home'),
-    path('mitarbeiter_übersicht/',views.mitarbeiterÜbersichtView, name='mitarbeiter_übersicht'),
-    path('mitarbeiter_neu/', views.mitarbeiterNeuView, name = 'mitarbeiter_neu'),
+    path('übersicht_mitarbeiter/',views.übersicht_mitarbeiter_view, name='übersicht_mitarbeiter'),
+    path('mitarbeiter_neu/', views.mitarbeiter_neu_view, name = 'mitarbeiter_neu'),
     
     # Projekte
     path('projekte_übersicht/',views.projekteÜbersichtView, name='projekte_übersicht'),

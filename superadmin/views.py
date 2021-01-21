@@ -5,6 +5,7 @@ from django.contrib.auth.hashers import make_password
 from django.http import HttpResponseRedirect, HttpResponse
 from django.conf import settings
 from django.urls import reverse
+from funktionen import emailfunktionen
 
 def firma_neu_view(request):
     # Prüfung Login
@@ -24,7 +25,7 @@ def firma_neu_view(request):
             if request.method == 'POST':
                 
                 # Email-Adresse generieren
-                email = request.POST['kurzbezeichnung'] + '@gernotbau.at'
+                email = emailfunktionen.generiere_email_adresse_fa(kurzbezeichnung = request.POST['kurzbezeichnung'])
 
                 # Neue Firma anlegen
                 neue_firma = Firma(

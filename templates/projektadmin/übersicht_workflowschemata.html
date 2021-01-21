@@ -48,14 +48,14 @@
                 </div>
                 
                 <div class="p-2 justify-content-end">
-                        <form class="form-inline" action="{% url 'projektadmin:übersicht_workflowschemata' projekt_id %}" method="POST">
-                        {% csrf_token %}
-                        <button type="submit" 
-                                class="btn btn-outline-danger align-middle p-0" 
-                                name="wfsch_löschen_id" 
-                                style="height: 20px; width: 20px; font-size: small" 
-                                value="{{workflowschema.id}}">-</button>
-                        </form>
+                    <form class="form-inline" action="{% url 'projektadmin:übersicht_workflowschemata' projekt_id %}" method="POST">
+                    {% csrf_token %}
+                    <button type="submit" 
+                            class="btn btn-outline-danger align-middle p-0" 
+                            name="wfsch_löschen_id" 
+                            style="height: 20px; width: 20px; font-size: small" 
+                            value="{{workflowschema.id}}">-</button>
+                    </form>
                 </div>
             </div>
         </li>

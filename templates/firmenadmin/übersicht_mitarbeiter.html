@@ -1,0 +1,65 @@
+<!-- Vererbung -->
+{% extends './_base_firmenadmin.html' %}
+
+<!-- Titel -->
+{% block titel %}
+    Übersicht Mitarbeiter
+{% endblock titel %}
+
+<!-- nav-tab aktiv -->
+{% block mitarbeiter_active %}
+    active
+{% endblock mitarbeiter_active %}
+
+<!-- Seiteninhalt -->
+{% block inhalt %}
+<div class="container">
+
+    <h1 class="mb-5 text-center">Übersicht Mitarbeiter</h1>
+
+    <!-- Link zu Formular 'Neuer Mitarbeiter' -->
+    <ul class="my-3 list-group">
+        <li class="list-group-item" style="background-color: #f8f9fa;">
+            <a href="{% url 'firmenadmin:mitarbeiter_neu' %}">Neuen Mitarbeiter anlegen</a>
+        </li>
+    </ul>
+
+    <!-- Auflistung Mitarbeiter -->
+    {% for mitarbeiter in liste_mitarbeiter %}
+        <!-- Firmenadmin nicht anzeigen -->
+        {% if not mitarbeiter.ist_firmenadmin %}
+            <ul class="my-3 list-group">
+                <li class="list-group-item" style="background-color: #f8f9fa;">
+                    <div class="d-flex flex-row">
+                        <!-- Link zu Detailansicht Mitarbeiter -->
+                        <div class="p-2 flex-grow-1">
+                            <a href='#'>{{mitarbeiter.first_name}} {{mitarbeiter.last_name}}</a>
+                        </div>
+
+                        <!-- Mitarbeiter löschen -->
+                        <div class="p-2 justify-content-end">
+                            <form class="form-inline" action="{% url 'firmenadmin:übersicht_mitarbeiter' %}" method="POST">
+                            {% csrf_token %}
+                            <input hidden type="text" name="mitarbeiter_löschen_id" value="{{mitarbeiter.id}}">
+                            <button type="submit"
+                                    class="btn btn-outline-danger align-middle p-0"
+                                    name="ereignis"
+                                    style="height: 20px; width: 20px; font-size: small"
+                                    value="mitarbeiter_löschen">-</button>    
+                            </form>
+                        </div>
+                    </div>
+                </li>
+
+                <li class="list-group-item">
+                    Projekte:
+                    {% for projekt in mitarbeiter.liste_projekte %}
+                        <li>{{projekt.bezeichnung}}</li>
+                    {% endfor %}
+                </li>
+            </ul>
+        {% endif %}
+    {% endfor %}
+
+</div>
+{% endblock inhalt %}

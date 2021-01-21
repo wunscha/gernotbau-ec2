@@ -12,19 +12,23 @@ def home_view(request):
     if not request.user.is_authenticated:
         return render(request, './registration/login.html')
     else:
+        # Wenn Firmenadmin Weiterleitung zu Firmenadmin-Bereich
+        if request.user.ist_firmenadmin:
+            return HttpResponseRedirect(reverse('firmenadmin:übersicht_mitarbeiter'))
 
-        # Projekte holen, für die der User Projektadmin ist
-        liste_projekte_user_projektadmin = hole_dicts.projekte_user_projektadmin(request.user)
-        
-        # Projekte holen, denen der User zugeordnet sind
-        liste_projekte_user = hole_dicts.projekte_user(request.user)
-        
-        context={
-            'liste_projekte_user_projektadmin': liste_projekte_user_projektadmin,
-            'liste_projekte_user': liste_projekte_user
-        }
+        else:
+            # Projekte holen, für die der User Projektadmin ist
+            liste_projekte_user_projektadmin = hole_dicts.projekte_user_projektadmin(request.user)
+            
+            # Projekte holen, denen der User zugeordnet sind
+            liste_projekte_user = hole_dicts.projekte_user(request.user)
+            
+            context={
+                'liste_projekte_user_projektadmin': liste_projekte_user_projektadmin,
+                'liste_projekte_user': liste_projekte_user
+            }
 
-        return render(request, 'home.html', context)
+            return render(request, 'home.html', context)
 
 def login_view(request):
 

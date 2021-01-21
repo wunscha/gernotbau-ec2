@@ -55,6 +55,7 @@ class Überordner_Unterordner(models.Model):
 class Ordner_Firma_Freigabe(models.Model):
     freigabe_lesen = models.BooleanField()
     freigabe_upload = models.BooleanField()
+    freigaben_erben = models.BooleanField(default = True)
     firma_id = models.CharField(max_length = 20, null = True) # TODO: 'nullable' entfernen --> war nur für Testphase nötig
     ordner = models.ForeignKey(Ordner, on_delete = models.CASCADE)
 

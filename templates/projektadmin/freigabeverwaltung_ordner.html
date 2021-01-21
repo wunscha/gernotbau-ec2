@@ -29,10 +29,10 @@
             <thead>
                 <tr>
                     <th>Ordnerbezeichnung</th>
-                    <th class="text-center">Lesefregabe</th>
+                    <th class="text-center">Lesefreigabe</th>
                     <th class="text-center">Uploadfreigabe</th>
                     <th class="text-center">Keine Freigabe</th>
-                    <th class="text-center">Freigabevererbung</th>
+                    <th class="text-center">Freigaben erben</th>
                 </tr>
             </thead>
 
@@ -53,7 +53,7 @@
                         </td>
                     </fieldset>
                     <td class="text-center">
-                        <input type="checkbox" name="vererbung_{{ordner.id}}" value="freigabevererbung">
+                        <input type="checkbox" name="freigaben_erben_{{ordner.id}}" {% if ordner.freigaben_erben %}checked{% endif %}>
                     </td>
                 </tr>
                 {% endfor %}
@@ -61,5 +61,7 @@
         </table>
 
     </form>
+    
+    <p style="color: red;">{{vererbt_text}}</p>
     
 {% endblock inhalt %}

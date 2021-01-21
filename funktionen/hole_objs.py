@@ -45,7 +45,6 @@ def nicht_prüffirmen(projekt, wfsch_stufe):
 
 def unterordner(projekt, ordner):
 # Gibt Liste mit den Unterordnern von ordner zurück
-    
     qs_einträge_überordner_unterordner = Überordner_Unterordner.objects.using(str(projekt.id)).filter(überordner = ordner)
     
     liste_unterordner = []
@@ -54,3 +53,13 @@ def unterordner(projekt, ordner):
     
     return liste_unterordner
 
+def überordner(projekt, ordner):
+# Gibt den Überordner für ordner zurück
+    qs_einträge_überordner_unterordner = Überordner_Unterordner.objects.using(str(projekt.id)).all()
+
+    überordner = None
+    for eintrag in qs_einträge_überordner_unterordner:
+        if eintrag.unterordner == ordner:
+            überordner = eintrag.überordner
+
+    return überordner

@@ -10,7 +10,6 @@ urlpatterns = [
     
     # Projektfirmen-Verwaltung
     path('<projekt_id>/übersicht_firmen/', views.übersicht_firmen_view, name = 'übersicht_firmen'),
-    path('<projekt_id>/firma_detail/<firma_id>/', views.firmaDetailView, name = 'firma_detail'),
     path('<projekt_id>/freigabeverwaltung_ordner/<firma_id>/', views.freigabeverwaltung_ordner, name = 'freigabeverwaltung_ordner'),
 
     # Ordner-Verwaltung

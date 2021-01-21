@@ -215,88 +215,6 @@ def übersicht_workflowschemata(request, projekt_id):
 
             return render(request, './projektadmin/übersicht_workflowschemata.html', context)
 
-def firmaDetailView(request, projekt_id, firma_id):
-# Wenn Projektadmin: Zeige Ordnerbaum mit Freigabestufen für die Firma
-    if user_ist_projektadmin(request.user, projekt_id):
-        # Hole Ordnerstruktur
-        projekt = Projekt.objects.get(pk = projekt_id)
-        liste_ordner = Ordner.objects.filter(projekt = projekt)
-        ordner_root = Ordner.objects.get(projekt = projekt, ist_root_ordner = True)
-        # Erstelle Instanz von Ordnerbau und befülle dict_ordnerbaum für context
-        ordnerbaum_instanz = Ordnerbaum()
-        dict_ordnerbaum = ordnerbaum_instanz.erstelle_dict_ordnerbaum(liste_ordner, ordner_root)
-        # Erstelle Liste mit Dictionaries aller Ordner mit Freigabestufen
-        firma = Firma.objects.get(pk = firma_id)
-        liste_ordner_freigabe = []
-        for key, value in dict_ordnerbaum.items():
-            ordner = value
-            # Hole Eintrag in Ordner_Firma_Freigabe, wenn vorhanden, sonst erstelle Neuen Eintrag
-            '''
-            # TODO: 
-            # Vorteil --> Es muüssen nicht alle Freigabe-Einträge neu erstellt wenn neuer Ordner od. Firma angelegt wird; 
-            # Nachteil --> Evtl. Erzeugung von doppelten Einträgen möglich, oder Freigabe werden überschrieben?
-            '''
-            ordner_firma_freigabe = Ordner_Firma_Freigabe.objects.get_or_create(
-                firma = firma, 
-                ordner = ordner, 
-                defaults={
-                    'projekt':projekt,
-                    'freigabe_lesen':False,
-                    'freigabe_upload':False,
-                    }
-            )
-
-            dict_ordner_freigabe = {}
-            dict_ordner_freigabe['ordner_id'] = ordner.id
-            dict_ordner_freigabe['ordner_darstellung'] = key
-            dict_ordner_freigabe['ordner_freigabe_lesen'] = ordner_firma_freigabe[0].freigabe_lesen # Index erforderlich wegen 'get_or_create'
-            dict_ordner_freigabe['ordner_freigabe_upload'] = ordner_firma_freigabe[0].freigabe_upload # Index erforderlich wegen 'get_or_create'
-            liste_ordner_freigabe.append(dict_ordner_freigabe)
-
-        # Leite Weiter zu Detailansicht Firma
-        context = {
-            'liste_ordner_freigabe':liste_ordner_freigabe,
-            'firma':firma,
-            'projekt_id':projekt_id
-            }
-        return render(request, 'firma_detail.html', context)
-
-    # Wenn nicht Projektadmin: Zugriff verweigert
-    else:
-        return render(request, 'projektadmin_zugriff_verweigert.html')
-
-def ordner_freigabe_ändern(request, projekt_id, firma_id):
-# Wenn POST: Freigabe entsprechend Formulardaten ändern
-# Wenn nicht POST passiert nichts
-
-    if request.method == 'POST':
-        projekt = Projekt.objects.get(pk = projekt_id)
-        firma = Firma.objects.get(pk = firma_id)
-        ordner_id = request.POST['ordner_id']
-        ordner = Ordner.objects.get(pk = ordner_id)
-        
-        ordner_firma_freigabe = Ordner_Firma_Freigabe.objects.get(
-            ordner = ordner,
-            firma = firma
-        )
-
-        # Passe Freigaben entsprechende Daten in POST an
-
-        if 'freigabe_lesen' in request.POST:
-            ordner_firma_freigabe.freigabe_lesen = True
-        else:
-            ordner_firma_freigabe.freigabe_lesen = False
-            
-        if 'freigabe_upload' in request.POST:
-            ordner_firma_freigabe.freigabe_upload = True
-        else:
-            ordner_firma_freigabe.freigabe_upload = False
-
-        ordner_firma_freigabe.save()
-
-        # Weiterleitung zu Detailansicht Firma
-        return HttpResponseRedirect(reverse('projektadmin:firma_detail', args=[projekt_id, firma_id]))
-
 ################################################
 # Views für Ordnerverwaltung
 
@@ -396,6 +314,8 @@ def freigabeverwaltung_ordner(request, firma_id, projekt_id):
             projekt = Projekt.objects.using('default').get(pk = projekt_id)
             firma = Firma.objects.using('default').get(pk = firma_id)
 
+            vererbt_text = ''
+
             # POST:
             # Aktualisiere Ordnerfreigaben
             if request.method == 'POST':
@@ -405,21 +325,32 @@ def freigabeverwaltung_ordner(request, firma_id, projekt_id):
                         ordner_id = key.split('_')[1] # Extrahiere Ordner-ID aus key
                         ordner = Ordner.objects.using(projekt_id).get(pk = ordner_id)
                         freigabeeinstellung = Ordner_Firma_Freigabe.objects.using(projekt_id).get(firma_id = firma.id, ordner = ordner)
-                        if value == 'lesefreigabe':
-                            freigabeeinstellung.freigabe_lesen = True
-                            freigabeeinstellung.freigabe_upload = False
-                        elif value == 'uploadfreigabe':
-                            freigabeeinstellung.freigabe_lesen = False
-                            freigabeeinstellung.freigabe_upload = True
-                        else:
-                            freigabeeinstellung.freigabe_lesen = False
-                            freigabeeinstellung.freigabe_upload = False
-                        freigabeeinstellung.save(using = projekt_id)
-                        # Freigabevererbung
-                        key_freigabevererbung = 'vererbung_' + ordner_id
-                        if key_freigabevererbung in request.POST.keys():
-                            ordnerfunktionen.vererbe_ordnerfreigaben(projekt, ordner = ordner, firma = firma)
 
+                        # "freigaben_erben" aus Formular übernehmen
+                        key_freigabevererbung = 'freigaben_erben_' + ordner_id
+                        freigabeeinstellung.freigaben_erben = True if key_freigabevererbung in request.POST.keys() else False
+                        
+                        if freigabeeinstellung.freigaben_erben:
+                            überordner = hole_objs.überordner(projekt, ordner)
+                            freigabe_überordner = Ordner_Firma_Freigabe.objects.using(projekt_id).get(ordner = überordner, firma_id = firma.id)
+                            freigabeeinstellung.freigabe_lesen = freigabe_überordner.freigabe_lesen
+                            freigabeeinstellung.freigabe_upload = freigabe_überordner.freigabe_upload
+                            freigabeeinstellung.save(using = projekt_id)
+
+                        # Wenn keine Vererbung eingestellt: Freigabeeinstellungen aus Formular übernehmen
+                        else:
+                            if value == 'lesefreigabe':
+                                freigabeeinstellung.freigabe_lesen = True
+                                freigabeeinstellung.freigabe_upload = False
+                            elif value == 'uploadfreigabe':
+                                freigabeeinstellung.freigabe_lesen = False
+                                freigabeeinstellung.freigabe_upload = True
+                            else:
+                                freigabeeinstellung.freigabe_lesen = False
+                                freigabeeinstellung.freigabe_upload = False
+
+                            freigabeeinstellung.save(using = projekt_id)
+                    
             # Packe Context und Lade Übersicht
             root_ordner = Ordner.objects.using(projekt_id).get(ist_root_ordner = True)
             liste_ordner = ordnerfunktionen.erzeuge_darstellung_ordnerbaum(
@@ -429,6 +360,7 @@ def freigabeverwaltung_ordner(request, firma_id, projekt_id):
             )
 
             context = {
+                'vererbt_text': vererbt_text,
                 'firma': firma.__dict__,
                 'projekt_id': projekt_id,
                 'liste_ordner': liste_ordner,

@@ -50,7 +50,7 @@ def übersicht_firmen_view(request, projekt_id):
                 if 'firma_verbinden_id' in request.POST:
                     firma = Firma.objects.using('default').get(pk = request.POST['firma_verbinden_id'])
                     neu_projekt_firma_mail = Projekt_Firma_Mail(
-                        email = projekt.kurzbezeichnung + firma.email,
+                        email = projekt.kurzbezeichnung + '.' + firma.email, # TODO: Funktion für Prüfung auf vorhandene Mailadressen
                         firma = firma, 
                         ist_projektadmin = False,
                         projekt = projekt

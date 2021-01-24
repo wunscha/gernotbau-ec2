@@ -1,0 +1,99 @@
+<!-- Vererbung -->
+{% extends './_base_dokab.html' %}
+
+<!-- Titel -->
+{% block titel %}
+    Übersicht Ordnerinhalt
+{% endblock titel %}
+
+<!-- nav-tab aktiv -->
+{% block ordner_active %}
+    active
+{% endblock ordner_active %}
+
+<!-- Seiteninhalt -->
+{% block inhalt %}
+
+<!-- BUTTONLEISTE DOKAB INHALTSANSICHT -->
+<nav class="navbar border-bottom">
+    <div class="ml-auto mr-0">
+        <button class="btn btn-outline-primary">Download</button>
+        {% if aktueller_ordner.freigabe_upload %}
+            <a class="btn btn-outline-success" role="button" href="{% url 'dokab:upload' projekt.id aktueller_ordner.id %}">Upload</a>
+        {% endif %}
+    </div>
+</nav>
+
+<div class="d-flex bd-highlight">
+
+    <!--NAVIGATIONSMENÜ ORDNERBAUM-->
+    <div class="pl-2 pt-2 pr-5 bd-highlight border-right">
+        {% for ordner in liste_ordnerbaum %}
+            <p>
+                {% if ordner.freigabe_lesen or ordner.freigabe_upload %}
+                <a href="{% url 'dokab:übersicht_ordnerinhalt' projekt.id ordner.id %}">{{ordner.darstellung}}{{ordner.bezeichnung}}</a>
+                {% else %}
+                {{ordner.darstellung}}{{ordner.bezeichnung}}
+                {% endif %}
+            </p>
+        {% endfor %}
+    </div>
+
+    <!-- HAUPTFENSTER ORDNERINHALT -->
+    <div class="flex-grow-1 bd-highlight">
+        
+        <!-- Kontrolle Zugriffsberechtigung -->
+        {% if zugriff_verweigert %}
+            <p style="color: red">Sie haben keine Zugriffsberechtigung auf diesen Ordner</p>
+        {% else %}
+
+            <h1 class="mb-5 text-center">Ordnerinhalt {{aktueller_ordner.bezeichnung}}</h1>
+        
+            <table class="table">
+                <!-- Tabellenkopf -->
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>Bezeichnung</th>
+                        <th>Datum</th>
+                        <th>Erstellt von</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    <!-- Auflistung Unterordner -->
+                    {% for unterordner in liste_unterordner %}
+                    <tr>
+                        <td></td>
+                        <td>
+                            {% if unterordner.freigabe_lesen or unterordner.freigabe_upload %}
+                            <a href="{% url 'dokab:übersicht_ordnerinhalt' projekt.id unterordner.id %}">{{unterordner.bezeichnung}}</a>
+                            {% else %}
+                            {{unterordner.bezeichnung}}
+                            {% endif %}
+                        </td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                    {% endfor %}
+
+                    <!-- Auflistung Dokumente -->
+                    {% for dokument in liste_dokumente %}
+                    <tr>
+                        <td>
+                            <input type="checkbox" name="dokument_id" value="{{dokument.id}}">
+                        </td>
+                        <td>{{dokument.bezeichnung}}</td>
+                        <td>{{dokument.zeitstempel}}</td>
+                        <td>{{dokument.name_mitarbeiter}}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+
+            </table>
+        {% endif %}
+
+    </div>
+
+</div>
+{% endblock inhalt %}

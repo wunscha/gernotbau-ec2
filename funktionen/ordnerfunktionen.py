@@ -2,6 +2,7 @@ from projektadmin.models import Ordner, Überordner_Unterordner, Ordner_Firma_Fr
 from superadmin.models import Firma
 from funktionen import hole_objs
 
+'''
 def erzeuge_ordnerbaum_dicts(root_ordner):
 # Legt ein verschachtelte Dictionary nach der Struktur des Ordnerbaums an
     
@@ -16,6 +17,7 @@ def erzeuge_ordnerbaum_dicts(root_ordner):
     dict_ordnerbaum['liste_unterordner'] = liste_unterordner
 
     return dict_ordnerbaum
+'''
 
 def erzeuge_darstellung_ordnerbaum(projekt, root_ordner, liste_ordner = [], ebenendarstellung = '...', ebene = 0, firma = None):
 # Hängt Dictionaries für die Darstellung des Ordnerbaums von root_ordner an liste_ordner (leere Liste) und gibt sie zurück
@@ -69,7 +71,7 @@ def initialisiere_ordnerfreigaben_firma(projekt, firma):
                 freigabeeinstellung_neu = Ordner_Firma_Freigabe(
                     ordner = ordner,
                     firma_id = firma.id,
-                    freigabe_lesen = False, 
+                    freigabe_lesen = True if ordner.ist_root_ordner else False, 
                     freigabe_upload = False,
                     freigaben_erben = default_freigaben_erben
                     )
@@ -112,3 +114,24 @@ def lösche_ordnerfreigaben_ordner(projekt, ordner):
     if qs_freigaben:
         for fg in qs_freigaben:
             fg.delete(using = str(projekt.id))
+
+def userfirma_hat_ordnerzugriff(user, ordner_id, projekt_id):
+# Gibt bool zurück, ob Userfirma Ordnerzugriff hat (Lese- und/oder Uploadfreigabe)
+    firma = user.firma
+    ordner = Ordner.objects.using(projekt_id).get(pk = ordner_id)
+
+    ordner_firma_freigabe = Ordner_Firma_Freigabe.objects.using(projekt_id).get(firma_id = firma.id, ordner = ordner)
+    
+    if ordner_firma_freigabe.freigabe_lesen or ordner_firma_freigabe.freigabe_upload:
+        return True
+    else:
+        return False
+
+def userfirma_hat_uploadfreigabe(user, ordner_id, projekt_id):
+# Gibt bool zurück, ob Userfirma Uploadfreigabe hat
+    firma = user.firma
+    ordner = Ordner.objects.using(projekt_id).get(pk = ordner_id)
+
+    ordner_firma_freigabe = Ordner_Firma_Freigabe.objects.using(projekt_id).get(firma_id = firma.id, ordner = ordner)
+    
+    return ordner_firma_freigabe.freigabe_upload

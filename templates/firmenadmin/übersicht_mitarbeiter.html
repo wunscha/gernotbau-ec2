@@ -51,12 +51,16 @@
                     </div>
                 </li>
 
+                {% if mitarbeiter.liste_projekte %}
                 <li class="list-group-item">
                     Projekte:
-                    {% for projekt in mitarbeiter.liste_projekte %}
-                        <li>{{projekt.bezeichnung}}</li>
-                    {% endfor %}
+                    <ul>
+                        {% for projekt in mitarbeiter.liste_projekte %}
+                            <li>{{projekt.bezeichnung}}</li>
+                        {% endfor %}
+                    </ul>
                 </li>
+                {% endif %}
             </ul>
         {% endif %}
     {% endfor %}

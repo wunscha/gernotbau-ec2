@@ -8,207 +8,148 @@ from gernotbau.settings import BASE_DIR
 from projektadmin.funktionen import Ordnerbaum, sortierte_stufenliste
 from projektadmin.models import Ordner_Firma_Freigabe, Ordner, Workflow_Schema, Workflow_Schema_Stufe, WFSch_Stufe_Mitarbeiter
 from superadmin.models import Firma, Projekt
-from .models import Dokument, Paket, Status, Workflow, Workflow_Stufe, Mitarbeiter_Stufe_Status, Dokumentenhistorie_Eintrag, Anhang, Ereignis
+from .models import Dokument, Status, Workflow, Workflow_Stufe, Mitarbeiter_Stufe_Status, Dokumentenhistorie_Eintrag, Anhang, Ereignis, Datei
 from .funktionen import user_hat_ordnerzugriff, speichere_datei_chunks, workflow_stufe_ist_aktuell, liste_prüffirmen, aktuelle_workflow_stufe
+from funktionen import dateifunktionen, ordnerfunktionen, hole_dicts, workflows
 
 #############################################################
 # Ordner
 
-def weiterleitung_root(request, projekt_id):
-# Leite weiter zur Anzeige Root-Ordner
-    projekt = Projekt.objects.get(pk = projekt_id)
-    root_ordner = Ordner.objects.get(projekt = projekt, ist_root_ordner = True)
+def übersicht_ordnerinhalt_root_view(request, projekt_id):
+# Leite weiter zur Übersicht Ordnerinhalt Root-Ordner
+    rootordner = Ordner.objects.using(projekt_id).get(ist_root_ordner = True)
+    return HttpResponseRedirect(reverse('dokab:übersicht_ordnerinhalt', args=(projekt_id, rootordner.id)))
 
-    return HttpResponseRedirect(reverse('dokab:ordner_inhalt', args = [projekt_id, root_ordner.id]))
+def übersicht_ordnerinhalt_view(request, projekt_id, ordner_id):
+    # Kontrolle Login
+    if not request.user.is_authenticated:
+        return HttpResponseRedirect('login')
 
-def ordner_inhalt(request, projekt_id, ordner_id):
-# Zeige Ordnerinhalt, wenn User eingeloggt und Ordnerzugriff
-    
-    if request.user.is_authenticated:
-        # -------ORDNERBAUM----------
+    else:
+        # Packe context und Lade Übersicht Ordnerinhalt
+        projekt = Projekt.objects.using('default').get(pk = projekt_id)
+        aktueller_ordner = Ordner.objects.using(projekt_id).get(pk = ordner_id)
 
-        # Erstelle dict für Anzeige Ordnerbaum:
-        # Hole Ordnerstruktur
-        projekt = Projekt.objects.get(pk = projekt_id)
-        liste_ordner = Ordner.objects.filter(projekt = projekt)
-        ordner_root = Ordner.objects.get(projekt = projekt, ist_root_ordner = True)
-        # Erstelle Instanz von Ordnerbaum und befülle dict_ordnerbaum für context
-        ordnerbaum_instanz = Ordnerbaum()
-        dict_ordnerbaum = ordnerbaum_instanz.erstelle_dict_ordnerbaum(liste_ordner, ordner_root)
-        # Hole Ordnerfreigaben für die Firma
-        firma = request.user.firma
-        ordnerbaum = []
-        for key, value in dict_ordnerbaum.items():
-            # Hole Eintrag in Ordner_Firma_Freigabe, wenn vorhanden, sonst erstelle Neuen Eintrag
-            '''
-            # TODO: 
-            # Vorteil --> Es muüssen nicht alle Freigabe-Einträge neu erstellt wenn neuer Ordner od. Firma angelegt wird; 
-            # Nachteil --> Evtl. Erzeugung von doppelten Einträgen möglich, oder Freigabe werden überschrieben?
-            '''
-            ordner_firma_freigabe = Ordner_Firma_Freigabe.objects.get_or_create(
-                firma = firma, 
-                ordner = value, 
-                defaults = {
-                    'projekt':projekt, 
-                    'freigabe_lesen':False, 
-                    'freigabe_upload':False
-                    }
+        # Kontrolle Ordnerzugriff (Weiterverwendung 'zugriff_verweigert' im context):
+        if not ordnerfunktionen.userfirma_hat_ordnerzugriff(request.user, ordner_id, projekt_id):
+            zugriff_verweigert = True
+            # TODO: Anzeige Fehlermeldung beim Laden von 'übersicht_ordnerinhalt.html"
+            context = {
+                'projekt':projekt.__dict__,
+                'ordner':aktueller_ordner.__dict__,
+                'zugriff_verweigert': zugriff_verweigert
+                }
+            return render(request, './dokab/übersicht_ordnerinhalt.html', context)
+
+        else:
+            zugriff_verweigert = False
+            
+            # POST: Download oder ähnliches
+            if request.method == 'POST':
+                pass
+
+            dict_aktueller_ordner = hole_dicts.ordner_mit_freigaben(
+                projekt = projekt, 
+                firma = request.user.firma,
+                ordner = aktueller_ordner
                 )
             
-            # Dict Einzelordner befüllen
-            dict_einzelordner = {}
-            dict_einzelordner['ordner_darstellung'] = key
-            dict_einzelordner['ordner'] = value
-            dict_einzelordner['ordner_freigabe_lesen'] = ordner_firma_freigabe[0].freigabe_lesen # Index erforderlich wegen 'get_or_create'
-            dict_einzelordner['ordner_freigabe_upload'] = ordner_firma_freigabe[0].freigabe_upload # Index erforderlich wegen 'get_or_create'
-
-            # Ordnerbaum befüllen
-            ordnerbaum.append(dict_einzelordner)
-
-        
-        # Packe Context für Ordnerbaum
-        ordner = Ordner.objects.get(pk = ordner_id)
-        context = {
-            'projekt_id':projekt_id,
-            'ordner_id':ordner_id,
-            'ordner':ordner,
-            'ordnerbaum':ordnerbaum
-        }
-
-        if user_hat_ordnerzugriff(user = request.user, ordner_id = ordner_id, projekt_id = projekt_id):
-        # ----------- DOKUMENTE -------------
-            ordner = Ordner.objects.get(pk = ordner_id)
-            liste_unterordner = Ordner.objects.filter(überordner = ordner)
-            liste_dokumente = Dokument.objects.filter(ordner = ordner)
+            liste_ordnerbaum = ordnerfunktionen.erzeuge_darstellung_ordnerbaum(
+                projekt = projekt, 
+                root_ordner = Ordner.objects.using(projekt_id).get(ist_root_ordner = True),
+                firma = request.user.firma
+            )
             
-            # Füge zu Context Ordnerinhalt zu Context hinzu
-            context['liste_unterordner'] = liste_unterordner
-            context['liste_dokumente'] = liste_dokumente
+            liste_dokumente = hole_dicts.liste_dokumente_ordner(
+                projekt = projekt, 
+                ordner = aktueller_ordner
+                )
+            
+            liste_uo = hole_dicts.liste_unterordner(
+                projekt = projekt,
+                firma = request.user.firma,
+                ordner = aktueller_ordner
+            )
 
-            # Füge Uploadberechtigung zu Context hinzu
-            ordner_firma_freigabe = Ordner_Firma_Freigabe.objects.get(firma = firma, ordner = ordner)
-            context['freigabe_upload'] = ordner_firma_freigabe.freigabe_upload
+            context = {
+                'projekt': projekt.__dict__,
+                'aktueller_ordner': dict_aktueller_ordner, 
+                'liste_ordnerbaum': liste_ordnerbaum,
+                'liste_dokumente': liste_dokumente,
+                'liste_unterordner': liste_uo,
+                'zugriff_verweigert': zugriff_verweigert,
+            }
 
-            return render(request, 'ordner_inhalt.html', context)
-        
-        else:
-            return render(request, 'dokab_ordner_zugriff_verweigert.html', context)
-
-#############################################################
-# Konstanten für Stati (Indizes wegen 'get_or_create')
-STATI = {}
-STATI['in_bearbeitung'] = Status.objects.get_or_create(bezeichnung = 'In Bearbeitung')[0]
-STATI['warten_auf_vorstufe'] = Status.objects.get_or_create(bezeichnung = 'Warten auf Vorstufe')[0]
-STATI['rückfrage'] = Status.objects.get_or_create(bezeichnung = 'Rückfrage')[0]
-STATI['abgelehnt'] = Status.objects.get_or_create(bezeichnung = 'Abgelehnt')[0]
-STATI['freigegeben'] = Status.objects.get_or_create(bezeichnung = 'Freigegeben')[0]
-
-# Konstanten für Ereignisse (Indizes wegen 'get_or_create')
-EREIGNISSE = {}
-EREIGNISSE['upload'] = Ereignis.objects.get_or_create(bezeichnung = 'Upload')[0]
-EREIGNISSE['workflow_eröffnet'] = Ereignis.objects.get_or_create(bezeichnung = 'Workflow Eröffnet')[0]
-
-#############################################################
-# Dokumente
+            return render(request, './dokab/übersicht_ordnerinhalt.html', context)
 
 def upload(request, projekt_id, ordner_id):
-    
-# Wenn user keinen Uploadzugriff hat: Zugriff verweigert
-# Wenn POST: Führe Upload durch
-# Wenn nicht POST: Zeige Upload Formular
-    ordner = Ordner.objects.get(pk = ordner_id)
-    firma = request.user.firma
-    ordner_firma_freigabe = Ordner_Firma_Freigabe.objects.get(ordner = ordner, firma = firma)
-    if ordner_firma_freigabe.freigabe_upload:
+    # Kontrolle Login
+    if not request.user.is_authenticated:
+        return HttpResponseRedirect('login')
 
-        if request.method == 'POST':
-            datei = request.FILES['datei']
-            
-            # Lege Paket und Dokument in DB an
-            paket_bezeichnung = request.POST['paket']
-            paket = Paket.objects.create(bezeichnung = paket_bezeichnung)
-            zielpfad = str(BASE_DIR) + '/_DATEIABLAGE/' #TODO: Verwaltung Ablagepfad anpassen
-
-            neues_dokument = Dokument.objects.create(
-                bezeichnung = datei.name,
-                pfad = zielpfad + datei.name,
-                zeitstempel = timezone.now(),
-                mitarbeiter = request.user,
-                paket = paket,
-                ordner = ordner
-            )
-
-            # Lege DokHist Eintrag an
-            text = 'Dokument {neues_dokumen.bezeichnung} wurde hochgeladen'
-            Dokumentenhistorie_Eintrag.objects.create(
-                zeitstempel = timezone.now(),
-                mitarbeiter = request.user,
-                dokument = neues_dokument,
-                text = text, 
-                ereignis = EREIGNISSE['upload']
-            )
-
-            # Datei hochladen
-            speichere_datei_chunks(datei, zielpfad)
-
-            # -------- WORKFLOW ANLEGEN ---------
-            # Lege neuen Workflow an, wenn Workflow-Schema vorhanden
-            workflow_schema = ordner.workflow_schema
-            if workflow_schema:
-                workflow = Workflow.objects.create(
-                    dokument = neues_dokument,
-                    workflow_schema = workflow_schema,
-                    status = STATI['in_bearbeitung'],
-                    abgeschlossen = False
-                )
-                text = 'Workflow {workflow_schema.bezeichnung} für Dokument {neues_dokument.bezeichnung} wurde eröffnet'
-                Dokumentenhistorie_Eintrag.objects.create(
-                    zeitstempel = timezone.now(),
-                    mitarbeiter = request.user,
-                    dokument = neues_dokument,
-                    text = text, 
-                    ereignis = EREIGNISSE['workflow_eröffnet']
-                )
-
-                # Lege Workflow-Stufen an
-                liste_wfsch_stufen = Workflow_Schema_Stufe.objects.filter(workflow_schema = workflow_schema)
-                liste_wfsch_stufen = sortierte_stufenliste(liste_wfsch_stufen)
-                aktuelle_stufe = None
-                for wfsch_stufe in liste_wfsch_stufen:
-                    # Erzeuge Stufe
-                    vorstufe = aktuelle_stufe
-                    aktuelle_wfsch_stufe = wfsch_stufe
-                    aktuelle_stufe = Workflow_Stufe(workflow = workflow, vorstufe = vorstufe, abgeschlossen = False)
-                    aktuelle_stufe.save()
-                    
-                    # Lege MA_Stufe_Stati an
-                    liste_wfsch_stufe_ma = WFSch_Stufe_Mitarbeiter.objects.filter(wfsch_stufe = aktuelle_wfsch_stufe)
-                    for wfsch_stufe_ma in liste_wfsch_stufe_ma:
-                        if vorstufe:
-                            status = STATI['warten_auf_vorstufe']
-                        else:
-                            status = STATI['in_bearbeitung']
-                        Mitarbeiter_Stufe_Status.objects.create(
-                                mitarbeiter = wfsch_stufe_ma.mitarbeiter, 
-                                status = status,
-                                workflow_stufe = aktuelle_stufe,
-                                immer_erforderlich = wfsch_stufe_ma.immer_erforderlich
-                                )
-
-            # TODO: InfoMails
-
-            return HttpResponseRedirect(reverse('dokab:ordner_inhalt',args=[projekt_id, ordner_id]))
-
+    else:
+        # Kontrolle Uploadfreigabe (Weiterverwendung 'zugriff_verweigert' im context):
+        if not ordnerfunktionen.userfirma_hat_uploadfreigabe(request.user, ordner_id, projekt_id):
+            zugriff_verweigert = True
+            # TODO: Anzeige Fehlermeldung beim Laden von 'übersicht_ordnerinhalt.html"
+        
         else:
-        # Wenn nicht POST:
-        # --> Zeige Upload-Formular für Ordner
-            context = {
-                'ordner':ordner,
-                'ordner_id':ordner_id,
-                'projekt_id':projekt_id
-                }
+            projekt = Projekt.objects.using('default').get(pk = projekt_id)
+            ordner = Ordner.objects.using(projekt_id).get(pk = ordner_id)
+            
+            # POST Upload durchführen und Workflow initiieren
+            if request.method == 'POST':
+                
+                # Lege Paket und Dokument in DB an
+                dokument_bezeichnung = request.POST['dokument_bezeichnung']
+                zielpfad = str(BASE_DIR) + '/_DATEIABLAGE/' #TODO: Verwaltung Ablagepfad anpassen
 
-            return render(request, 'upload.html', context)
+                neues_dokument = Dokument(
+                    bezeichnung = dokument_bezeichnung,
+                    pfad = zielpfad,
+                    zeitstempel = timezone.now(),
+                    mitarbeiter_id = request.user.id,
+                    ordner = Ordner.objects.using(projekt_id).get(pk = ordner_id)
+                    )
+                neues_dokument.save(using = projekt_id)
+
+                # DokHist-Eintrag Erstellung Dokument
+                dokhist_eintrag_neu = Dokumentenhistorie_Eintrag(
+                    text = 'Neues Dokument angelegt: ' + neues_dokument.bezeichnung,
+                    zeitstempel = timezone.now(),
+                    dokument = neues_dokument,
+                    ereignis = Ereignis.objects.using(projekt_id).get(bezeichnung = 'Upload'),
+                )
+                dokhist_eintrag_neu.save(using = projekt_id)
+
+                # Dateien in DB anlegen und hochladen
+                for datei in request.FILES:
+                    neue_datei = Datei(
+                        dateiname = datei,
+                        dokument = neues_dokument,
+                        pfad = neues_dokument.pfad + datei
+                    )
+                    neue_datei.save(using = projekt_id)
+
+                    dateifunktionen.speichere_datei_chunks(request.FILES.get(datei), zielpfad)
+
+                    # DokHist-Eintrag Upload Datei
+                    dokhist_eintrag_neu = Dokumentenhistorie_Eintrag(
+                    text = 'Datei hochgeladen: ' + neue_datei.dateiname,
+                    zeitstempel = timezone.now(),
+                    dokument = neues_dokument,
+                    ereignis = Ereignis.objects.using(projekt_id).get(bezeichnung = 'Upload'),
+                    )
+                
+                # Workflow anlegen
+                workflows.neuer_workflow(projekt = projekt, dokument = neues_dokument)
+
+            # Context packen und Formular laden
+            context = {
+                'projekt': projekt.__dict__,
+                'ordner': ordner.__dict__,
+            }
+            return render(request, './dokab/upload_formular.html', context)
 
 #############################################################
 # Workflows

@@ -1,0 +1,112 @@
+<!-- Vererbung -->
+{% extends './_base_firmenadmin.html' %}
+
+<!-- Titel -->
+{% block titel %}
+    Übersicht WF-Schemata
+{% endblock titel %}
+
+<!-- nav-tab aktiv -->
+{% block wfsch_active %}
+    active
+{% endblock wfsch_active %}
+
+<!-- Seiteninhalt -->
+{% block inhalt %}
+<div class="container">
+
+    <h1 class="mb-5 text-center">Übersicht Workflowschemata</h1>
+
+    {% for wfsch in li_wfsch %}
+    <ul class="my-3 list-group">
+        <!-- WF-Schema Bezeichnung -->
+        <li class="list-group-item font-weight-bolder" style="background-color: #f8f9fa;">{{wfsch.bezeichnung}}</li>
+
+        <!-- Auflistung WFSch-Stufen -->
+        {% for wfsch_st in wfsch.liste_wfsch_stufen %}
+            
+            <!-- Auflistung Prüfer, wenn Userfirma Prüffirma ist -->
+            {% if wfsch_st.userfirma_ist_prüffirma %}
+                <li class="list-group-item">
+                    <p class="font-weight-bolder">Stufe {{forloop.counter}}</p>
+
+                    {% for prüffirma in wfsch_st.liste_prüffirmen %}
+                        {% if prüffirma.ist_userfirma %}
+                        <!-- Liste Prüfer als Form, um 'immer erforderlich' zu wählen -->
+                        <input hidden type="text" name="ereignis" value="einstellung_erforderlichkeit_prüfer">
+                        <input hidden type="text" name="projekt_id" value={{wfsch.projekt_id}}>
+                        <ul>
+                            {% for prüfer in prüffirma.liste_prüfer %}
+                            <li class="my-4">
+                                <div class="d-flex flex-row">
+                                    <form class="form-inline" action="{% url 'firmenadmin:übersicht_wfsch' %}" method="POST">
+                                        {% csrf_token %}
+                                        <input hidden type="text" name="ereignis" value="erforderlichkeit_ändern">
+                                        <input hidden type="text" name="projekt_id" value="{{wfsch.projekt_id}}">
+                                        <input hidden type="text" name="wfsch_stufe_id" value="{{wfsch_st.id}}">
+                                        <input hidden type="text" name="prüfer_id" value="{{prüfer.id}}">
+                                        <label for="erforderlichkeit_ändern_button">{{prüfer.first_name}} {{prüfer.last_name}}</label>
+                                        <button type="submit"
+                                                class="mx-2 py-0 btn btn-outline-dark align-middle"
+                                                id="erforderlichkeit_ändern_button"
+                                                style="font-size: small">
+                                                {% if prüfer.immer_erforderlich %}
+                                                    Zustimmung erforderlich
+                                                {% else %}
+                                                    Zustimmung optional
+                                                {% endif %}
+                                        </button>
+                                    </form>
+
+                                    <form class="form-inline" action="{% url 'firmenadmin:übersicht_wfsch' %}" method="POST">
+                                        {% csrf_token %}
+                                        <input hidden type="text" name="ereignis" value="prüfer_lösen">
+                                        <input hidden type="text" name="projekt_id" value="{{wfsch.projekt_id}}">
+                                        <input hidden type="text" name="wfsch_stufe_id" value="{{wfsch_st.id}}">
+                                        <input hidden type="text" name="prüfer_id" value="{{prüfer.id}}">
+                                        <button type="submit"
+                                                class="mx-2 p-0 btn btn-outline-danger align-middle"
+                                                style="font-size: small; width: 20px;">
+                                                -
+                                        </button>
+                                    </form>
+                                </div>
+                            </li>
+                            {% endfor %}
+                        </ul>
+
+                        <!-- Formular 'Prüfer hinzufügen' -->
+                            {% if prüffirma.liste_nicht_prüfer %}
+                            <form class="p-2 form-inline border-top" action="{% url 'firmenadmin:übersicht_wfsch' %}" method="POST">
+                                {% csrf_token %}
+                                <input hidden type="text" name="ereignis" value="prüfer_hinzufügen">
+                                <input hidden type="text" name="projekt_id" value={{wfsch.projekt_id}}>
+                                <label for="dropdown_prüfer">Prüfer hinzufügen</label>
+                                <select class="m-2 form-control" name="prüfer_hinzufügen_id" id="dropdown_prüfer">
+                                    {% for nicht_prüfer in prüffirma.liste_nicht_prüfer %}
+                                        <option value="{{nicht_prüfer.id}}">{{nicht_prüfer.first_name}} {{nicht_prüfer.last_name}}</option>
+                                    {% endfor %}
+                                </select>
+                                <button class="m-2 btn btn-outline-primary" name="wfsch_stufe_id" value="{{wfsch_st.id}}">Hinzufügen</button>
+                            </form>
+                            {% endif %}
+
+                        {% endif %}
+                    {% endfor %}
+
+                </li>
+
+            <!-- Ausgegraute Anzeige, wenn Userfirma nicht Prüffirma -->
+            {% else %}
+
+                <li class="list-group-item font-weight-bolder" style="color: grey">
+                    Stufe {{forloop.counter}}
+                </li>                 
+
+            {% endif %}
+
+        {% endfor %}
+    {% endfor %}
+
+</div>
+{% endblock inhalt %}

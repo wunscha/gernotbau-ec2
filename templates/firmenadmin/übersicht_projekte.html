@@ -27,9 +27,9 @@
         <!-- Auflistung Mitarbeiter -->
         <li class="list-group-item">
             <ul>
-                {% for mitarbeiter in projekt.liste_mitarbeiter %}
+                {% for mitarbeiter in projekt.liste_projektmitarbeiter %}
                 <li>
-                    <form class="form-inline" action="{% url 'firmenadmin:übersciht_projekte' %}" method="POST">
+                    <form class="form-inline" action="{% url 'firmenadmin:übersicht_projekte' %}" method="POST">
                         {% csrf_token %}
                         <input hidden type="text" name="ereignis" value="mitarbeiter_lösen">
                         <input hidden type="text" name="projekt_id" value="{{projekt.id}}">
@@ -41,7 +41,22 @@
                                 style="height: 20px; width: 20px; font-size: small"
                                 value="{{mitarbeiter.id}}">-</button>
                     </form>
-                    {{mitarbeiter.first_name}} {{mitarbeiter.last_name}}
+
+                    {% if mitarbeiter.ist_projektadmin %}
+                    <form class="form-inline" action="{% url 'firmenadmin:übersicht_projekte' %}" method="POST">
+                        {% csrf_token %}
+                        <input hidden type="text" name="ereignis" value="projektadmin_abwählen">
+                        <input hidden type="text" name="projekt_id" value="{{projekt.id}}">
+                        <label for="projektadmin_abwählen_button">(Projektadmin)</label>
+                        <button type="submit"
+                                class="m-2 py-0 btn btn-outline-danger align-middle"
+                                name="mitarbeiter_id"
+                                id="projektadmin_abwählen_button"
+                                style="height: 20px; font-size: small"
+                                value="{{mitarbeiter.id}}">abwählen</button>
+                    </form>
+                    {% endif %}
+
                 </li>
                 {% endfor %}
             </ul>
@@ -54,38 +69,39 @@
                 <label class="mx-1" for="mitarbeiter_id">Mitarbeiter zuordnen:</label>
 
                 <select class="mx-1 form-control" name="mitarbeiter_id" id="mitarbeiter_id">
-                    {% for mitarbeiter in projekt.liste_mitarbeiter_außen %}
-                        <option value="{{mitarbeiter.id}}">{{mittarbeiter.first_name}} {{mitarbeiter.last_name}}</option>
+                    {% for mitarbeiter in projekt.liste_nicht_projektmitarbeiter %}
+                        <option value="{{mitarbeiter.id}}">{{mitarbeiter.first_name}} {{mitarbeiter.last_name}}</option>
                     {% endfor %}
                 </select>
 
                 <input hidden type="text" name="ereignis" value="mitarbeiter_hinzufügen">
 
-                <button class="mx-1 btn btn-outline-success" type="submit" name="projekt_id" value="projekt.id">Zuordnen</button>
+                <button class="mx-1 btn btn-outline-success" type="submit" name="projekt_id" value="{{projekt.id}}">Zuordnen</button>
             </form>
         </li>
 
         <!-- Formular "Projektadmin wählen" -->
+        {% if projekt.firma_ist_projektadmin %}
         <li class="list-group-item">
             <form class="form-inline" action="{% url 'firmenadmin:übersicht_projekte' %}" method="POST">
                 {% csrf_token %}
-                <label class="mx-1" for="mitarbeiter_id">Firmenadmin zuordnen:</label>
+                <label class="mx-1" for="mitarbeiter_id">Projektadmin zuordnen:</label>
 
                 <select class="mx-1 form-control" name="mitarbeiter_id" id="mitarbeiter_id">
-                    {% for mitarbeiter in projekt.liste_mitarbeiter %}
+                    {% for mitarbeiter in projekt.liste_projektmitarbeiter %}
                         <option value="{{mitarbeiter.id}}">{{mitarbeiter.first_name}} {{mitarbeiter.last_name}}</option>
                     {% endfor %}
                 </select>
 
-                <input type="text" name="ereignis" value="projektadmin_zuweisen">
+                <input hidden type="text" name="ereignis" value="projektadmin_wählen">
 
-                <button class="mx-1 btn btn-outline-primary" type="submit" name="projekt_id" value="projekt.id">Zuordnen</button>
+                <button class="mx-1 btn btn-outline-primary" type="submit" name="projekt_id" value="{{projekt.id}}">Zuordnen</button>
             </form>
         </li>
+        {% endif %}
 
     </ul>
-
-    
+    {% endfor %}
 
 </div>
 {% endblock inhalt %}

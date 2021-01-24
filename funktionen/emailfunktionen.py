@@ -27,7 +27,7 @@ def generiere_email_adresse_fa(*, kurzbezeichnung):
     # Schleife solange durchlaufen, bis keine Firma mit E-Mailadresse mehr vorhanden
     while True:
         email_doppelt = False
-        email = kurzbezeichnung.lower() + str(emailzähler) + '.' + '@gernotbau.at'
+        email = kurzbezeichnung.lower() + str(emailzähler) + '@gernotbau.at'
         if Firma.objects.using('default').filter(email = email):
             email_doppelt = True
             emailzähler = 1 if emailzähler == '' else emailzähler + 1

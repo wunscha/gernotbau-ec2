@@ -13,7 +13,6 @@ class Workflow_Schema(models.Model):
 class Workflow_Schema_Stufe(models.Model):
     workflow_schema = models.ForeignKey(Workflow_Schema, on_delete = models.CASCADE)
     vorstufe = models.ForeignKey('self', on_delete = models.DO_NOTHING, null=True, blank=True)
-    mitarbeiter = models.ManyToManyField(Mitarbeiter, through='WFSch_Stufe_Mitarbeiter')
     
     def __str__(self):
         return str('WFSch-Stufe_für_' + self.workflow_schema.bezeichnung)
@@ -28,7 +27,7 @@ class WFSch_Stufe_Firma(models.Model):
 class WFSch_Stufe_Mitarbeiter(models.Model):
     immer_erforderlich = models.BooleanField()
     wfsch_stufe = models.ForeignKey(Workflow_Schema_Stufe, on_delete = models.CASCADE)
-    mitarbeiter = models.ForeignKey(Mitarbeiter, on_delete = models.CASCADE)
+    mitarbeiter_id = models.CharField(max_length=20, default='Das ist nicht gültig')
 
     def __str__(self):
         return str('%s - %s' % (self.wfsch_stufe.workflow_schema.bezeichnung, self.mitarbeiter.last_name,))
@@ -40,6 +39,7 @@ class Ordner(models.Model):
     bezeichnung = models.CharField(max_length = 50)
     ist_root_ordner = models.BooleanField(default = False)
     workflow_schema = models.ForeignKey(Workflow_Schema, on_delete = models.PROTECT, null = True, blank = True)
+    unterordner = models.ManyToManyField('self', through='Überordner_Unterordner')
     # TODO: Beim neuen Aufsetzen von DB: M2M-Feld 'unterordner' mit through = 'Überordner_Unterordner' einfügen
     
     def __str__(self):

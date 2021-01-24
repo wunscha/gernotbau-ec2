@@ -2,6 +2,10 @@
 
 {% block titel %}Home{% endblock titel %}
 
+{% block href_titel_app %}
+    {% url 'home' %}
+{% endblock href_titel_app %}
+
 {% block titel_app %}Home{% endblock titel_app %}
 
 {% block navigationsleiste %}
@@ -16,7 +20,7 @@
         <ul class="my-3 list-group">
             <li class="list-group-item font-weight-bolder" style="background-color: #f8f9fa;">Ihre Projekte</li>
             {% for projekt in liste_projekte_user %}
-                <li class="list-group-item"><a href="{% url 'dokab:weiterleitung_root' projekt.id %}">{{projekt.bezeichnung}}</a></li>
+                <li class="list-group-item"><a href="{% url 'dokab:übersicht_ordnerinhalt_root' projekt.id %}">{{projekt.bezeichnung}}</a></li>
             {% endfor %}
         </ul>
     {% endif %}
@@ -29,6 +33,13 @@
             {% for projekt in liste_projekte_user_projektadmin %}
                 <li class="list-group-item"><a href="{% url 'projektadmin:übersicht_firmen' projekt.id %}">{{projekt.bezeichnung}}</li>
             {% endfor %}
+        </ul>
+    {% endif %}
+
+    {% if user.ist_superadmin %}
+        <!-- Superadmin-Bereich -->
+        <ul class="my-3 list-group">
+            <li class="list-group-item font-weight-bolder" style="background-color: #f8f9fa;"><a href="{% url 'superadmin:firma_neu' %}">Zum Superadmin Bereich</a></li>
         </ul>
     {% endif %}
 

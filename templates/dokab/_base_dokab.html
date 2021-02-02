@@ -8,7 +8,7 @@
 
 <!-- App-Titel -->
 {% block titel_app %}
-    Dokumentenablage
+    {{projekt.kurzbezeichnung}} | Dokumentenablage
 {% endblock titel_app %}
 
 <!-- Navgationsleiste -->
@@ -21,7 +21,11 @@
         </li>
 
         <li class="nav-item">
-            <a href="{% url 'dokab:übersicht_wf' projekt.id %}" class="nav-link {% block wf_active %}{% endblock wf_active %}">Workflows</a>
+            <a href="{% url 'dokab:übersicht_wf_eigene_dok' projekt.id %}" class="nav-link {% block wf_eigene_dok_active %}{% endblock wf_eigene_dok_active %}">Workflows Eigene Dokumente</a>
+        </li>
+
+        <li class="nav-item">
+            <a href="{% url 'dokab:übersicht_wf_zur_bearbeitung' projekt.id %}" class="nav-link {% block wf_zur_bearbeitung_active %}{% endblock wf_zur_bearbeitung_active %}">Workflows Zur Bearbeitung</a>
         </li>
 
     </ul>

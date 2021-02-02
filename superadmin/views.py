@@ -1,5 +1,6 @@
 from django.shortcuts import render
 from .models import Firma, Projekt, Projekt_Firma_Mail
+from projektadmin.models import Ordner, Ordner_Firma_Freigabe
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import make_password
 from django.http import HttpResponseRedirect, HttpResponse
@@ -101,8 +102,28 @@ def projekt_neu_view(request):
                 )
                 neu_projekt_firma_mail.save(using='default')
 
+                '''
+                # Root Ordner anlegen
+                root_ordner = Ordner(
+                    bezeichnung = 'ROOT',
+                    ist_root_ordner = True,
+                )
+                root_ordner.save(using = str(neues_projekt.id))
+
+                # Ordnerberechtigung Root-Ordner <-> Projektadmin-Firma anlegen
+                neu_ordner_firma_freigabe = Ordner_Firma_Freigabe(
+                    ordner = root_ordner,
+                    firma_id = firma.id,
+                    freigabe_lesen = True,
+                    freigabe_upload = True,
+                    freigaben_erben = False
+                )
+                neu_ordner_firma_freigabe.save(using = str(neues_projekt.id))
+                '''
+
                 # TODO: Log-Einträge
                 # TODO: InfoMails
+                # TODO: ROOT-Ordner anlegen (inkl. Freigabe für Projektadmin Firma --> dafür muss DB-Verbindung aber schon bestehen)
 
                 # Erfolgsmeldung für context
                 erfolgsmeldung = 'Projekt "' + neues_projekt.bezeichnung + '"wurde angelegt.'

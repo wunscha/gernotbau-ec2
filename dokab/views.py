@@ -8,9 +8,9 @@ from gernotbau.settings import BASE_DIR
 from projektadmin.funktionen import Ordnerbaum, sortierte_stufenliste
 from projektadmin.models import Ordner_Firma_Freigabe, Ordner, Workflow_Schema, Workflow_Schema_Stufe, WFSch_Stufe_Mitarbeiter
 from superadmin.models import Firma, Projekt
-from .models import Dokument, Status, Workflow, Workflow_Stufe, Mitarbeiter_Stufe_Status, Dokumentenhistorie_Eintrag, Anhang, Ereignis, Datei
+from .models import Dokument, Firma_Stufe, Status, Workflow, Workflow_Stufe, Mitarbeiter_Stufe_Status, Dokumentenhistorie_Eintrag, Anhang, Ereignis, Datei
 from .funktionen import user_hat_ordnerzugriff, speichere_datei_chunks, workflow_stufe_ist_aktuell, liste_prüffirmen, aktuelle_workflow_stufe
-from funktionen import dateifunktionen, ordnerfunktionen, hole_dicts, workflows
+from funktionen import dateifunktionen, hole_objs, ordnerfunktionen, hole_dicts, workflows
 
 #############################################################
 # Ordner
@@ -154,113 +154,112 @@ def upload(request, projekt_id, ordner_id):
 #############################################################
 # Workflows
 
-def workflows_übersicht(request, projekt_id):
-# Hole alle Workflows für Dokumente des Users und für der User Prüfer ist
-# und Leite zu Workflow-Übersicht weiter
+def übersicht_wf_eigene_dok_view(request, projekt_id):
 
-    # Hole Workflows für die Dokumente des Users
-    liste_workflows_userdok = Workflow.objects.filter(dokument__mitarbeiter = request.user)
-    
-    # Hole Workflows, für die Prüfung durch User ausständig ist (Wenn Stufe aktuell, für die User Prüfer)
-    liste_ma_stufe_status = Mitarbeiter_Stufe_Status.objects.filter(mitarbeiter = request.user)
-    liste_workflows_userprüfer = []
-    
-    for ma_stufe_status in liste_ma_stufe_status:
-        workflow_stufe = ma_stufe_status.workflow_stufe
-        workflow = workflow_stufe.workflow
+    # Kontrolle Login
+    if not request.user.is_authenticated:
+        return HttpResponseRedirect('login')
 
-        if workflow_stufe_ist_aktuell(workflow_stufe):
-            liste_workflows_userprüfer.append(workflow)
+    else:
+        projekt = Projekt.objects.using('default').get(pk = projekt_id)
 
-    # Fülle Context und Rendere Workflow-Übersicht
-    context = {
-        'projekt_id':projekt_id,
-        'liste_workflows_userdok':liste_workflows_userdok,
-        'liste_workflows_userprüfer':liste_workflows_userprüfer
-    }
-
-    return render(request, 'dokab_workflows_übersicht.html', context)
-
-    # Rendere "dokab_workflows_übersicht.html"
-
-def workflow_detailansicht(request, projekt_id, workflow_id):
-# Zeige Workflow an, Dropdown für Änderung Status, wenn user == Prüfer
-
-    workflow = Workflow.objects.get(pk = workflow_id)
-    # liste_wf_stufen_firmen enthält eine Liste mit dicts f. jede Stufe: KEY = Firmenbezeichnung, VALUE = Liste der Prüfer
-    iterierungsliste_workflow_stufen = Workflow_Stufe.objects.filter(workflow = workflow) # Liste dient nur zum Iterieren
-    
-    liste_wf_stufen = []
-    
-    # Erzeuge für jede Stufe Listeneintrag
-    for workflow_stufe in iterierungsliste_workflow_stufen:
-
-        # Erzeuge dict für jede Prüffirma in der Stufe: KEY = prüffirma.bezeichnung, VALUE = Liste MA_Stufe_Status
-        dict_prüffirmen_stufe = {}
-        iterierungsliste_prüffirmen = liste_prüffirmen(workflow_stufe) # Liste dient nur zum iterieren
-        for prüffirma in iterierungsliste_prüffirmen:
-            # Hole alle Prüfer der Prüffirma für die Stufe
-            liste_ma_stufe_status = Mitarbeiter_Stufe_Status.objects.filter(mitarbeiter__firma = prüffirma, workflow_stufe = workflow_stufe)
-            
-            dict_prüffirmen_stufe[prüffirma.bezeichnung] = liste_ma_stufe_status
+        qs_wf = Workflow.objects.using(projekt_id).filter(dokument__mitarbeiter_id = request.user.id)
         
-        liste_wf_stufen.append(dict_prüffirmen_stufe)
+        liste_workflows = []
+        for wf in qs_wf:
+            # Liste Workflowstufen
+            qs_wf_stufen = Workflow_Stufe.objects.using(projekt_id).filter(workflow = wf)
 
-    # Suche aktuelle Stufe
-    aktuelle_stufe = aktuelle_workflow_stufe(workflow)
-    
-    # Fülle Context und Rendere Workflow-Detailansicht
-    context = {
-        'projekt_id':projekt_id,
-        'workflow':workflow,
-        'liste_wf_stufen':liste_wf_stufen,
-        'aktuelle_stufe':aktuelle_stufe
-    }
+            liste_wf_stufen = []
+            for s in qs_wf_stufen:
+                qs_einträge_firma_stufe = Firma_Stufe.objects.using(projekt_id).filter(workflow_stufe = s)
+                
+                # Liste Prüffirmen inkl. Firmenstati
+                liste_prüffirmen = []
+                for e in qs_einträge_firma_stufe:
+                    pf = Firma.objects.using('default').get(pk = e.firma_id)
+                    dict_prüffirma = pf.__dict__
 
-    return render(request, 'dokab_workflow_detailansicht.html', context)
+                    status_pf = workflows.firmenstatus(
+                        projekt = projekt, 
+                        wf_stufe = s,
+                        prüffirma = pf
+                    )
+                    dict_prüffirma['firmenstatus'] = status_pf.__dict__
 
-def aktualisiere_workflow(request, projekt_id):
-    pass
-    # Wenn Status == Abgelehnt:
-    # --> WF-Stufe = inaktiv
-    # --> WF-Status = Abgelehnt
-    # --> WF = abgeschlossen
-    # --> DokHist-Eintrag
-    # --> InfoMail
-    # --> Weiterleitung zu WF-Übersicht
+                    liste_prüffirmen.append(dict_prüffirma)
+                    
+                # Dict wf_stufe packen und an liste_wf_stufen anhängen
+                dict_wf_stufe = s.__dict__
+                
+                dict_wf_stufe['liste_prüffirmen'] = liste_prüffirmen
+                
+                status_stufe = workflows.stufenstatus(projekt = projekt, wf_stufe = s)
+                dict_wf_stufe['stufenstatus'] = status_stufe.__dict__
 
-    # Wenn Status == Rückfrage:
-    # --> Prüfer-Status = Rückfrage
-    # --> DokHist-Eintrag
-    # --> InfoMail
-    # --> Weiterleitung zu WF-Übersicht
+                liste_wf_stufen.append(dict_wf_stufe)
 
-    # Wenn Status == Freigegeben:
-    # --> Prüfer-Status = Freigegeben
-    # --> DokHist-Eintrag
-    # --> Prüfe für jede Prüffirma ob Status Prüffirma == Freigegeben (Min. eine Freigabe und alle Freigaben von erforderlichen Prüfern):
-    #
-    # --> Wenn Status aller Prüffirmen in der Stufe == Freigegeben:
-    #    --> Stufe = abgeschlossen
-    #    --> DokHist-Eintrag
-    #
-    #    --> Wenn nächste Stufe vorhanden:
-    #        --> Status nächste Stufe = In Bearbeitung
-    #        --> Für jeden Prüfer in Stufe Status = In Bearbeitung
-    #        --> DokHist-Eintrag
-    #        --> InfoMails
-    #        --> Weiterleitung zu WF-Übersicht
-    #   
-    #    --> Sonst:
-    #        --> WF-Status = Freigegeben
-    #        --> WF = abgeschlossen
-    #        --> DokHist-Eintrag
-    #        --> InfoMails
-    #        --> Weiterleitung zu WF-Übersicht
+            # Dict worfklow packen und an liste_worfklows ahnhängen
+            dict_workflow = wf.__dict__
+            dict_workflow['workflowschema'] = wf.workflow_schema.__dict__
+            dict_workflow['dokument'] = wf.dokument.__dict__
+            dict_workflow['status'] = wf.status.__dict__
+            dict_workflow['liste_wf_stufen'] = liste_wf_stufen
 
-    # Wenn Status == Rückfrage:
-    # --> Prüfer-Status = Rückfrage
-    # --> WF-Status = Rückfrage
-    # --> DokHist-Eintrag
-    # --> InfoMails
-    # --> Weiterleitung zu WF-Übersicht
+            liste_workflows.append(dict_workflow)
+
+        # Context packen und WF-Übersicht laden:
+        context = {
+            'liste_workflows': liste_workflows,
+            'projekt': projekt.__dict__
+        }
+        return render(request, './dokab/übersicht_wf_eigene_dok.html', context)
+
+def übersicht_wf_zur_bearbeitung_view(request, projekt_id):
+
+    # Kontrolle Login
+    if not request.user.is_authenticated:
+        return HttpResponseRedirect('login')
+
+    else:
+        projekt = Projekt.objects.using('default').get(pk = projekt_id)
+        
+        # Wenn POST: 
+        # - Status ändern und Workflowstatus updaten
+        # - ggf Weiterleitung zu Rückfrageformular
+        if request.method == 'POST':
+            wf_stufe = Workflow_Stufe.objects.using(projekt_id).get(pk = request.POST['wf_stufe_id'])
+            
+            # Bisheriger Status ist nicht mehr aktuell
+            alter_eintrag_ma_stufe_status = Mitarbeiter_Stufe_Status.objects.using(projekt_id).get(
+                mitarbeiter_id = request.user.id, 
+                workflow_stufe = wf_stufe, 
+                gelöscht = False
+                )
+            alter_eintrag_ma_stufe_status.gelöscht = True
+            alter_eintrag_ma_stufe_status.save(using = projekt_id)
+
+            # Neuen Eintrag für Status anlegen
+            neuer_eintrag_ma_stufe_status = Mitarbeiter_Stufe_Status(
+                status = workflows.status(projekt = projekt, statusbezeichnung = request.POST['status']),
+                mitarbeiter_id = request.user.id,
+                workflow_stufe = wf_stufe,
+                immer_erforderlich = alter_eintrag_ma_stufe_status.immer_erforderlich,
+                zeitstempel = timezone.now(),
+                gelöscht = False,
+                )
+            neuer_eintrag_ma_stufe_status.save(using = projekt_id)
+
+            # TODO: Weiterleitung zu Rückfrageformular, wenn request.POST['status'] == 'Rückfrage'
+            # TODO: InfoMails
+
+            workflows.aktualisiere_wf_status(projekt = projekt, workflow = wf_stufe.workflow)
+
+        li_wf_obj = hole_objs.liste_wf_zur_bearbeitung(request, projekt = projekt)
+        
+        # Context packen und WF-Übersicht laden:
+        context = {
+            'liste_workflows': hole_dicts.liste_workflows(projekt = projekt, liste_wf_obj = li_wf_obj),
+            'projekt': projekt.__dict__
+        }
+        return render(request, './dokab/übersicht_wf_zur_bearbeitung.html', context)

@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 from superadmin.models import Mitarbeiter
 from projektadmin.models import Ordner, Workflow_Schema
 
@@ -22,6 +23,8 @@ class Datei(models.Model):
 
 class Status(models.Model):
     bezeichnung = models.CharField(max_length=20)
+    zeitstempel = models.DateTimeField(default = timezone.now)
+    gelöscht = models.BooleanField(default = False)
 
     def __str__(self):
         return self.bezeichnung
@@ -31,6 +34,8 @@ class Workflow(models.Model):
     workflow_schema = models.ForeignKey(Workflow_Schema, on_delete = models.CASCADE)
     status = models.ForeignKey(Status, on_delete = models.PROTECT)
     abgeschlossen = models.BooleanField()
+    zeitstempel = models.DateTimeField(default = timezone.now)
+    gelöscht = models.BooleanField(default = False)
 
     def __str__(self):
         return str('Workflow_%s' % self.dokument.bezeichnung)
@@ -39,7 +44,8 @@ class Workflow_Stufe(models.Model):
     workflow = models.ForeignKey(Workflow, on_delete = models.CASCADE)
     vorstufe = models.ForeignKey('self', on_delete = models.CASCADE, null = True)
     aktuell = models.BooleanField(default = False)
-    
+    bezeichnung = models.CharField(max_length = 20, default = 'Default')
+
     def __str__(self):
         return str('WF_Stufe_für_%s' % self.workflow)
 
@@ -48,6 +54,8 @@ class Mitarbeiter_Stufe_Status(models.Model):
     workflow_stufe = models.ForeignKey(Workflow_Stufe, on_delete = models.CASCADE)
     status = models.ForeignKey(Status, on_delete = models.PROTECT)
     immer_erforderlich = models.BooleanField()
+    zeitstempel = models.DateTimeField(default = timezone.now)
+    gelöscht = models.BooleanField(default = True)
 
     def __str__(self):
         return str('%s-%s: %s' % (self.mitarbeiter.last_name, self.workflow_stufe, self.status))
@@ -55,7 +63,9 @@ class Mitarbeiter_Stufe_Status(models.Model):
 class Firma_Stufe(models.Model):
     firma_id = models.CharField(max_length=20)
     workflow_stufe = models.ForeignKey(Workflow_Stufe, on_delete = models.CASCADE)
-    
+    zeitstempel = models.DateTimeField(default = timezone.now)
+    gelöscht = models.BooleanField(default = False)
+
     def __str__(self):
         return str('firmen_id: %s - wf_stufe_id: %s' % (self.firma_id, self.workflow_stufe.id))
 

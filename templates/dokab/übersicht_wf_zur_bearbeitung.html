@@ -1,0 +1,103 @@
+<!-- Vererbung -->
+{% extends './_base_dokab.html' %}
+
+<!-- Titel -->
+{% block titel %}
+    Übersicht Workflows zur Bearbeitung
+{% endblock titel %}
+
+<!-- nav-tab aktiv -->
+{% block wf_zur_bearbeitung_active %}
+    active
+{% endblock wf_zur_bearbeitung_active %}
+
+<!-- Seiteninhalt -->
+{% block inhalt %}
+<div class="container">
+
+    <!-- Seitenüberschrift -->
+    <h1 class="mb-5 text-center">Übersicht Workflows Eigene Dokumente</h1>
+
+    <!-- Auflistung Workflows Eigene Dokumente -->
+    {% for workflow in liste_workflows %}
+    <ul class="my-3 list-group">
+
+        <!-- WF Bezeichnung Dokument -->
+        <li class="list-group-item font-weight-bolder" style="background-color: #f8f9fa;">
+            <span class="border-bottom">Dokument: {{workflow.dokument.bezeichnung}}</span><br>
+            WF-Schema: {{workflow.workflowschema.bezeichnung}}<br>
+            WF-Status: {{workflow.status.bezeichnung}}
+        </li>
+
+        <!-- WF Stufen -->
+        {% for wf_stufe in workflow.liste_wf_stufen %}
+        <li class="list-group-item" {% if wf_stufe.aktuell is not True %}style="color: lightgrey;"{% endif %}>
+            
+            <div class="d-flex flex-row">
+                <div class="p-2 flex-grow-1 font-weight-bolder">Stufe {{forloop.counter}}: {{wf_stufe.bezeichnung}}
+                    (
+                    <span style="color: 
+                    {% if wf_stufe.dict_stufenstatus.bezeichnung == 'Freigegeben' %}green;
+                    {% elif  wf_stufe.dict_stufenstatus.bezeichnung == 'Abgelehnt' %}red;
+                    {% endif %}">
+                    {{wf_stufe.dict_stufenstatus.bezeichnung}}
+                    </span>
+                    )
+                </div>
+            </div>
+
+            <!-- Auflistung Prüffirmen -->
+            <ul class="mb-2">
+                {% for prüffirma in wf_stufe.liste_prüffirmen %}
+                <li>
+                    {{prüffirma.bezeichnung}}: 
+                    <span style="color: 
+                    {% if prüffirma.firmenstatus.bezeichnung == 'Freigegeben' %}green;
+                    {% elif  prüffirma.firmenstatus.bezeichnung == 'Abgelehnt' %}red;
+                    {% endif %}">
+                    {{prüffirma.firmenstatus.bezeichnung}}
+                    </span>
+
+                    <!-- Liste Prüfer wird nur für Userfirma angezeigt -->
+                    {% if prüffirma.id == user.firma.id %}
+                        <ul>
+                            {% for prüfer in prüffirma.liste_prüfer %}
+                                <li>{{prüfer.first_name}} {{prüfer.last_name}}: 
+                                    <span style="color: 
+                                    {% if prüffirma.firmenstatus.bezeichnung == 'Freigegeben' %}green;
+                                    {% elif  prüffirma.firmenstatus.bezeichnung == 'Abgelehnt' %}red;
+                                    {% endif %}">
+                                    {{prüfer.prüferstatus.bezeichnung}}
+                                    </span>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+
+                </li>
+                {% endfor %}
+            </ul>
+
+        </li>
+
+        {% if wf_stufe.aktuell is True %}
+        <li class="list-group-item">
+            <form action={% url 'dokab:übersicht_wf_zur_bearbeitung' projekt.id %} method="POST">
+                {% csrf_token %}
+                <div class="d-flex justify-content-around">
+                    <input hidden type="text" name="wf_stufe_id" value="{{wf_stufe.id}}">
+                    <button class="btn btn-outline-success" name="status" value="Freigegeben">Freigegeben</button>
+                    <button class="btn btn-outline-danger" name="status" value="Abgelehnt">Abgelehnt</button>
+                    <button class="btn btn-outline-primary" name="status" value="Rückfrage">Rückfrage</button>
+                </div>
+            </form>
+        </li>
+        {% endif %}
+
+        {% endfor %}
+
+    </ul>
+    {% endfor %}
+
+</div>
+{% endblock inhalt %}

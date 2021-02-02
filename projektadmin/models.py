@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 from superadmin.models import Projekt, Firma, Mitarbeiter
 
 #########################################
@@ -13,6 +14,7 @@ class Workflow_Schema(models.Model):
 class Workflow_Schema_Stufe(models.Model):
     workflow_schema = models.ForeignKey(Workflow_Schema, on_delete = models.CASCADE)
     vorstufe = models.ForeignKey('self', on_delete = models.DO_NOTHING, null=True, blank=True)
+    bezeichnung = models.CharField(max_length = 20, null = True)
     
     def __str__(self):
         return str('WFSch-Stufe_für_' + self.workflow_schema.bezeichnung)
@@ -28,6 +30,8 @@ class WFSch_Stufe_Mitarbeiter(models.Model):
     immer_erforderlich = models.BooleanField()
     wfsch_stufe = models.ForeignKey(Workflow_Schema_Stufe, on_delete = models.CASCADE)
     mitarbeiter_id = models.CharField(max_length=20, default='Das ist nicht gültig')
+    gelöscht = models.BooleanField(default = False)
+    zeitstempel = models.DateTimeField(default = timezone.now)
 
     def __str__(self):
         return str('%s - %s' % (self.wfsch_stufe.workflow_schema.bezeichnung, self.mitarbeiter.last_name,))

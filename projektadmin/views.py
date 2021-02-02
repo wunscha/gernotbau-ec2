@@ -142,7 +142,8 @@ def übersicht_workflowschemata(request, projekt_id):
                     
                     neue_wfsch_stufe = Workflow_Schema_Stufe(
                         workflow_schema = workflow_schema,
-                        vorstufe = vorstufe if liste_stufen else None
+                        vorstufe = vorstufe if liste_stufen else None,
+                        bezeichnung = request.POST['wf_stufe_bezeichnung']
                     )
                     neue_wfsch_stufe.save(using = projekt_id)
 

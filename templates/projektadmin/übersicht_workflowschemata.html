@@ -64,7 +64,7 @@
         {% for wfsch_stufe in workflowschema.liste_wfsch_stufen %}
         <li class="list-group-item">
             <div class="d-flex flex-row">
-                <div class="p-2 flex-grow-1 font-weight-bolder">Stufe {{forloop.counter}}</div>
+                <div class="p-2 flex-grow-1 font-weight-bolder">Stufe {{forloop.counter}}: {{wfsch_stufe.bezeichnung}}</div>
                 <div class="p-2 justify-content-end">
                     <form class="form-inline" action="{% url 'projektadmin:übersicht_workflowschemata' projekt_id %}" method="POST">
                         {% csrf_token %}
@@ -114,9 +114,10 @@
 
         <!-- Button "Stufe hinzufügen" -->
         <li class="list-group-item">
-            <form action="{% url 'projektadmin:übersicht_workflowschemata' projekt_id %}" method="POST">
+            <form class="form-inline" action="{% url 'projektadmin:übersicht_workflowschemata' projekt_id %}" method="POST">
                 {% csrf_token %}
-                <button class="btn btn-outline-primary" 
+                <input type="text" class="form-control" name="wfsch_stufe_bezeichnung">
+                <button class="mx-2 btn btn-outline-primary" 
                         type="submit" 
                         name="stufe_neu_wfsch_id" 
                         value="{{workflowschema.id}}">Stufe hinzufügen</button>

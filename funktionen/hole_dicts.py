@@ -1,4 +1,6 @@
-from dokab.models import Dokument, Workflow
+from django.contrib.auth import get_user_model
+
+from dokab.models import Dokument, Workflow, Workflow_Stufe, Firma_Stufe, Mitarbeiter_Stufe_Status
 from superadmin.models import Firma, Mitarbeiter, Projekt, Projekt_Firma_Mail, Projekt_Mitarbeiter_Mail
 from projektadmin.models import Ordner, Ordner_Firma_Freigabe, WFSch_Stufe_Mitarbeiter, Workflow_Schema, WFSch_Stufe_Firma, Workflow_Schema_Stufe
 from . import hole_objs
@@ -317,3 +319,98 @@ def liste_dokumente_ordner(*, projekt, ordner):
 
     return li_dokumente
 
+def liste_prüfer_fa_wf_stufe(*, projekt, wf_stufe, firma):
+# Gibt Liste mit dicts der Prüfer von firma für wfsch_stufe zurück (inkl. dict_status und 'immer erforderlich')
+    qs_einträge_wf_stufe_ma = Mitarbeiter_Stufe_Status.objects.using(str(projekt.id)).filter(wf_stufe = wf_stufe)
+
+    li_prüfer_fa = []
+    for eintrag in qs_einträge_wf_stufe_ma:
+        prüfer = Mitarbeiter.objects.using('default').get(pk = eintrag.mitarbeiter_id)
+        if prüfer.firma == firma:
+            dict_prüfer = prüfer.__dict__
+            dict_prüfer['immer_erforderlich'] = eintrag.immer_erforderlich
+            dict_prüfer['prüferstatus'] = eintrag.status.__dict__
+            li_prüfer_fa.append(dict_prüfer)
+    
+    return li_prüfer_fa
+
+########################################################
+# EXPERIMENTE MIT DEKORATOREN/VERSCHACHTELTEN FUNKTIONEN
+
+def liste_prüfer_wf_stufe_firma(*, projekt, wf_stufe, firma):
+# Gibt Liste der Prüfer für wf_stufe zurück, die zur firma gehören, inklusive Status
+    li_prüfer_obj = hole_objs.liste_prüfer_wf_stufe_firma(projekt = projekt, wf_stufe = wf_stufe, firma = firma)
+
+    li_prüfer_dict = []
+    for p in li_prüfer_obj:
+        dict_prüfer = p.__dict__
+
+        eintrag_ma_stufe_status = Mitarbeiter_Stufe_Status.objects.using(str(projekt.id)).get(
+            workflow_stufe = wf_stufe, 
+            mitarbeiter_id = p.id, 
+            gelöscht = False
+            )
+        dict_prüfer['prüferstatus'] = eintrag_ma_stufe_status.status.__dict__
+
+        li_prüfer_dict.append(dict_prüfer)
+    
+    return li_prüfer_dict
+
+def liste_prüffirmen_wf_stufe(*, projekt, wf_stufe):
+# Gibt Liste der Prüffirmen für wf_stufe zurück (inkl. Liste Prüfer und Liste Firmenstati)
+    li_prüffirmen_obj = hole_objs.liste_prüffirmen_wf_stufe(projekt = projekt, wf_stufe = wf_stufe)
+
+    li_prüffirmen_dict = []
+    for pf in li_prüffirmen_obj:
+        # Dict für Prüffirma anlegen
+        dict_prüffirma = pf.__dict__
+
+        # Firmenstatus hinzufügen
+        status_pf = workflows.firmenstatus(
+                    projekt = projekt, 
+                    wf_stufe = wf_stufe,
+                    prüffirma = pf
+                    )
+        dict_prüffirma['firmenstatus'] = status_pf.__dict__
+        
+        # Liste Prüfer von pf hinzufügen
+        dict_prüffirma['liste_prüfer'] = liste_prüfer_wf_stufe_firma(projekt = projekt, wf_stufe = wf_stufe, firma = pf)
+
+        # Liste erweitern
+        li_prüffirmen_dict.append(dict_prüffirma)
+
+    return li_prüffirmen_dict
+
+def liste_workflows(*, projekt, liste_wf_obj):
+# Wandelt liste_wf_obj in eine verschachtelte Liste aus Dictionaries um (inkl. Infos zu Stati etc.)
+    
+    li_workflows = []
+    for wf in liste_wf_obj:
+        # Liste Workflowstufen
+        qs_wf_stufen = Workflow_Stufe.objects.using(str(projekt.id)).filter(workflow = wf)
+
+        li_wf_stufen = []
+        for s in qs_wf_stufen:
+            # Dict wf_stufe packen und an liste_wf_stufen anhängen
+            dict_wf_stufe = s.__dict__
+
+            # Liste Prüffirmen inkl. Firmenstati
+            li_prüffirmen = liste_prüffirmen_wf_stufe(projekt = projekt, wf_stufe = s)
+            dict_wf_stufe['liste_prüffirmen'] = li_prüffirmen
+            
+            # Stufenstatsu ermitteln
+            status_stufe = workflows.stufenstatus(projekt = projekt, wf_stufe = s)
+            dict_wf_stufe['dict_stufenstatus'] = status_stufe.__dict__
+
+            li_wf_stufen.append(dict_wf_stufe)
+
+        # Dict worfklow packen und an liste_worfklows ahnhängen
+        dict_workflow = wf.__dict__
+        dict_workflow['workflowschema'] = wf.workflow_schema.__dict__
+        dict_workflow['dokument'] = wf.dokument.__dict__
+        dict_workflow['status'] = wf.status.__dict__
+        dict_workflow['liste_wf_stufen'] = li_wf_stufen
+
+        li_workflows.append(dict_workflow)
+
+    return li_workflows

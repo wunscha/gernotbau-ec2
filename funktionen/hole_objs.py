@@ -1,5 +1,11 @@
+
+from django.contrib.auth import get_user, get_user_model
+
 from superadmin.models import Mitarbeiter, Firma, Projekt, Projekt_Firma_Mail, Projekt_Mitarbeiter_Mail
 from projektadmin.models import WFSch_Stufe_Firma, Überordner_Unterordner
+from dokab.models import Mitarbeiter_Stufe_Status, Workflow_Stufe
+
+# TODO: 'gelöscht'-Logik implementieren
 
 def projekte_user(user):
 # Gibt Liste aller Projekte von user zurück
@@ -134,3 +140,47 @@ def liste_wfsch_firma(*, firma):
     
     return li_wfsch_firma
 
+def liste_prüffirmen_wf_stufe(*, projekt, wf_stufe):
+# Gibt Liste der Prüffirmen für wf_stufe zurück
+    qs_einträge_ma_stufe_status = Mitarbeiter_Stufe_Status.objects.using(str(projekt.id)).filter(workflow_stufe = wf_stufe, gelöscht = False)
+
+    # Liste anlegen
+    User = get_user_model()
+    li_firmen = []
+    for eintrag in qs_einträge_ma_stufe_status:
+        prüfer = User.objects.using('default').get(pk = eintrag.mitarbeiter_id)
+        if prüfer.firma not in li_firmen:
+            li_firmen.append(prüfer.firma)
+
+    return li_firmen
+
+def liste_prüfer_wf_stufe_firma(*, projekt, wf_stufe, firma):
+# Gibt Liste aller Prüfer für wf_stufe zurück, die zu firma gehören
+    qs_einträge_ma_stufe_status = Mitarbeiter_Stufe_Status.objects.using(str(projekt.id)).filter(workflow_stufe = wf_stufe, gelöscht = False)
+
+    User = get_user_model()
+    li_prüfer = []
+    for eintrag in qs_einträge_ma_stufe_status:
+        prüfer = User.objects.using('default').get(pk = eintrag.mitarbeiter_id)
+        if prüfer.firma == firma:
+            li_prüfer.append(prüfer)
+    
+    return li_prüfer
+
+def liste_wf_zur_bearbeitung(request, *, projekt):
+# Gibt Liste der Workflows zurück, für die request.user Prüfer ist
+    qs_einträge_ma_stufe_status = Mitarbeiter_Stufe_Status.objects.using(str(projekt.id)).filter(
+        mitarbeiter_id = request.user.id, 
+        gelöscht = False,
+        workflow_stufe__workflow__abgeschlossen = False,
+        workflow_stufe__workflow__gelöscht = False
+        )
+    
+    li_wf_user_ist_prüfer = []
+    for eintrag in qs_einträge_ma_stufe_status:
+        if eintrag.workflow_stufe.aktuell:
+            wf = eintrag.workflow_stufe.workflow
+            if wf not in li_wf_user_ist_prüfer:
+                li_wf_user_ist_prüfer.append(wf)
+
+    return li_wf_user_ist_prüfer

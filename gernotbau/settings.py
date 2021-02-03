@@ -85,23 +85,15 @@ WSGI_APPLICATION = 'gernotbau.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'postgres', # TODO: DB-Namen auf 'benutzer' ändern
+        'NAME': 'postgres',
         'USER': 'postgres',
         'PASSWORD': 'postgres',
         'HOST': 'db',
         'PORT': 5432
     },
-    '5': {
+    '10': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': '5',
-        'USER': 'postgres',
-        'PASSWORD': 'postgres',
-        'HOST': 'db',
-        'PORT': 5432
-    },
-    '7': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': '7',
+        'NAME': '10',
         'USER': 'postgres',
         'PASSWORD': 'postgres',
         'HOST': 'db',

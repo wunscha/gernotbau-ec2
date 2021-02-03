@@ -1,9 +1,9 @@
-
 from django.contrib.auth import get_user, get_user_model
 
+from funktionen.workflows import wf_ist_abgeschlossen, wf_stufe_ist_aktuell
 from superadmin.models import Mitarbeiter, Firma, Projekt, Projekt_Firma_Mail, Projekt_Mitarbeiter_Mail
 from projektadmin.models import WFSch_Stufe_Firma, Überordner_Unterordner
-from dokab.models import Mitarbeiter_Stufe_Status, Workflow_Stufe
+from dokab.models import MA_Stufe_Status_Update_Status, Mitarbeiter_Stufe_Status, Workflow_Stufe, WF_Stufe_Update_Aktuell, WF_Update_Abgeschlossen
 
 # TODO: 'gelöscht'-Logik implementieren
 
@@ -142,7 +142,7 @@ def liste_wfsch_firma(*, firma):
 
 def liste_prüffirmen_wf_stufe(*, projekt, wf_stufe):
 # Gibt Liste der Prüffirmen für wf_stufe zurück
-    qs_einträge_ma_stufe_status = Mitarbeiter_Stufe_Status.objects.using(str(projekt.id)).filter(workflow_stufe = wf_stufe, gelöscht = False)
+    qs_einträge_ma_stufe_status = Mitarbeiter_Stufe_Status.objects.using(str(projekt.id)).filter(workflow_stufe = wf_stufe)
 
     # Liste anlegen
     User = get_user_model()
@@ -156,7 +156,7 @@ def liste_prüffirmen_wf_stufe(*, projekt, wf_stufe):
 
 def liste_prüfer_wf_stufe_firma(*, projekt, wf_stufe, firma):
 # Gibt Liste aller Prüfer für wf_stufe zurück, die zu firma gehören
-    qs_einträge_ma_stufe_status = Mitarbeiter_Stufe_Status.objects.using(str(projekt.id)).filter(workflow_stufe = wf_stufe, gelöscht = False)
+    qs_einträge_ma_stufe_status = Mitarbeiter_Stufe_Status.objects.using(str(projekt.id)).filter(workflow_stufe = wf_stufe)
 
     User = get_user_model()
     li_prüfer = []
@@ -169,18 +169,36 @@ def liste_prüfer_wf_stufe_firma(*, projekt, wf_stufe, firma):
 
 def liste_wf_zur_bearbeitung(request, *, projekt):
 # Gibt Liste der Workflows zurück, für die request.user Prüfer ist
-    qs_einträge_ma_stufe_status = Mitarbeiter_Stufe_Status.objects.using(str(projekt.id)).filter(
-        mitarbeiter_id = request.user.id, 
-        gelöscht = False,
-        workflow_stufe__workflow__abgeschlossen = False,
-        workflow_stufe__workflow__gelöscht = False
-        )
+    qs_einträge_ma_stufe_status = Mitarbeiter_Stufe_Status.objects.using(str(projekt.id)).filter(mitarbeiter_id = request.user.id)
     
     li_wf_user_ist_prüfer = []
     for eintrag in qs_einträge_ma_stufe_status:
-        if eintrag.workflow_stufe.aktuell:
+        if wf_stufe_ist_aktuell(projekt = projekt, wf_stufe = eintrag.workflow_stufe):
             wf = eintrag.workflow_stufe.workflow
-            if wf not in li_wf_user_ist_prüfer:
+            if wf not in li_wf_user_ist_prüfer and not wf_ist_abgeschlossen(projekt = projekt, workflow = wf):
                 li_wf_user_ist_prüfer.append(wf)
 
     return li_wf_user_ist_prüfer
+
+def filtere_aktive_wf(*, projekt, liste_wf_obj):
+# Filtert Workflows aus liste_wf_obj, die nicht abgeschlossen sind und gibt Liste zurück
+    li_aktive_wf = []
+    for wf in liste_wf_obj:
+        wf_abgeschlossen = WF_Update_Abgeschlossen.objects.using(str(projekt.id)).filter(workflow = wf).latest('zeitstempel').abgeschlossen
+        if not wf_abgeschlossen:
+            li_aktive_wf.append(wf)
+    
+    return li_aktive_wf
+
+def aktuelle_wf_stufe(*, projekt, workflow):
+# Gibt die aktuelle Stufe für workflow zurück
+    qs_wf_stufe_update_aktuell = WF_Stufe_Update_Aktuell.objects.using(str(projekt.id)).filter(workflow_stufe__workflow = workflow, aktuell = True)
+    return qs_wf_stufe_update_aktuell.latest('zeitstempel').workflow_stufe
+
+def aktueller_prüferstatus_wf_stufe(*, projekt, prüfer, wf_stufe):
+# Gibt den aktuellen Status von prüfer für wf_stufe zurück
+    qs_einträge_stati = MA_Stufe_Status_Update_Status.objects.using(str(projekt.id)).filter(
+        ma_stufe_status__mitarbeiter_id = prüfer.id,
+        ma_stufe_status__workflow_stufe = wf_stufe)
+    
+    return qs_einträge_stati.latest('zeitstempel').status

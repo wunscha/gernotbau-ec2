@@ -1,10 +1,12 @@
 from django.contrib.auth import get_user_model
 
-from dokab.models import Dokument, Workflow, Workflow_Stufe, Firma_Stufe, Mitarbeiter_Stufe_Status
+from dokab.models import Dokument, Workflow, Workflow_Stufe, Mitarbeiter_Stufe_Status
 from superadmin.models import Firma, Mitarbeiter, Projekt, Projekt_Firma_Mail, Projekt_Mitarbeiter_Mail
 from projektadmin.models import Ordner, Ordner_Firma_Freigabe, WFSch_Stufe_Mitarbeiter, Workflow_Schema, WFSch_Stufe_Firma, Workflow_Schema_Stufe
 from . import hole_objs
 from . import workflows
+from .workflows import wf_stufe_ist_aktuell
+from .hole_objs import aktueller_prüferstatus_wf_stufe
 
 def projekte_user(user):
 # Gibt Liste mit Dictionaries aller Projekte von user zurück
@@ -291,16 +293,14 @@ def liste_unterordner(*, projekt, firma, ordner):
     
     return li_ordner
 
-def dokument_mit_workflowstatus(*, projekt, dokument):
+def dokument_mit_wfsch(*, projekt, dokument):
 # Gibt dict für Dokument inkl. Felder für Workflow zurück
     dict_dokument = dokument.__dict__
     
-    # WF-Status hinzufügen, wenn WF vorhanden
+    # WF-Schema hinzufügen, wenn WF vorhanden
     workflow_dokument_vorhanden = Workflow.objects.using(str(projekt.id)).filter(dokument = dokument)
     if workflow_dokument_vorhanden:
         dict_dokument['wf_schema'] = dokument.workflow.workflow_schema.bezeichnung if dokument.workflow != None else None
-        dict_dokument['wf_status'] = dokument.workflow.status.bezeichnung if dokument.workflow != None else None
-        dict_dokument['wf_abgeschlossen'] = dokument.workflow.abgeschlossen if dokument.workflow != None else None
 
     # Name Dokumenteninhaber hinzufügen
     mitarbeiter = Mitarbeiter.objects.using('default').get(pk = dokument.mitarbeiter_id)
@@ -314,7 +314,7 @@ def liste_dokumente_ordner(*, projekt, ordner):
     
     li_dokumente = []
     for dok in qs_dokumente:
-        dict_dokument = dokument_mit_workflowstatus(projekt = projekt, dokument = dok)
+        dict_dokument = dokument_mit_wfsch(projekt = projekt, dokument = dok)
         li_dokumente.append(dict_dokument)
 
     return li_dokumente
@@ -347,10 +347,11 @@ def liste_prüfer_wf_stufe_firma(*, projekt, wf_stufe, firma):
 
         eintrag_ma_stufe_status = Mitarbeiter_Stufe_Status.objects.using(str(projekt.id)).get(
             workflow_stufe = wf_stufe, 
-            mitarbeiter_id = p.id, 
-            gelöscht = False
+            mitarbeiter_id = p.id
             )
-        dict_prüfer['prüferstatus'] = eintrag_ma_stufe_status.status.__dict__
+        dict_prüfer['immer_erforderlich'] = eintrag_ma_stufe_status.immer_erforderlich
+
+        dict_prüfer['prüferstatus'] = aktueller_prüferstatus_wf_stufe(projekt = projekt, prüfer = p, wf_stufe = wf_stufe).__dict__
 
         li_prüfer_dict.append(dict_prüfer)
     
@@ -398,9 +399,12 @@ def liste_workflows(*, projekt, liste_wf_obj):
             li_prüffirmen = liste_prüffirmen_wf_stufe(projekt = projekt, wf_stufe = s)
             dict_wf_stufe['liste_prüffirmen'] = li_prüffirmen
             
-            # Stufenstatsu ermitteln
+            # Stufenstatus ermitteln
             status_stufe = workflows.stufenstatus(projekt = projekt, wf_stufe = s)
             dict_wf_stufe['dict_stufenstatus'] = status_stufe.__dict__
+
+            # Stufe aktuell?
+            dict_wf_stufe['aktuell'] = wf_stufe_ist_aktuell(projekt = projekt, wf_stufe = s)
 
             li_wf_stufen.append(dict_wf_stufe)
 
@@ -408,7 +412,6 @@ def liste_workflows(*, projekt, liste_wf_obj):
         dict_workflow = wf.__dict__
         dict_workflow['workflowschema'] = wf.workflow_schema.__dict__
         dict_workflow['dokument'] = wf.dokument.__dict__
-        dict_workflow['status'] = wf.status.__dict__
         dict_workflow['liste_wf_stufen'] = li_wf_stufen
 
         li_workflows.append(dict_workflow)

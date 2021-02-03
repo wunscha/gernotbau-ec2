@@ -8,7 +8,7 @@ from gernotbau.settings import BASE_DIR
 from projektadmin.funktionen import Ordnerbaum, sortierte_stufenliste
 from projektadmin.models import Ordner_Firma_Freigabe, Ordner, Workflow_Schema, Workflow_Schema_Stufe, WFSch_Stufe_Mitarbeiter
 from superadmin.models import Firma, Projekt
-from .models import Dokument, Firma_Stufe, Status, Workflow, Workflow_Stufe, Mitarbeiter_Stufe_Status, Dokumentenhistorie_Eintrag, Anhang, Ereignis, Datei
+from .models import Dokument, MA_Stufe_Status_Update_Status, Status, Workflow, Workflow_Stufe, Mitarbeiter_Stufe_Status, Datei
 from .funktionen import user_hat_ordnerzugriff, speichere_datei_chunks, workflow_stufe_ist_aktuell, liste_prüffirmen, aktuelle_workflow_stufe
 from funktionen import dateifunktionen, hole_objs, ordnerfunktionen, hole_dicts, workflows
 
@@ -113,15 +113,6 @@ def upload(request, projekt_id, ordner_id):
                     )
                 neues_dokument.save(using = projekt_id)
 
-                # DokHist-Eintrag Erstellung Dokument
-                dokhist_eintrag_neu = Dokumentenhistorie_Eintrag(
-                    text = 'Neues Dokument angelegt: ' + neues_dokument.bezeichnung,
-                    zeitstempel = timezone.now(),
-                    dokument = neues_dokument,
-                    ereignis = Ereignis.objects.using(projekt_id).get(bezeichnung = 'Upload'),
-                )
-                dokhist_eintrag_neu.save(using = projekt_id)
-
                 # Dateien in DB anlegen und hochladen
                 for datei in request.FILES:
                     neue_datei = Datei(
@@ -133,14 +124,6 @@ def upload(request, projekt_id, ordner_id):
 
                     dateifunktionen.speichere_datei_chunks(request.FILES.get(datei), zielpfad)
 
-                    # DokHist-Eintrag Upload Datei
-                    dokhist_eintrag_neu = Dokumentenhistorie_Eintrag(
-                    text = 'Datei hochgeladen: ' + neue_datei.dateiname,
-                    zeitstempel = timezone.now(),
-                    dokument = neues_dokument,
-                    ereignis = Ereignis.objects.using(projekt_id).get(bezeichnung = 'Upload'),
-                    )
-                
                 # Workflow anlegen
                 workflows.neuer_workflow(projekt = projekt, dokument = neues_dokument)
 
@@ -163,56 +146,14 @@ def übersicht_wf_eigene_dok_view(request, projekt_id):
     else:
         projekt = Projekt.objects.using('default').get(pk = projekt_id)
 
-        qs_wf = Workflow.objects.using(projekt_id).filter(dokument__mitarbeiter_id = request.user.id)
-        
-        liste_workflows = []
-        for wf in qs_wf:
-            # Liste Workflowstufen
-            qs_wf_stufen = Workflow_Stufe.objects.using(projekt_id).filter(workflow = wf)
-
-            liste_wf_stufen = []
-            for s in qs_wf_stufen:
-                qs_einträge_firma_stufe = Firma_Stufe.objects.using(projekt_id).filter(workflow_stufe = s)
-                
-                # Liste Prüffirmen inkl. Firmenstati
-                liste_prüffirmen = []
-                for e in qs_einträge_firma_stufe:
-                    pf = Firma.objects.using('default').get(pk = e.firma_id)
-                    dict_prüffirma = pf.__dict__
-
-                    status_pf = workflows.firmenstatus(
-                        projekt = projekt, 
-                        wf_stufe = s,
-                        prüffirma = pf
-                    )
-                    dict_prüffirma['firmenstatus'] = status_pf.__dict__
-
-                    liste_prüffirmen.append(dict_prüffirma)
-                    
-                # Dict wf_stufe packen und an liste_wf_stufen anhängen
-                dict_wf_stufe = s.__dict__
-                
-                dict_wf_stufe['liste_prüffirmen'] = liste_prüffirmen
-                
-                status_stufe = workflows.stufenstatus(projekt = projekt, wf_stufe = s)
-                dict_wf_stufe['stufenstatus'] = status_stufe.__dict__
-
-                liste_wf_stufen.append(dict_wf_stufe)
-
-            # Dict worfklow packen und an liste_worfklows ahnhängen
-            dict_workflow = wf.__dict__
-            dict_workflow['workflowschema'] = wf.workflow_schema.__dict__
-            dict_workflow['dokument'] = wf.dokument.__dict__
-            dict_workflow['status'] = wf.status.__dict__
-            dict_workflow['liste_wf_stufen'] = liste_wf_stufen
-
-            liste_workflows.append(dict_workflow)
+        li_wf_obj = Workflow.objects.using(projekt_id).filter(dokument__mitarbeiter_id = request.user.id)
+        li_wf_obj_aktuell = hole_objs.filtere_aktive_wf(projekt = projekt, liste_wf_obj = li_wf_obj)
 
         # Context packen und WF-Übersicht laden:
         context = {
-            'liste_workflows': liste_workflows,
+            'liste_workflows': hole_dicts.liste_workflows(projekt = projekt, liste_wf_obj = li_wf_obj_aktuell),
             'projekt': projekt.__dict__
-        }
+            }
         return render(request, './dokab/übersicht_wf_eigene_dok.html', context)
 
 def übersicht_wf_zur_bearbeitung_view(request, projekt_id):
@@ -230,30 +171,22 @@ def übersicht_wf_zur_bearbeitung_view(request, projekt_id):
         if request.method == 'POST':
             wf_stufe = Workflow_Stufe.objects.using(projekt_id).get(pk = request.POST['wf_stufe_id'])
             
-            # Bisheriger Status ist nicht mehr aktuell
-            alter_eintrag_ma_stufe_status = Mitarbeiter_Stufe_Status.objects.using(projekt_id).get(
+            # Neuer Eintrag MA_Stufe_Status_Update_Status
+            eintrag_ma_stufe_status = Mitarbeiter_Stufe_Status.objects.using(projekt_id).get(
                 mitarbeiter_id = request.user.id, 
-                workflow_stufe = wf_stufe, 
-                gelöscht = False
+                workflow_stufe = wf_stufe
                 )
-            alter_eintrag_ma_stufe_status.gelöscht = True
-            alter_eintrag_ma_stufe_status.save(using = projekt_id)
-
-            # Neuen Eintrag für Status anlegen
-            neuer_eintrag_ma_stufe_status = Mitarbeiter_Stufe_Status(
+            neuer_eintrag_ma_status = MA_Stufe_Status_Update_Status(
+                ma_stufe_status = eintrag_ma_stufe_status,
                 status = workflows.status(projekt = projekt, statusbezeichnung = request.POST['status']),
-                mitarbeiter_id = request.user.id,
-                workflow_stufe = wf_stufe,
-                immer_erforderlich = alter_eintrag_ma_stufe_status.immer_erforderlich,
-                zeitstempel = timezone.now(),
-                gelöscht = False,
+                zeitstempel = timezone.now()
                 )
-            neuer_eintrag_ma_stufe_status.save(using = projekt_id)
+            neuer_eintrag_ma_status.save(using = projekt_id)
 
             # TODO: Weiterleitung zu Rückfrageformular, wenn request.POST['status'] == 'Rückfrage'
             # TODO: InfoMails
 
-            workflows.aktualisiere_wf_status(projekt = projekt, workflow = wf_stufe.workflow)
+            workflows.aktualisiere_wf(projekt = projekt, workflow = wf_stufe.workflow)
 
         li_wf_obj = hole_objs.liste_wf_zur_bearbeitung(request, projekt = projekt)
         

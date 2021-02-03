@@ -1,7 +1,8 @@
+from firmenadmin.views import mitarbeiter_neu_view
 from funktionen import hole_objs
 from projektadmin.models import WFSch_Stufe_Firma, WFSch_Stufe_Mitarbeiter, Workflow_Schema_Stufe
 from superadmin.models import Firma
-from dokab.models import Mitarbeiter_Stufe_Status, Workflow_Stufe, Workflow, Status, Dokumentenhistorie_Eintrag, Ereignis, Firma_Stufe
+from dokab.models import Mitarbeiter_Stufe_Status, MA_Stufe_Status_Update_Status, WF_Update_Abgeschlossen, Workflow_Stufe, WF_Stufe_Update_Aktuell, Workflow, Status
 from django.utils import timezone
 from django.core.exceptions import ObjectDoesNotExist
 
@@ -109,19 +110,12 @@ def neuer_workflow(projekt, dokument):
         neuer_wf = Workflow(
             dokument = dokument,
             workflow_schema = wfsch,
-            status = Status.objects.using(str(projekt.id)).get(bezeichnung = 'In Bearbeitung'),
-            abgeschlossen = False
-        )
+            )
         neuer_wf.save(using = str(projekt.id))
 
-        # DokHist Eintrag Neuer Workflow
-        dokhist_eintrag_neu = Dokumentenhistorie_Eintrag(
-            text = 'Neuer Workflow. Dokument: ' + dokument.bezeichnung,
-            zeitstempel = timezone.now(),
-            dokument = dokument,
-            ereignis = Ereignis.objects.using(str(projekt.id)).get(bezeichnung = 'Upload'),
-            )
-        dokhist_eintrag_neu.save(using = str(projekt.id))
+        # Eintrag WF_Update_Abgeschlossen anlegen
+        neuer_eintrag_wf_update_abgeschlossen = WF_Update_Abgeschlossen(workflow = neuer_wf, abgeschlossen = False, zeitstempel = timezone.now())
+        neuer_eintrag_wf_update_abgeschlossen.save(using = str(projekt.id))
 
         # Anfangsstufe WFSch
         wfsch_st = Workflow_Schema_Stufe.objects.using(str(projekt.id)).get(
@@ -135,31 +129,38 @@ def neuer_workflow(projekt, dokument):
             neue_wf_stufe = Workflow_Stufe(
                 workflow = neuer_wf,
                 vorstufe = vorst,
-                aktuell = True if vorst == None else False,
                 bezeichnung = wfsch_st.bezeichnung
                 )
             neue_wf_stufe.save(using = str(projekt.id))
 
-            # Prüffirmen verbinden
-            qs_einträge_prüffirmen_wfschst = WFSch_Stufe_Firma.objects.using(str(projekt.id)).filter(workflow_schema_stufe = wfsch_st)
-            for eintrag_fa in qs_einträge_prüffirmen_wfschst:
-                neuer_eintrag_prüffirma_wfst = Firma_Stufe(
-                    firma_id = eintrag_fa.firma_id,
-                    workflow_stufe = neue_wf_stufe
+            # Neuer Eintrag WF_Stufe_Update_Aktuell -> True wenn erste Stufe, sonst False
+            neuer_eintrag_wf_stufe_update_aktuell = WF_Stufe_Update_Aktuell(
+                workflow_stufe = neue_wf_stufe,
+                aktuell = True if vorst == None else False,
+                zeitstempel = timezone.now()
                 )
-                neuer_eintrag_prüffirma_wfst.save(using = str(projekt.id))
-            
+            neuer_eintrag_wf_stufe_update_aktuell.save(using = str(projekt.id))
+
             # Prüfer verbinden
             qs_einträge_prüfer_wfschst = WFSch_Stufe_Mitarbeiter.objects.using(str(projekt.id)).filter(wfsch_stufe = wfsch_st)
             statusbezeichnung = 'In Bearbeitung' if vorst == None else 'Warten auf Vorstufe'
+            
             for eintrag_ma in qs_einträge_prüfer_wfschst:
                 neuer_eintrag_prüfer_wfst = Mitarbeiter_Stufe_Status(
                     mitarbeiter_id = eintrag_ma.mitarbeiter_id,
                     workflow_stufe = neue_wf_stufe,
-                    status = Status.objects.using(str(projekt.id)).get(bezeichnung = statusbezeichnung),
                     immer_erforderlich = eintrag_ma.immer_erforderlich
-                )
+                    )
                 neuer_eintrag_prüfer_wfst.save(using = str(projekt.id))
+
+                # Neuer Eintrag MA_Stufe_Status_Update_Status
+                neuer_eintrag_status = MA_Stufe_Status_Update_Status(
+                    ma_stufe_status = neuer_eintrag_prüfer_wfst,
+                    status = Status.objects.using(str(projekt.id)).get(bezeichnung = statusbezeichnung),
+                    zeitstempel = timezone.now()
+                    )
+                neuer_eintrag_status.save(using = str(projekt.id))
+                    
 
             # TODO: InfoMails
             # TODO: Logs
@@ -186,25 +187,30 @@ def status(*, projekt, statusbezeichnung):
 # Gibt den Status mit 'statusbezeichnung' zurück
     return Status.objects.using(str(projekt.id)).get_or_create(bezeichnung = statusbezeichnung)[0] # Index wegen get_or_create
 
-def ereignis(*, projekt, bezeichnung):
-# Gibt das Ereignis mit 'bezeichnung' zurück
-    return Ereignis.objects.using(str(projekt.id)).get_or_create(bezeichnung = bezeichnung)[0] # Index wegen get_or_create
+def wf_stufe_ist_aktuell(*, projekt, wf_stufe):
+# Gibt zurück, ob wf_stufe aktuell ist
+    return WF_Stufe_Update_Aktuell.objects.using(str(projekt.id)).filter(workflow_stufe = wf_stufe).latest('zeitstempel').aktuell
+
+def wf_ist_abgeschlossen(*, projekt, workflow):
+# Gibt zurück, ob wf abgeschlossen ist
+    return WF_Update_Abgeschlossen.objects.using(str(projekt.id)).filter(workflow = workflow).latest('zeitstempel').abgeschlossen
 
 def firmenstatus(*, projekt, wf_stufe, prüffirma):
 # Gibt den Status der Prüffirma zurück
-    liste_ma = hole_objs.liste_projektmitarbeiter_firma(projekt = projekt, firma = prüffirma)
+    li_mitarbeiter = hole_objs.liste_projektmitarbeiter_firma(projekt = projekt, firma = prüffirma)
     
-    liste_einträge_ma_stufe_status = []
-    for ma in liste_ma:
+    li_einträge_aktuelle_ma_stati = []
+    for ma in li_mitarbeiter:
         try:
-            neuer_eintrag = Mitarbeiter_Stufe_Status.objects.using(str(projekt.id)).get( # Abfrage mittels filter um Fehlermeldung fehlende
+            eintrag_ma_stufe_status = Mitarbeiter_Stufe_Status.objects.using(str(projekt.id)).get( # Abfrage mittels filter um Fehlermeldung fehlende
                 mitarbeiter_id = ma.id,
                 workflow_stufe = wf_stufe,
-                gelöscht = False)
+                )
+            eintrag_aktueller_ma_status = MA_Stufe_Status_Update_Status.objects.using(str(projekt.id)).filter(ma_stufe_status = eintrag_ma_stufe_status).latest('zeitstempel')
         except ObjectDoesNotExist:
-            neuer_eintrag = None
+            eintrag_aktueller_ma_status = None
 
-        liste_einträge_ma_stufe_status.append(neuer_eintrag)
+        li_einträge_aktuelle_ma_stati.append(eintrag_aktueller_ma_status)
     
     STATI = {
         'freigegeben': status(projekt = projekt, statusbezeichnung = 'Freigegeben'),
@@ -214,8 +220,8 @@ def firmenstatus(*, projekt, wf_stufe, prüffirma):
         'rückfrage': status(projekt = projekt, statusbezeichnung = 'Rückfrage')
         }
 
-    status_fa = STATI['in_bearbeitung'] if wf_stufe.aktuell else STATI['warten_auf_vorstufe']
-    for s in liste_einträge_ma_stufe_status:
+    status_fa = STATI['in_bearbeitung'] if wf_stufe_ist_aktuell(projekt = projekt, wf_stufe = wf_stufe) else STATI['warten_auf_vorstufe']
+    for s in li_einträge_aktuelle_ma_stati:
         if s:
             if s.status == STATI['abgelehnt']:
                 return STATI['abgelehnt']
@@ -224,8 +230,8 @@ def firmenstatus(*, projekt, wf_stufe, prüffirma):
                 status_fa = STATI['freigegeben']
 
             # Wenn Freigabe von erforderlichem Prüfer fehlt, darf Firmenstatus nicht "freigegeben" bleiben
-            if s.immer_erforderlich and s.status != STATI['freigegeben']:
-                status_fa = STATI['in_bearbeitung'] if wf_stufe.aktuell else STATI['warten_auf_vorstufe']
+            if s.ma_stufe_status.immer_erforderlich and s.status != STATI['freigegeben']:
+                status_fa = STATI['in_bearbeitung'] if wf_stufe_ist_aktuell(projekt = projekt, wf_stufe = wf_stufe) else STATI['warten_auf_vorstufe']
 
             if s.status == STATI['rückfrage']:
                 status_fa = STATI['rückfrage']
@@ -233,8 +239,9 @@ def firmenstatus(*, projekt, wf_stufe, prüffirma):
     return status_fa
 
 def stufenstatus(*, projekt, wf_stufe):
-    qs_einträge_firma_stufe = Firma_Stufe.objects.using(str(projekt.id)).filter(workflow_stufe = wf_stufe)
-    
+# Ermittelt Status für wf_stufe anhand der Firmenstati
+    li_firmen_wf_stufe = hole_objs.liste_prüffirmen_wf_stufe(projekt = projekt, wf_stufe = wf_stufe)
+
     STATI = {
         'freigegeben': status(projekt = projekt, statusbezeichnung = 'Freigegeben'),
         'abgelehnt': status(projekt = projekt, statusbezeichnung = 'Abgelehnt'),
@@ -243,11 +250,10 @@ def stufenstatus(*, projekt, wf_stufe):
         'rückfrage': status(projekt = projekt, statusbezeichnung = 'Rückfrage')
         }
 
-    status_stufe = STATI['in_bearbeitung'] if wf_stufe.aktuell else STATI['warten_auf_vorstufe']
+    status_stufe = STATI['in_bearbeitung'] if wf_stufe_ist_aktuell(projekt = projekt, wf_stufe = wf_stufe) else STATI['warten_auf_vorstufe']
     
-    for eintrag in qs_einträge_firma_stufe:
-        firma = Firma.objects.using('default').get(pk = eintrag.firma_id)
-        status_fa = firmenstatus(projekt = projekt, wf_stufe = wf_stufe, prüffirma = firma)
+    for fa in li_firmen_wf_stufe:
+        status_fa = firmenstatus(projekt = projekt, wf_stufe = wf_stufe, prüffirma = fa)
 
         if status_fa == STATI['abgelehnt']:
             return STATI['abgelehnt']
@@ -266,8 +272,8 @@ def stufenstatus(*, projekt, wf_stufe):
     
     return status_stufe
 
-def aktualisiere_wf_status(*, projekt, workflow):
-    aktuelle_wf_stufe = Workflow_Stufe.objects.using(str(projekt.id)).get(workflow = workflow, aktuell = True)
+def aktualisiere_wf(*, projekt, workflow):
+    aktuelle_wf_stufe = hole_objs.aktuelle_wf_stufe(projekt = projekt, workflow = workflow)
 
     status_aktuelle_stufe = stufenstatus(projekt = projekt, wf_stufe = aktuelle_wf_stufe)
 
@@ -275,50 +281,55 @@ def aktualisiere_wf_status(*, projekt, workflow):
             'freigegeben': status(projekt = projekt, statusbezeichnung = 'Freigegeben'),
             'abgelehnt': status(projekt = projekt, statusbezeichnung = 'Abgelehnt'),
             'in_bearbeitung': status(projekt = projekt, statusbezeichnung = 'In Bearbeitung'),
-            'warten_auf_vorstufe': status(projekt = projekt, statusbezeichnung = 'Warten auf Vorstufe'),
-            'rückfrage': status(projekt = projekt, statusbezeichnung = 'Rückfrage')
             }
 
     if status_aktuelle_stufe == STATI['abgelehnt']:
-        workflow.status = STATI['abgelehnt']
-        workflow.abgeschlossen = True
-        workflow.save(using = str(projekt.id))
-
-    elif status_aktuelle_stufe == STATI['in_bearbeitung'] or status_aktuelle_stufe == STATI['warten_auf_vorstufe'] or status_aktuelle_stufe == STATI['rückfrage']:
-        workflow.status = status_aktuelle_stufe
-        workflow.save(using = str(projekt.id))
+        # Neuer Eintrag 'WF_Update_Abgeschlossen' -> True
+        neuer_eintrag_wf_update_abgeschlossen = WF_Update_Abgeschlossen(workflow = workflow, abgeschlossen = True, zeitstempel = timezone.now())
+        neuer_eintrag_wf_update_abgeschlossen.save(using = str(projekt.id))
 
     elif status_aktuelle_stufe == STATI['freigegeben']:
-        aktuelle_wf_stufe.aktuell = False
-        aktuelle_wf_stufe.save(using = str(projekt.id))
-        neuer_dokhist_eintrag_abgeschl = Dokumentenhistorie_Eintrag(
-                text = 'Workflowstufe abeschlossen: ' + aktuelle_wf_stufe.bezeichnung,
-                zeitstempel = timezone.now(),
-                dokument = workflow.dokument,
-                ereignis = ereignis(projekt = projekt, bezeichnung = 'Workflow')
+        # Aktuelle Stufe schließen
+        # Neuer Eintrag 'WF_Stufe_Update_Aktuell' --> False
+        aktuelle_wf_stufe_update_aktuell = WF_Stufe_Update_Aktuell(
+            workflow_stufe = aktuelle_wf_stufe, 
+            aktuell = False, 
+            zeitstempel = timezone.now()
             )
-        neuer_dokhist_eintrag_abgeschl.save(using = str(projekt.id))
+        aktuelle_wf_stufe_update_aktuell.save(using = str(projekt.id))
 
+        # Nächste Stufe eröffnen, wenn vorhanden
         nächste_stufe = nächste_wf_stufe(projekt = projekt, wf_stufe = aktuelle_wf_stufe)
         if nächste_stufe:
+            # Neuer Eintrag 'WF_Stufe_Update_Aktuell' --> True
+            nächste_stufe_update_aktuell = WF_Stufe_Update_Aktuell(
+                workflow_stufe = nächste_stufe, 
+                aktuell = True, 
+                zeitstempel = timezone.now()
+                )
+            nächste_stufe_update_aktuell.save(using = str(projekt.id))
             
-            nächste_stufe.aktuell = True
-            nächste_stufe.status = STATI['in_bearbeitung']
-            nächste_stufe.save(using = str(projekt.id))
-
+            # Update Prüferstati
             qs_einträge_ma_stufe_status = Mitarbeiter_Stufe_Status.objects.using(str(projekt.id)).filter(workflow_stufe = nächste_stufe)
             for eintrag in qs_einträge_ma_stufe_status:
-                eintrag.status = STATI['in_bearbeitung']
-                eintrag.save(using = str(projekt.id))
-
-            neuer_dokhist_eintrag_eröffnet = Dokumentenhistorie_Eintrag(
-                text = 'Workflowstufe eröffnet: ' + aktuelle_wf_stufe.bezeichnung,
-                zeitstempel = timezone.now(),
-                dokument = workflow.dokument,
-                ereignis = ereignis(projekt = projekt, bezeichnung = 'Workflow')
-            )
-            neuer_dokhist_eintrag_eröffnet.save(using = str(projekt.id))
-
+                # Neuer Eintrag 'MA_Stufe_Status_Update_Status'
+                update_status = MA_Stufe_Status_Update_Status(
+                    ma_stufe_status = eintrag,
+                    status = STATI['in_bearbeitung'],
+                    zeitstempel = timezone.now()
+                )
+                update_status.save(using = str(projekt.id))
+        
+        # WF abschließen und Dokument freigeben wenn keine nächste Stufe vorhanden
+        else:
+            # Neuer Eintrag 'WF_Update_Abgeschlossen' -> True
+            neuer_eintrag_wf_update_abgeschlossen = WF_Update_Abgeschlossen(workflow = workflow, abgeschlossen = True, zeitstempel = timezone.now())
+            neuer_eintrag_wf_update_abgeschlossen.save(using = str(projekt.id))
+            
+            # Dokument freigeben
+            workflow.dokument.freigegeben = True
+            workflow.dokument.save(using = str(projekt.id))
+            
             # TODO: InfoMails
 
 def user_ist_stufenprüfer(request, *, projekt, wf_stufe):

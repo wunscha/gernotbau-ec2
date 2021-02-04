@@ -39,6 +39,9 @@ urlpatterns = [
     # Weiterleitung zu Test MultiDB
     path('test_multidb/', include('test_multidb.urls')),
 
+    # Weiterleigung zu Vorlagen
+    path('vorlagen/', include('vorlagen.urls')),
+
     # Home
     path('', views.home_view, name='home'),
 

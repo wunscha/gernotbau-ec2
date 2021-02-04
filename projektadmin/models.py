@@ -74,3 +74,22 @@ class Ordner_Firma_Freigabe(models.Model):
             upload = 'Upload'
 
         return str('%s - %s %s%s' % (self.ordner.bezeichnung, self.firma_id, lesen, upload))
+
+'''
+class Update_Ordner_Worfkflow_Schema(models.Model):
+    ordner = models.ForeignKey(Ordner, on_delete = models.CASCADE)
+    workflow_schema = models.ForeignKey(Workflow_Schema, on_delete = models.CASCADE)
+    zeitstempel = models.DateTimeField()
+
+class Update_Ordner_Freigabe_Lesen(models.Model):
+    ordner = models.ForeignKey(Ordner, on_delete = models.CASCADE)
+    firma_id = models.CharField(max_length = 20)
+    freigabe_lesen = models.BooleanField()
+    zeitstempel = models.DateTimeField()
+
+class Update_Ordner_Freigabe_Upload(models.Model):
+    ordner = models.ForeignKey(Ordner, on_delete = models.CASCADE)
+    firma_id = models.CharField(max_length = 20)
+    freigabe_upload = models.BooleanField()
+    zeitstempel = models.DateTimeField
+'''

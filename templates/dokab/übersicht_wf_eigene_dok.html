@@ -32,16 +32,15 @@
         {% for wf_stufe in workflow.liste_wf_stufen %}
         <li class="list-group-item" {% if wf_stufe.dict_stufenstatus.bezeichnung == 'Warten auf Vorstufe' %}style="color: lightgrey;"{% endif %}>
             
-            <div class="d-flex flex-row">
-                <div class="p-2 flex-grow-1 font-weight-bolder">Stufe {{forloop.counter}}: {{wf_stufe.bezeichnung}}
-                    (
+            <div class="mb-3 d-flex flex-row">
+                <div class="p-2 flex-grow-1 font-weight-bolder">
+                    <span class="border-bottom">Stufe {{forloop.counter}}: {{wf_stufe.bezeichnung}}</span><br>
                     <span style="color: 
                     {% if wf_stufe.dict_stufenstatus.bezeichnung == 'Freigegeben' %}green;
                     {% elif  wf_stufe.dict_stufenstatus.bezeichnung == 'Abgelehnt' %}red;
                     {% endif %}">
                     {{wf_stufe.dict_stufenstatus.bezeichnung}}
                     </span>
-                    )
                 </div>
             </div>
 

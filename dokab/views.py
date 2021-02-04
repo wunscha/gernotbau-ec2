@@ -8,7 +8,7 @@ from gernotbau.settings import BASE_DIR
 from projektadmin.funktionen import Ordnerbaum, sortierte_stufenliste
 from projektadmin.models import Ordner_Firma_Freigabe, Ordner, Workflow_Schema, Workflow_Schema_Stufe, WFSch_Stufe_Mitarbeiter
 from superadmin.models import Firma, Projekt
-from .models import Dokument, MA_Stufe_Status_Update_Status, Status, Workflow, Workflow_Stufe, Mitarbeiter_Stufe_Status, Datei
+from .models import Dokument, MA_Stufe_Status_Update_Status, Status, Workflow, Workflow_Stufe, Mitarbeiter_Stufe_Status, Datei, Statuskommentar
 from .funktionen import user_hat_ordnerzugriff, speichere_datei_chunks, workflow_stufe_ist_aktuell, liste_prüffirmen, aktuelle_workflow_stufe
 from funktionen import dateifunktionen, hole_objs, ordnerfunktionen, hole_dicts, workflows
 
@@ -164,7 +164,8 @@ def übersicht_wf_zur_bearbeitung_view(request, projekt_id):
 
     else:
         projekt = Projekt.objects.using('default').get(pk = projekt_id)
-        
+        fehlermeldung = '' # Vorbereitung für Context
+
         # Wenn POST: 
         # - Status ändern und Workflowstatus updaten
         # - ggf Weiterleitung zu Rückfrageformular
@@ -179,20 +180,40 @@ def übersicht_wf_zur_bearbeitung_view(request, projekt_id):
             neuer_eintrag_ma_status = MA_Stufe_Status_Update_Status(
                 ma_stufe_status = eintrag_ma_stufe_status,
                 status = workflows.status(projekt = projekt, statusbezeichnung = request.POST['status']),
-                zeitstempel = timezone.now()
+                zeitstempel = timezone.now(),
                 )
-            neuer_eintrag_ma_status.save(using = projekt_id)
+            # --> Speichern erst nachdem Statuskommentar geprüft wurde
 
+            # Statuskommentar prüfen und Anlegen
+            statusbezeichnung = request.POST['status']
+            if not request.POST['text_statuskommentar']:
+                # Kommentar bei Status 'Abgelehnt' und 'Rückfrage' erforderlich
+                if statusbezeichnung in ['Abgelehnt', 'Rückfrage']:
+                    fehlermeldung = 'Bitte füllen Sie das Kommentarfeld aus'
+                else: neuer_eintrag_ma_status.save(using = projekt_id)
+            else:
+                neuer_eintrag_ma_status.save(using = projekt_id)
+                # Neues Statuskommentar anlegen
+                neues_statuskommentar = Statuskommentar(
+                    ma_stufe_status_update_status = neuer_eintrag_ma_status,
+                    text = request.POST['text_statuskommentar']
+                    )
+                neues_statuskommentar.save(using = projekt_id)
+            
+        
             # TODO: Weiterleitung zu Rückfrageformular, wenn request.POST['status'] == 'Rückfrage'
             # TODO: InfoMails
 
             workflows.aktualisiere_wf(projekt = projekt, workflow = wf_stufe.workflow)
 
-        li_wf_obj = hole_objs.liste_wf_zur_bearbeitung(request, projekt = projekt)
-        
         # Context packen und WF-Übersicht laden:
+        li_wf_obj = hole_objs.liste_wf_zur_bearbeitung(request, projekt = projekt)
+        platzhalter_kommentar_status = 'Kommentar für Status "Abgelehnt" oder "Rückfrage" erforderlich. (Kommentar für Status "Freigabe" ist optional)'
+        
         context = {
             'liste_workflows': hole_dicts.liste_workflows(projekt = projekt, liste_wf_obj = li_wf_obj),
-            'projekt': projekt.__dict__
+            'projekt': projekt.__dict__,
+            'platzhalter_kommentar_status': platzhalter_kommentar_status,
+            'fehlermeldung': fehlermeldung
         }
         return render(request, './dokab/übersicht_wf_zur_bearbeitung.html', context)

@@ -16,7 +16,7 @@
 <div class="container">
 
     <!-- Seitenüberschrift -->
-    <h1 class="mb-5 text-center">Übersicht Workflows Eigene Dokumente</h1>
+    <h1 class="mb-5 text-center">Übersicht Workflows Zur Bearbeitung</h1>
 
     <!-- Auflistung Workflows Eigene Dokumente -->
     {% for workflow in liste_workflows %}
@@ -32,16 +32,16 @@
         {% for wf_stufe in workflow.liste_wf_stufen %}
         <li class="list-group-item" {% if wf_stufe.aktuell is not True %}style="color: lightgrey;"{% endif %}>
             
-            <div class="d-flex flex-row">
-                <div class="p-2 flex-grow-1 font-weight-bolder">Stufe {{forloop.counter}}: {{wf_stufe.bezeichnung}}
-                    (
+            <!-- Stufenbezeichnnung -->
+            <div class="mb-3 d-flex flex-row">
+                <div class="p-2 flex-grow-1 font-weight-bolder">
+                    <span class="border-bottom">Stufe {{forloop.counter}}: {{wf_stufe.bezeichnung}}</span><br>
                     <span style="color: 
                     {% if wf_stufe.dict_stufenstatus.bezeichnung == 'Freigegeben' %}green;
                     {% elif  wf_stufe.dict_stufenstatus.bezeichnung == 'Abgelehnt' %}red;
                     {% endif %}">
                     {{wf_stufe.dict_stufenstatus.bezeichnung}}
                     </span>
-                    )
                 </div>
             </div>
 
@@ -61,7 +61,7 @@
                     {% if prüffirma.id == user.firma.id %}
                         <ul>
                             {% for prüfer in prüffirma.liste_prüfer %}
-                                <li>{{prüfer.first_name}} {{prüfer.last_name}}: 
+                                <li>{{prüfer.first_name}} {{prüfer.last_name}} {% if prüfer.immer_erforderlich %}(immer erforderlich){% endif %}: 
                                     <span style="color: 
                                     {% if prüffirma.firmenstatus.bezeichnung == 'Freigegeben' %}green;
                                     {% elif  prüffirma.firmenstatus.bezeichnung == 'Abgelehnt' %}red;
@@ -85,9 +85,22 @@
                 {% csrf_token %}
                 <div class="d-flex justify-content-around">
                     <input hidden type="text" name="wf_stufe_id" value="{{wf_stufe.id}}">
-                    <button class="btn btn-outline-success" name="status" value="Freigegeben">Freigegeben</button>
-                    <button class="btn btn-outline-danger" name="status" value="Abgelehnt">Abgelehnt</button>
-                    <button class="btn btn-outline-primary" name="status" value="Rückfrage">Rückfrage</button>
+                    <button type="submit" class="btn btn-outline-success" name="status" value="Freigegeben">Freigegeben</button>
+                    <button type="submit" class="btn btn-outline-danger" name="status" value="Abgelehnt">Abgelehnt</button>
+                    <button type="submit" class="btn btn-outline-primary" name="status" value="Rückfrage">Rückfrage</button>
+                </div>
+                <!-- Eingabefeld für Kommentar -->
+                <div class="form-group">
+                    <label for="kommentar_status" class="font-weight-bolder">Kommentar:</label>
+
+                    {% if fehlermeldung %}
+                        <p style="color: red;">{{fehlermeldung}}</p>
+                    {% endif %}
+
+                    <textarea class="form-control" 
+                            name="text_statuskommentar" 
+                            id="text_statuskommentar"
+                            placeholder="{{platzhalter_kommentar_status}}"></textarea>
                 </div>
             </form>
         </li>

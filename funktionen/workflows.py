@@ -195,6 +195,48 @@ def wf_ist_abgeschlossen(*, projekt, workflow):
 # Gibt zurück, ob wf abgeschlossen ist
     return WF_Update_Abgeschlossen.objects.using(str(projekt.id)).filter(workflow = workflow).latest('zeitstempel').abgeschlossen
 
+def status_abgelehnt_vorhanden(*, projekt, liste_ma_stati):
+# Gibt True zurück, wenn Status 'Abgelehnt' in liste_ma_stati gefunden wird
+    status_abgelehnt = status(projekt = projekt, statusbezeichnung = 'Abgelehnt')
+    for e in liste_ma_stati:
+        if e.status == status_abgelehnt:
+            return True
+    
+    # Wenn kein Status 'Abgelehnt' gefunden wurde -> False
+    return False
+
+def status_rückfrage_vorhanden(*, projekt, liste_ma_stati):
+# Gibt True zurück, wenn Status 'Rückfrage' in liste_ma_stati gefunden wird
+    status_rückfrage = status(projekt = projekt, statusbezeichnung = 'Rückfrage')
+    for e in liste_ma_stati:
+        if e.status == status_rückfrage:
+            return True
+
+    # Wenn kein Status 'Rückfrage' gefunden wurde -> False
+    return False
+
+def status_freigabe_vorhanden(*, projekt, liste_ma_stati):
+# Gibt True zurück, wenn Status 'Freigabe' in liste_ma_stati gefunden wird
+    status_freigabe = status(projekt = projekt, statusbezeichnung = 'Freigegeben')
+    for e in liste_ma_stati:
+        if e.status == status_freigabe:
+            return True
+    
+    # Wenn kein Status 'Freigabe' gefunden wurde -> False
+    return False
+
+def erforderliche_freigaben_vorhanden(*, projekt, liste_ma_stati):
+# Gibt True zurück, wenn alle Prüfer mit 'immer erforderlich' freigegeben haben
+    status_freigabe = status(projekt = projekt, statusbezeichnung = 'Freigegeben')
+    
+    # Wenn Prüfer mit 'immer_eforderlich' vorhanden, der nicht freigegeben hat -> False
+    for e in liste_ma_stati:
+        if e.ma_stufe_status.immer_erforderlich and not e.status == status_freigabe:
+            return False
+
+    return True
+
+
 def firmenstatus(*, projekt, wf_stufe, prüffirma):
 # Gibt den Status der Prüffirma zurück
     li_mitarbeiter = hole_objs.liste_projektmitarbeiter_firma(projekt = projekt, firma = prüffirma)
@@ -220,22 +262,20 @@ def firmenstatus(*, projekt, wf_stufe, prüffirma):
         'rückfrage': status(projekt = projekt, statusbezeichnung = 'Rückfrage')
         }
 
+    # Prüfen ob Abgelehnt
+    if status_abgelehnt_vorhanden(projekt = projekt, liste_ma_stati = li_einträge_aktuelle_ma_stati):
+        return STATI['abgelehnt']
+
+    # Prüfen ob Rückfrage (Rückfrage hemmt Freigabe)
+    if status_rückfrage_vorhanden(projekt = projekt, liste_ma_stati = li_einträge_aktuelle_ma_stati):
+        return STATI['rückfrage']
+
+    # Wenn alle erforderliche Freigaben bzw. mind. eine Freigabe vorhanden -> Freigegeben
+    if status_freigabe_vorhanden(projekt = projekt, liste_ma_stati = li_einträge_aktuelle_ma_stati) and erforderliche_freigaben_vorhanden(projekt = projekt, liste_ma_stati = li_einträge_aktuelle_ma_stati):
+        return STATI['freigegeben']
+    
+    # Wenn keiner der obigen Fälle: 'In Bearbeitung' bzw. 'Warten auf Vorstufe'
     status_fa = STATI['in_bearbeitung'] if wf_stufe_ist_aktuell(projekt = projekt, wf_stufe = wf_stufe) else STATI['warten_auf_vorstufe']
-    for s in li_einträge_aktuelle_ma_stati:
-        if s:
-            if s.status == STATI['abgelehnt']:
-                return STATI['abgelehnt']
-            
-            if s.status == STATI['freigegeben']:
-                status_fa = STATI['freigegeben']
-
-            # Wenn Freigabe von erforderlichem Prüfer fehlt, darf Firmenstatus nicht "freigegeben" bleiben
-            if s.ma_stufe_status.immer_erforderlich and s.status != STATI['freigegeben']:
-                status_fa = STATI['in_bearbeitung'] if wf_stufe_ist_aktuell(projekt = projekt, wf_stufe = wf_stufe) else STATI['warten_auf_vorstufe']
-
-            if s.status == STATI['rückfrage']:
-                status_fa = STATI['rückfrage']
-
     return status_fa
 
 def stufenstatus(*, projekt, wf_stufe):

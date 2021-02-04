@@ -75,6 +75,10 @@ class MA_Stufe_Status_Update_Status(models.Model):
     class Meta:
         ordering = ['zeitstempel']
 
+class Statuskommentar(models.Model):
+    ma_stufe_status_update_status = models.OneToOneField(MA_Stufe_Status_Update_Status, on_delete = models.CASCADE)
+    text = models.CharField(max_length = 100)
+
 class Anhang(models.Model):
     bezeichnung = models.CharField(max_length = 50)
     pfad = models.CharField(max_length = 100)

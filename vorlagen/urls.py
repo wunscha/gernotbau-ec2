@@ -4,5 +4,5 @@ from . import views
 app_name = 'vorlagen'
 
 urlpatterns= [
-    path('<projekt_id>', views.test_ordner_view, name = 'test_ordner'),
+    path('<db_bezeichnung>', views.test_ordner_view, name = 'test_ordner'),
 ]

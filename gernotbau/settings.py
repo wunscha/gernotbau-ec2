@@ -83,25 +83,8 @@ WSGI_APPLICATION = 'gernotbau.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/3.1/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'postgres',
-        'USER': 'postgres',
-        'PASSWORD': 'postgres',
-        'HOST': 'db',
-        'PORT': 5432
-    },
-    '10': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': '10',
-        'USER': 'postgres',
-        'PASSWORD': 'postgres',
-        'HOST': 'db',
-        'PORT': 5432
-    },
-}
-
+from funktionen.datenbank import dict_databases
+DATABASES = dict_databases()
 
 # Password validation
 # https://docs.djangoproject.com/en/3.1/ref/settings/#auth-password-validators

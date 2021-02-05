@@ -7,6 +7,7 @@ from django.http import HttpResponseRedirect, HttpResponse
 from django.conf import settings
 from django.urls import reverse
 from funktionen import emailfunktionen
+from funktionen.datenbank import lege_datenbank_an
 
 def firma_neu_view(request):
     # Prüfung Login
@@ -92,6 +93,8 @@ def projekt_neu_view(request):
                 )
                 neues_projekt.save(using='default')
 
+                lege_datenbank_an(db_bezeichnung = str(neues_projekt.id))
+
                 # Projektadmin-Firma zuordnen
                 firma = Firma.objects.using('default').get(pk = request.POST['firma_id'])
                 neu_projekt_firma_mail = Projekt_Firma_Mail(
@@ -102,24 +105,6 @@ def projekt_neu_view(request):
                 )
                 neu_projekt_firma_mail.save(using='default')
 
-                '''
-                # Root Ordner anlegen
-                root_ordner = Ordner(
-                    bezeichnung = 'ROOT',
-                    ist_root_ordner = True,
-                )
-                root_ordner.save(using = str(neues_projekt.id))
-
-                # Ordnerberechtigung Root-Ordner <-> Projektadmin-Firma anlegen
-                neu_ordner_firma_freigabe = Ordner_Firma_Freigabe(
-                    ordner = root_ordner,
-                    firma_id = firma.id,
-                    freigabe_lesen = True,
-                    freigabe_upload = True,
-                    freigaben_erben = False
-                )
-                neu_ordner_firma_freigabe.save(using = str(neues_projekt.id))
-                '''
 
                 # TODO: Log-Einträge
                 # TODO: InfoMails

@@ -41,6 +41,10 @@ class V_Ordner(models.Model):
             zeitstempel = timezone.now()
             )
 
+    def freigabe_upload(self, db_bezeichnung, v_rolle):
+        v_ordner_rolle = V_Ordner_Rolle.objects.using(db_bezeichnung).get(v_ordner = self, v_rolle = v_rolle)
+        return V_Ordner_Freigabe_Upload.objects.using(db_bezeichnung).filter(v_ordner_rolle = v_ordner_rolle).latest('zeitstempel').freigabe_upload
+
     def uploadfreigabe_erteilen(self, db_bezeichnung, v_rolle):
         v_ordner_rolle = V_Ordner_Rolle.objects.using(db_bezeichnung).get(v_ordner = self, v_rolle = v_rolle)
         V_Ordner_Freigabe_Upload.objects.using(db_bezeichnung).create(
@@ -349,7 +353,7 @@ class V_Projektstruktur(models.Model):
         verbindung_zu_wfsch = V_PJS_WFSch.objects.using(db_bezeichnung).get_or_create(
             v_pjs = self,
             v_wfsch = v_wfsch,
-            defaults = {'zeitstempel':timezone.now()}
+            defaults = {'zeitstempel': timezone.now()}
             )[0]
         verbindung_zu_wfsch.aktualisieren(db_bezeichnung)
 
@@ -359,6 +363,21 @@ class V_Projektstruktur(models.Model):
             v_wfsch = v_wfsch
             )
         verbindung_zu_wfsch.entaktualisieren(db_bezeichnung)
+
+    def rolle_hinzufügen(self, db_bezeichnung, v_rolle):
+        verbindung_zu_rolle = V_PJS_Rolle.objects.using(db_bezeichnung).get_or_create(
+            v_pjs = self,
+            v_rolle = v_rolle, 
+            defaults = {'zeitstempel': timezone.now()}
+            )[0]
+        verbindung_zu_rolle.aktivieren(db_bezeichnung)
+
+    def rolle_entfernen(self, db_bezeichnung, v_rolle):
+        verbindung_zu_rolle = V_PJS_Rolle.objects.using(db_bezeichnung).get(
+            v_pjs = self,
+            v_rolle = v_rolle,
+            )
+        verbindung_zu_rolle.entaktualisieren(db_bezeichnung)
 
 class V_PJS_Ordner(models.Model):
     v_pjs = models.ForeignKey(V_Projektstruktur, on_delete = models.CASCADE)
@@ -412,4 +431,31 @@ class V_PJS_WFSch(models.Model):
 class V_PJS_WFSch_Aktuell(models.Model):
     v_pjs_wfsch = models.ForeignKey(V_PJS_WFSch, on_delete = models.CASCADE)
     aktuell = models.BooleanField()
+    zeitstempel = models.DateTimeField()
+
+class V_PJS_Rolle(models.Model):
+    v_pjs = models.ForeignKey(V_Projektstruktur, on_delete = models.CASCADE)
+    v_rolle = models.ForeignKey(V_Rolle, on_delete = models.CASCADE)
+    v_zeitstempel = models.DateTimeField()
+
+    def aktivieren(self, db_bezeichnung):
+        V_PJS_Rolle_Aktiv.objects.using(db_bezeichnung).create(
+            v_pjs_rolle = self,
+            aktiv = True,
+            zeitstempel = timezone.now()
+            )
+
+    def entaktivieren(self, db_bezeichnung):
+        V_PJS_Rolle_Aktiv.objects.using(db_bezeichnung).create(
+            v_pjs_rolle = self,
+            aktiv = False,
+            zeitstempel = timezone.now()
+            )
+
+    def aktiv(self, db_bezeichnung):
+        return V_PJS_Rolle_Aktiv.objects.using(db_bezeichnung).filter(v_pjs_rolle = self).latest('zeitstempel').aktiv
+
+class V_PJS_Rolle_Aktiv(models.Model):
+    v_pjs_rolle = models.ForeignKey(V_PJS_Rolle, on_delete = models.CASCADE)
+    aktiv = models.BooleanField()
     zeitstempel = models.DateTimeField()

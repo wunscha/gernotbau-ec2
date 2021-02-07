@@ -11,6 +11,7 @@ class V_Ordner(models.Model):
     zeitstempel = models.DateTimeField()
     ist_root_ordner = models.BooleanField()
 
+    # ORDNER BEZEICHNUNG
     def bezeichnung(self, db_bezeichnung):
         return V_Ordner_Bezeichnung.objects.using(db_bezeichnung).filter(v_ordner = self).latest('zeitstempel').bezeichnung
 
@@ -21,6 +22,7 @@ class V_Ordner(models.Model):
             zeitstempel = timezone.now()
             )
 
+    # V_ORDNER LESEFREIGABE
     def freigabe_lesen(self, db_bezeichnung, v_rolle):
         v_ordner_rolle = V_Ordner_Rolle.objects.using(db_bezeichnung).get(v_ordner = self, v_rolle = v_rolle)
         return V_Ordner_Freigabe_Lesen.objects.using(db_bezeichnung).filter(v_ordner_rolle = v_ordner_rolle).latest('zeitstempel').freigabe_lesen
@@ -41,6 +43,7 @@ class V_Ordner(models.Model):
             zeitstempel = timezone.now()
             )
 
+    # V_ORDNER UPLOADFREIGABE
     def freigabe_upload(self, db_bezeichnung, v_rolle):
         v_ordner_rolle = V_Ordner_Rolle.objects.using(db_bezeichnung).get(v_ordner = self, v_rolle = v_rolle)
         return V_Ordner_Freigabe_Upload.objects.using(db_bezeichnung).filter(v_ordner_rolle = v_ordner_rolle).latest('zeitstempel').freigabe_upload
@@ -61,6 +64,7 @@ class V_Ordner(models.Model):
             zeitstempel = timezone.now()
             )
 
+    # V_ORDNER UNTERORDNER
     def liste_unterordner(self, db_bezeichnung):
     # Gibt Liste der aktuellen Unterordner zurück
         qs_v_ordner_unterordner = V_Ordner_Unterordner.objects.using(db_bezeichnung).filter(v_überordner = self)
@@ -69,6 +73,7 @@ class V_Ordner(models.Model):
             if e.aktuell(db_bezeichnung) and not e.gelöscht(db_bezeichnung): li_unterordner.append(e.v_unterordner)
         return li_unterordner
 
+    # V_ORDNER LÖSCHEN
     def löschen(self, db_bezeichnung):
         V_Ordner_Gelöscht.objects.using(db_bezeichnung).create(
             v_ordner = self,
@@ -81,13 +86,23 @@ class V_Ordner(models.Model):
     def gelöscht(self, db_bezeichnung):
         return V_Ordner_Gelöscht.objects.using(db_bezeichnung).filter(v_ordner = self).latest('zeitstempel').gelöscht
 
+    # V_ORDNER -> ORDNER IN DB ANLEGEN
+    def in_db_anlegen(self, db_bezeichnung):
+        # Objekt anlegen
+        neuer_ordner = projektadmin.Ordner.objects.using(db_bezeichnung).create(
+            bezeichnung = 'Feld "bezeichnung" löschen',
+            ist_root_ordner = self.ist_root_ordner,
+            )
+        neuer_ordner.bezeichnung_ändern(db_bezeichnung, bezeichnung = self.bezeichnung(db_bezeichnung))
+        neuer_ordner.mit_vorlage_verbinden(db_bezeichnung, v_ordner_id = self.id)
+
 class V_Ordner_Gelöscht(models.Model):
     v_ordner = models.ForeignKey(V_Ordner, on_delete = models.CASCADE)
     gelöscht = models.BooleanField()
     zeitstempel = models.DateTimeField()
 
 class V_Ordner_Unterordner(models.Model):
-    v_überordner = models.ForeignKey(V_Ordner, on_delete = models.CASCADE, related_name = 'v_überordner')
+    v_ordner = models.ForeignKey(V_Ordner, on_delete = models.CASCADE, related_name = 'v_überordner')
     v_unterordner = models.ForeignKey(V_Ordner, on_delete = models.CASCADE, related_name = 'v_unterordner')
     zeitstempel = models.DateTimeField()
 
@@ -333,6 +348,16 @@ class V_WFSch_Stufe_Rolle_Aktuell(models.Model):
 class V_Projektstruktur(models.Model):
     zeitstempel = models.DateTimeField()
 
+    def bezeichnung_ändern(self, db_bezeichnung, bezeichnung):
+        V_Projektstruktur_Bezeichnung.objects.using(db_bezeichnung).create(
+            v_projektstruktur = self,
+            bezeichnung = bezeichnung,
+            zeitstempel = timezone.now()
+            )
+
+    def bezeichnung(self, db_bezeichnung):
+        return V_Projektstruktur_Bezeichnung.objects.using(db_bezeichnung).filter(v_projektstruktur = self).latest('zeitstempel').bezeichnung
+
     def ordner_hinzufügen(self, db_bezeichnung, v_ordner):
         # Verbindung anlegen, wenn noch nicht vorhanden
         verbindung_zu_ordner = V_PJS_Ordner.objects.using(db_bezeichnung).get_or_create(
@@ -378,6 +403,11 @@ class V_Projektstruktur(models.Model):
             v_rolle = v_rolle,
             )
         verbindung_zu_rolle.entaktualisieren(db_bezeichnung)
+
+class V_Projektstruktur_Bezeichnung(models.Model):
+    projektstruktur = models.ForeignKey(V_Projektstruktur, on_delete = models.CASCADE)
+    bezeichnung = models.CharField(max_length = 50)
+    zeitstempel = models.DateTimeField()
 
 class V_PJS_Ordner(models.Model):
     v_pjs = models.ForeignKey(V_Projektstruktur, on_delete = models.CASCADE)

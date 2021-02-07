@@ -1,3 +1,4 @@
+from datetime import time
 from django import db
 from django.db import models
 from django.utils import timezone
@@ -44,7 +45,7 @@ class Ordner(models.Model):
     bezeichnung = models.CharField(max_length = 50)
     ist_root_ordner = models.BooleanField(default = False)
     workflow_schema = models.ForeignKey(Workflow_Schema, on_delete = models.PROTECT, null = True, blank = True)
-    unterordner = models.ManyToManyField('self', through='Überordner_Unterordner')
+    # unterordner = models.ManyToManyField('self', through='Überordner_Unterordner')
     # TODO: Beim neuen Aufsetzen von DB: M2M-Feld 'unterordner' mit through = 'Überordner_Unterordner' einfügen
     
     def __str__(self):
@@ -61,65 +62,122 @@ class Ordner(models.Model):
             )
         verbindung_ordner_rolle.aktualisieren(db_bezeichnung)
 
-    # LESEFREIGABE ROLLE
+    # ORDNER LESEFREIGABE ROLLE
     def lesefreigabe_erteilen_rolle(self, db_bezeichnung, rolle):
-        o_fa = Ordner_Firma.objects.using(db_bezeichnung).get(ordner = self, rolle = rolle)
+        o_ro = Ordner_Rolle.objects.using(db_bezeichnung).get(ordner = self, rolle = rolle)
         Freigabe_Lesen_Rolle.objects.using(db_bezeichnung).create(
-            ordner_firma = o_fa,
+            ordner_rolle = o_ro,
             freigabe_lesen = True,
             zeitstempel = timezone.now()
             )
     
     def lesefreigabe_entziehen_rolle(self, db_bezeichnung, rolle):
-        o_fa = Ordner_Firma.objects.using(db_bezeichnung).get(ordner = self, rolle = rolle)
+        o_ro = Ordner_Rolle.objects.using(db_bezeichnung).get(ordner = self, rolle = rolle)
         Freigabe_Lesen_Rolle.objects.using(db_bezeichnung).create(
-            ordner_firma = o_fa,
+            ordner_rolle = o_ro,
             freigabe_lesen = False,
             zeitstempel = timezone.now()
             )
 
     def lesefreigabe_rolle(self, db_bezeichnung, rolle):
-        o_fa = Ordner_Firma.objects.using(db_bezeichnung).get(ordner = self, rolle = rolle)
-        return Freigabe_Lesen_Rolle.objects.using(db_bezeichnung).filter(Ordner_Firma = o_fa).latest('zeitstempel').freigabe_lesen
+        o_ro = Ordner_Rolle.objects.using(db_bezeichnung).get(ordner = self, rolle = rolle)
+        return Freigabe_Lesen_Rolle.objects.using(db_bezeichnung).filter(Ordner_Rolle = o_ro).latest('zeitstempel').freigabe_lesen
 
-    # UPLOADFREIGABE ROLLE
+    # ORDNER UPLOADFREIGABE ROLLE
     def uploadfreigabe_erteilen_rolle(self, db_bezeichnung, rolle):
-        pass
+        o_ro = Ordner_Rolle.objects.using(db_bezeichnung).get(ordner = self, rolle = rolle)
+        Freigabe_Upload_Rolle.objects.using(db_bezeichnung).create(
+            ordner_rolle = o_ro, 
+            freigabe_lesen = True, 
+            zeitstempel = timezone.now()
+            )
 
     def uploadfreigabe_entziehen_rolle(self, db_bezeichnung, rolle):
-        pass
+        o_ro = Ordner_Rolle.objects.using(db_bezeichnung).get(ordner = self, rolle = rolle)
+        Freigabe_Upload_Rolle.objects.using(db_bezeichnung).create(
+            ordner_rolle = o_ro, 
+            freigabe_lesen = False, 
+            zeitstempel = timezone.now()
+            )
 
-    def uploadreigabe_rolle(self, db_bezeichnung, rolle):
-        pass
+    def uploadfreigabe_rolle(self, db_bezeichnung, rolle):
+        o_ro = Ordner_Rolle.objects.using(db_bezeichnung).get(ordner = self, rolle = rolle)
+        return Freigabe_Upload_Rolle.objects.using(db_bezeichnung).filter(ordner_rolle = o_ro).latest('zeitstempel').freigabe_upload
 
-    # LESEFREIGABE FIRMA
+    # ORDNER LESEFREIGABE FIRMA
     def lesefreigabe_erteilen_firma(self, db_bezeichnung, firma):
-        pass
+        o_fa = Ordner_Firma.objects.using(db_bezeichnung).get(ordner = self, firma = firma)
+        Freigabe_Lesen_Firma.objects.using(db_bezeichnung).create(
+            ordner_firma = o_fa,
+            freigabe_lesen = True,
+            zeitstempel = timezone.now()
+            )
 
     def lesefreigabe_entziehen_firma(self, db_bezeichnung, firma):
-        pass
+        o_fa = Ordner_Firma.objects.using(db_bezeichnung).get(ordner = self, firma = firma)
+        Freigabe_Lesen_Firma.objects.using(db_bezeichnung).create(
+            ordner_firma = o_fa,
+            freigabe_lesen = False,
+            zeitstempel = timezone.now()
+            )
 
     def lesefreigabe_firma(self, db_bezeichnung, firma):
-        pass
+        o_fa = Ordner_Firma.objects.using(db_bezeichnung).get(ordner = self, firma = firma)
+        return Freigabe_Lesen_Firma.objects.using(db_bezeichnung).filter(ordner_firma = o_fa).lateste('zeitstempel').freigabe_lesen
 
-    # UPLOADFREIGABE FIRMA
+    # ORDNER UPLOADFREIGABE FIRMA
     def uploadfreigabe_erteilen_firma(self, db_bezeichnung, firma):
-        pass
+        o_fa = Ordner_Firma.objects.using(db_bezeichnung).get(ordner = self, firma = firma)
+        Freigabe_Upload_Firma.objects.using(db_bezeichnung).create(
+            ordner_firma = o_fa,
+            freigabe_upload = True,
+            zeitstempel = timezone.now()
+            )
 
     def uploadfreigabe_entziehen_firma(self, db_bezeichnung, firma):
-        pass
+        o_fa = Ordner_Firma.objects.using(db_bezeichnung).get(ordner = self, firma = firma)
+        Freigabe_Upload_Firma.objects.using(db_bezeichnung).create(
+            ordner_firma = o_fa,
+            freigabe_upload = False,
+            zeitstempel = timezone.now()
+            )
 
-    def uploadfreigabe_firma(self, db_bezeichnung, firma):
-        pass
+    def uploadreigabe_firma(self, db_bezeichnung, firma):
+        o_fa = Ordner_Firma.objects.using(db_bezeichnung).get(ordner = self, firma = firma)
+        return Freigabe_Upload_Firma.objects.using(db_bezeichnung).filter(ordner_firma = o_fa).latest('zeitstempel').freigabe_upload
 
-    
+    # ORDNER BEZEICHNUNG
+    def bezeichnung_ändern(self, db_bezeichnung, bezeichnung):
+        Ordner_Bezeichnung.objects.using(db_bezeichnung).create(
+            ordner = self,
+            bezeichnung = bezeichnung,
+            zeitstempel = timezone.now()
+            )
 
-class Überordner_Unterordner(models.Model):
+    def bezeichnung(self, db_bezeichnung):
+        return Ordner_Bezeichnung.objects.using(db_bezeichnung).filter(ordner = self).latest('zeitstempel').bezeichnung
+
+    # ORDNER MIT VORLAGE VERBINDEN
+    def mit_vorlage_verbinden(self, db_bezeichnung, v_ordner_id):
+        Ordner_Vorlage.objects.using(db_bezeichnung).create(ordner = self, v_ordner_id = v_ordner_id)
+
+class Überordner_Unterordner(models.Model): # TODO: Löschen, wird durch neue Herangehensweise (06.02.2021) ersetzt
     überordner = models.ForeignKey(Ordner, on_delete = models.CASCADE, related_name = 'rel_überordner') # related_name notwendig, weil es sonst zu 'reverse accessor clash' kommt
     unterordner = models.ForeignKey(Ordner, on_delete = models.CASCADE, related_name = 'rel_unterordner') # related_name notwendig, weil es sonst zu 'reverse accessor clash' kommt
 
     def __str__(self):
         return self.überordner.bezeichnung + '-' + self.unterordner.bezeichnung
+
+# Neuer Herangehensweise 06.02.2021
+class Ordner_Unterordner(models.Model):
+    ordner = models.ForeignKey(Ordner, on_delete = models.CASCADE, related_name = 'ordner')
+    unterordner =  models.ForeignKey(Ordner, on_delete = models.CASCADE, related_name = 'unterordner')
+    zeitstempel = models.DateTimeField()
+
+class Ordner_Vorlage(models.Model):
+    ordner = models.ForeignKey(Ordner, on_delete = models.CASCADE)
+    v_ordner_id = models.CharField(max_length = 20)
+    # Zeitstempel = Zeitstempel von Ordner (Verbindung Ordner <-> Vorlage wird immer gemeinsam mit Ordner angelegt)
 
 class Ordner_Firma_Freigabe(models.Model):
     freigabe_lesen = models.BooleanField()
@@ -139,6 +197,14 @@ class Ordner_Firma_Freigabe(models.Model):
             upload = 'Upload'
 
         return str('%s - %s %s%s' % (self.ordner.bezeichnung, self.firma_id, lesen, upload))
+
+#######################################
+    # Neue Herangehensweise (Funktionen in Models definieren) 06.02.2021
+
+class Ordner_Bezeichnung(models.Model):
+    ordner = models.ForeignKey(Ordner, on_delete = models.CASCADE)
+    bezeichnung = models.CharField(max_length = 50)
+    zeitstempel = models.DateTimeField()
 
 ##################################
 # Models Projektstruktur

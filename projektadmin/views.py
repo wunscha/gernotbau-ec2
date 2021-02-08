@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from .funktionen import user_ist_projektadmin, sortierte_stufenliste, suche_letzte_stufe, Ordnerbaum
-from .models import Workflow_Schema, Workflow_Schema_Stufe, WFSch_Stufe_Firma, Ordner, Ordner_Firma_Freigabe, Überordner_Unterordner
+from .models import Workflow_Schema, Workflow_Schema_Stufe, WFSch_Stufe_Firma, Ordner, Ordner_Firma_Freigabe
 from .forms import FirmaNeuForm, WFSchWählenForm
 from superadmin.models import Projekt, Firma, Projekt_Firma_Mail
 from django.urls import reverse
@@ -248,12 +248,16 @@ def übersicht_ordner_view(request, projekt_id):
                     )
                     neuer_ordner.save(using = projekt_id)
                     
+                    '''
+                    AUSKOMMENTIERT WEGEN NEUER HERANGEHENSWEISE (08.02.2021)
+
                     # Unterordner bei Überordner registrieren 
                     # (nicht mittels 'add()'-Methode weil sonst symmetrische Beziehung entsteht, die zu Endlossschleife bei 'erzeuge_darstellung_ordnerbaum()' führt )
                     überordner = Ordner.objects.using(projekt_id).get(pk = request.POST['ordner_id'])
                     neuer_eintrag_überordner_unterordner = Überordner_Unterordner(unterordner = neuer_ordner, überordner = überordner)
                     neuer_eintrag_überordner_unterordner.save(using = projekt_id)
-                
+                    '''
+
                     # Ordnerfreigaben anlegen
                     ordnerfunktionen.initialisiere_ordnerfreigaben_ordner(projekt, ordner = neuer_ordner)
 
@@ -268,10 +272,16 @@ def übersicht_ordner_view(request, projekt_id):
                         # Ordner löschen(Root-Ordner darf nicht gelöscht werden)
                         if not löschkandidat.ist_root_ordner:
                             löschkandidat.delete(using = projekt_id)
+                            
+                            ''' 
+                            AUSKOMMENTIER WEGEN NEUER HERANGEHENSWEISE 08.02.2021
+
                             # Verknüpungen Überordner-Unterordner löschen
                             liste_einträge_überordner_unterordner = Überordner_Unterordner.objects.using(projekt_id).filter(überordner = löschkandidat)
                             for eintrag in liste_einträge_überordner_unterordner:
                                 eintrag.delete(using = projekt_id)
+                            '''
+                            
                             # Ordnerfreigaben löschen
                             ordnerfunktionen.lösche_ordnerfreigaben_ordner(projekt, löschkandidat)
 

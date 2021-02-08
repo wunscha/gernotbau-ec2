@@ -2,7 +2,7 @@ from django.contrib.auth import get_user, get_user_model
 
 from funktionen.workflows import wf_ist_abgeschlossen, wf_stufe_ist_aktuell
 from superadmin.models import Mitarbeiter, Firma, Projekt, Projekt_Firma_Mail, Projekt_Mitarbeiter_Mail
-from projektadmin.models import WFSch_Stufe_Firma, Überordner_Unterordner
+from projektadmin.models import WFSch_Stufe_Firma
 from dokab.models import MA_Stufe_Status_Update_Status, Mitarbeiter_Stufe_Status, Workflow_Stufe, WF_Stufe_Update_Aktuell, WF_Update_Abgeschlossen
 
 # TODO: 'gelöscht'-Logik implementieren
@@ -49,6 +49,9 @@ def nicht_prüffirmen(projekt, wfsch_stufe):
     
     return liste_nicht_prüffirmen
 
+'''
+AUSKOMMENTIERT WEGEN NEUER HERANGEHENSWEISE 08.02.2021
+
 def unterordner(projekt, ordner):
 # Gibt Liste mit den Unterordnern von ordner zurück
     qs_einträge_überordner_unterordner = Überordner_Unterordner.objects.using(str(projekt.id)).filter(überordner = ordner)
@@ -69,6 +72,8 @@ def überordner(projekt, ordner):
             überordner = eintrag.überordner
 
     return überordner
+
+'''
 
 def liste_projektmitarbeiter(*, projekt):
 # Gibt Liste mit allen Mitarbeitern zurück, die bei projekt sind

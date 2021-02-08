@@ -1,9 +1,5 @@
 
-    <form action="{% url 'vorlagen:test_ordner' projekt.id %}" method="POST">
+    <form action="{% url 'vorlagen:test_ordner' projekt.id%}" method="POST">
         {% csrf_token %}
-        <p>Lesefreigabe: {{lesefreigabe}}</p>
-        <label for="ordnerbezeichnung">Ordnerbezeichnung: {{ordnerbezeichnung}}</label>
-        <input type="text" name="ordnerbezeichnung" id="ordnerbezeichnung">
-        <input type="checkbox" name="freigabe_lesen">        
-        <button type="submit">OK</button>
+        <button type="submit" name="ereignis" value="ordnerstruktur_anlegen">PJS pjs_anlegen</button>
     </form>

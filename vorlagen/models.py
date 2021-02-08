@@ -5,13 +5,15 @@ from django.db.models.fields import DateTimeField
 from django.db.models.fields.related import OneToOneField
 from django.utils import timezone
 
+
+from projektadmin.models import Ordner, Ordner_Vorlage, Ordner_Unterordner, Workflow_Schema
 # Create your models here.
 
 class V_Ordner(models.Model):
     zeitstempel = models.DateTimeField()
     ist_root_ordner = models.BooleanField()
 
-    # ORDNER BEZEICHNUNG
+    # V_ORDNER BEZEICHNUNG
     def bezeichnung(self, db_bezeichnung):
         return V_Ordner_Bezeichnung.objects.using(db_bezeichnung).filter(v_ordner = self).latest('zeitstempel').bezeichnung
 
@@ -22,7 +24,7 @@ class V_Ordner(models.Model):
             zeitstempel = timezone.now()
             )
 
-    # V_ORDNER LESEFREIGABE
+    # V_ORDNER FREIGABE LESEN
     def freigabe_lesen(self, db_bezeichnung, v_rolle):
         v_ordner_rolle = V_Ordner_Rolle.objects.using(db_bezeichnung).get(v_ordner = self, v_rolle = v_rolle)
         return V_Ordner_Freigabe_Lesen.objects.using(db_bezeichnung).filter(v_ordner_rolle = v_ordner_rolle).latest('zeitstempel').freigabe_lesen
@@ -43,7 +45,7 @@ class V_Ordner(models.Model):
             zeitstempel = timezone.now()
             )
 
-    # V_ORDNER UPLOADFREIGABE
+    # V_ORDNER FREIGABE UPLOAD
     def freigabe_upload(self, db_bezeichnung, v_rolle):
         v_ordner_rolle = V_Ordner_Rolle.objects.using(db_bezeichnung).get(v_ordner = self, v_rolle = v_rolle)
         return V_Ordner_Freigabe_Upload.objects.using(db_bezeichnung).filter(v_ordner_rolle = v_ordner_rolle).latest('zeitstempel').freigabe_upload
@@ -65,12 +67,32 @@ class V_Ordner(models.Model):
             )
 
     # V_ORDNER UNTERORDNER
+    def unterordner_anlegen(self, db_bezeichnung, *, bezeichnung_unterordner):
+        neuer_unterordner = V_Ordner.objects.using(db_bezeichnung).create(
+            zeitstempel = timezone.now(),
+            ist_root_ordner = False,
+            )
+        neuer_unterordner.bezeichnung_ändern(db_bezeichnung, bezeichnung_unterordner)
+        # Mit "nicht gelöscht" initialisieren
+        V_Ordner_Gelöscht.objects.using(db_bezeichnung).create(
+            v_ordner = neuer_unterordner,
+            gelöscht = False,
+            zeitstempel = timezone.now()
+            )
+        # Verbindung Ordner-Unterordner anlegen
+        neue_verbindung_ordner_unterordner = V_Ordner_Unterordner.objects.using(db_bezeichnung).create(
+            v_ordner = self,
+            v_unterordner = neuer_unterordner,
+            zeitstempel = timezone.now()
+            )
+        neue_verbindung_ordner_unterordner.aktualisieren(db_bezeichnung)
+
     def liste_unterordner(self, db_bezeichnung):
     # Gibt Liste der aktuellen Unterordner zurück
-        qs_v_ordner_unterordner = V_Ordner_Unterordner.objects.using(db_bezeichnung).filter(v_überordner = self)
+        qs_v_ordner_unterordner = V_Ordner_Unterordner.objects.using(db_bezeichnung).filter(v_ordner = self)
         li_unterordner = []
         for e in qs_v_ordner_unterordner:
-            if e.aktuell(db_bezeichnung) and not e.gelöscht(db_bezeichnung): li_unterordner.append(e.v_unterordner)
+            if e.aktuell(db_bezeichnung) and not e.v_unterordner.gelöscht(db_bezeichnung): li_unterordner.append(e.v_unterordner)
         return li_unterordner
 
     # V_ORDNER LÖSCHEN
@@ -80,21 +102,32 @@ class V_Ordner(models.Model):
             gelöscht = True, 
             zeitstempel = timezone.now()
             )
-
-            # TODO: Prüfen ob Dokumente, Unterordner etc. verknüpft
+        # Verbindung zu Überordner lösen
+        verbindung_zu_überordner = V_Ordner_Unterordner.objects.using(db_bezeichnung).get(unterordner = self)
+        verbindung_zu_überordner.entaktualisieren(db_bezeichnung)
+        # Verbindungen zu Unterordnern lösen
+        # TODO: Gesamter Baum unterhalb Ordner sollte gelöscht werden (Ordner und Verbindungen)
+        for uo in self.liste_unterordner(db_bezeichnung):
+            verbindung_zu_unterordner = V_Ordner_Unterordner.objects.using(db_bezeichnung).get(unterordner = uo)
+            verbindung_zu_unterordner.entaktualisieren(db_bezeichnung)
 
     def gelöscht(self, db_bezeichnung):
         return V_Ordner_Gelöscht.objects.using(db_bezeichnung).filter(v_ordner = self).latest('zeitstempel').gelöscht
 
     # V_ORDNER -> ORDNER IN DB ANLEGEN
-    def in_db_anlegen(self, db_bezeichnung):
-        # Objekt anlegen
-        neuer_ordner = projektadmin.Ordner.objects.using(db_bezeichnung).create(
-            bezeichnung = 'Feld "bezeichnung" löschen',
+    def in_db_anlegen(self,* ,db_bezeichnung_quelle, db_bezeichnung_ziel):
+        # Ordner anlegen
+        neuer_ordner = Ordner.objects.using(db_bezeichnung_ziel).create(
             ist_root_ordner = self.ist_root_ordner,
+            zeitstempel = timezone.now()
             )
-        neuer_ordner.bezeichnung_ändern(db_bezeichnung, bezeichnung = self.bezeichnung(db_bezeichnung))
-        neuer_ordner.mit_vorlage_verbinden(db_bezeichnung, v_ordner_id = self.id)
+        neuer_ordner.entlöschen(db_bezeichnung_ziel)
+        neuer_ordner.bezeichnung_ändern(db_bezeichnung_ziel, neue_bezeichnung = self.bezeichnung(db_bezeichnung_quelle))
+        # Verbindung zu Vorlage
+        Ordner_Vorlage.objects.using(db_bezeichnung_ziel).create(
+            ordner = neuer_ordner,
+            v_ordner_id = self.id,
+            )
 
 class V_Ordner_Gelöscht(models.Model):
     v_ordner = models.ForeignKey(V_Ordner, on_delete = models.CASCADE)
@@ -102,10 +135,12 @@ class V_Ordner_Gelöscht(models.Model):
     zeitstempel = models.DateTimeField()
 
 class V_Ordner_Unterordner(models.Model):
-    v_ordner = models.ForeignKey(V_Ordner, on_delete = models.CASCADE, related_name = 'v_überordner')
+    v_ordner = models.ForeignKey(V_Ordner, on_delete = models.CASCADE, related_name = 'v_ordner')
     v_unterordner = models.ForeignKey(V_Ordner, on_delete = models.CASCADE, related_name = 'v_unterordner')
     zeitstempel = models.DateTimeField()
 
+
+    # ORDNER-UNTERORDNER AKTUELL
     def aktualisieren(self, db_bezeichnung):
         V_Ordner_Unterordner_Aktuell.objects.using(db_bezeichnung).create(
             v_ordner_unterordner = self,
@@ -122,6 +157,14 @@ class V_Ordner_Unterordner(models.Model):
 
     def aktuell(self, db_bezeichnung):
         return V_Ordner_Unterordner_Aktuell.objects.using(db_bezeichnung).filter(v_ordner_unterordner = self).latest('zeitstempel').aktuell
+
+    # ORDNER-UNTERORDNER IN DB ANLEGEN
+    def in_db_anlegen(self, db_bezeichnung_ziel):
+        Ordner_Unterordner.objects.using(db_bezeichnung_ziel).create(
+            ordner = Ordner.objects.using(db_bezeichnung_ziel).get(ordner_vorlage__v_ordner_id = self.v_ordner.id),
+            unterordner = Ordner.objects.using(db_bezeichnung_ziel).get(ordner_vorlage__v_ordner_id = self.v_unterordner.id),
+            zeitstempel = timezone.now()
+            )
 
 class V_Ordner_Unterordner_Aktuell(models.Model):
     v_ordner_unterordner = models.ForeignKey(V_Ordner_Unterordner, on_delete = models.CASCADE)
@@ -200,6 +243,7 @@ class V_Ordner_Freigabe_Upload(models.Model):
 class V_Workflow_Schema(models.Model):
     zeitstempel = models.DateTimeField()
 
+    # V_WORKFLOW_SCHEMA BEZEICHUNG
     def bezeichnung_ändern(self, db_bezeichnung, neue_bezeichnung):
         V_WFSch_Bezeichnung.objects.using(db_bezeichnung).create(
             v_wfsch = self,
@@ -210,6 +254,7 @@ class V_Workflow_Schema(models.Model):
     def bezeichnung(self, db_bezeichnung):
         return V_WFSch_Bezeichnung.objects.using(db_bezeichnung).filter(v_wfsch = self).latest('zeitstempel').bezeichnung
 
+    # V_WORKFLOW_SCHEMA GELÖSCHT
     def löschen(self, db_bezeichnung):
         V_WFSch_Gelöscht.object.using(db_bezeichnung).create(
             v_wfsch = self,
@@ -218,7 +263,17 @@ class V_Workflow_Schema(models.Model):
             )
 
     def gelöscht(self, db_bezeichnung):
-        return V_WFSch_Gelöscht.objects.using(db_bezeichnung).filter(v_wfsch = self).lateste('zeitstempel').bezeichnung
+        return V_WFSch_Gelöscht.objects.using(db_bezeichnung).filter(v_wfsch = self).latest('zeitstempel').bezeichnung
+
+    # V_WORKFLOW_SCHEMA IN DB ANLEGEN
+    def in_db_anlegen(self, db_bezeichnung_ziel):
+        neues_wfsch = Workflow_Schema.objects.using(db_bezeichnung_ziel).create(
+            zeitstempel = timezone.now(),
+        )
+        # WFSCH in DB anlegen
+        # für jede Stufe in liste_stufen:
+        #    Stufe anlegen (inkl. Verbindung Stufe_Vorlage)
+        #    Verbindung Stufe-Folgestufe anlegen
 
 class V_WFSch_Gelöscht(models.Model):
     v_wfsch = models.ForeignKey(V_Workflow_Schema, on_delete = models.CASCADE)
@@ -348,6 +403,7 @@ class V_WFSch_Stufe_Rolle_Aktuell(models.Model):
 class V_Projektstruktur(models.Model):
     zeitstempel = models.DateTimeField()
 
+    # PJS BEZEICHNUNG
     def bezeichnung_ändern(self, db_bezeichnung, bezeichnung):
         V_Projektstruktur_Bezeichnung.objects.using(db_bezeichnung).create(
             v_projektstruktur = self,
@@ -358,6 +414,7 @@ class V_Projektstruktur(models.Model):
     def bezeichnung(self, db_bezeichnung):
         return V_Projektstruktur_Bezeichnung.objects.using(db_bezeichnung).filter(v_projektstruktur = self).latest('zeitstempel').bezeichnung
 
+    # PJS ORDNER
     def ordner_hinzufügen(self, db_bezeichnung, v_ordner):
         # Verbindung anlegen, wenn noch nicht vorhanden
         verbindung_zu_ordner = V_PJS_Ordner.objects.using(db_bezeichnung).get_or_create(
@@ -373,6 +430,32 @@ class V_Projektstruktur(models.Model):
             v_ordner = v_ordner)
         verbindung_zu_ordner.entaktualisieren(db_bezeichnung)
 
+    def liste_ordner(self, db_bezeichnung):
+        li_ordner= []
+        for v in V_PJS_Ordner.objects.using(db_bezeichnung).filter(v_pjs = self):
+            if v.aktuell(db_bezeichnung) and not v.v_ordner.gelöscht(db_bezeichnung):
+                li_ordner.append(v.v_ordner)
+        return li_ordner
+
+    def root_v_ordner(self, db_bezeichnung):
+        for v_pjs_o in V_PJS_Ordner.objects.using(db_bezeichnung).filter(v_pjs = self):
+            if v_pjs_o.aktuell(db_bezeichnung):
+                v_o = v_pjs_o.v_ordner
+                if v_o.ist_root_ordner and not v_o.gelöscht(db_bezeichnung):
+                    return v_o
+
+    def ordnerstruktur_in_db_anlegen(self,*, db_bezeichnung_quelle,  db_bezeichnung_ziel):
+        # Ordner anlegen (zuerst müssen alle Ordner angelegt werden damit Verbindungen hergestellt werden können)
+        for v_o in self.liste_ordner(db_bezeichnung_quelle):
+            v_o.in_db_anlegen(db_bezeichnung_quelle = db_bezeichnung_quelle, db_bezeichnung_ziel = db_bezeichnung_ziel)
+        
+        # Verbindungen Ordner-Unterordner anlegen
+        for o in self.liste_ordner(db_bezeichnung_quelle):
+            for v in V_Ordner_Unterordner.objects.using(db_bezeichnung_quelle).filter(v_ordner = o):
+                if v.aktuell(db_bezeichnung_quelle):
+                    v.in_db_anlegen(db_bezeichnung_ziel)
+
+    # PJS WFSCH
     def wfsch_hinzufügen(self, db_bezeichnung, v_wfsch):
         # Verbindung anlegen, wenn noch nicht vorhanden
         verbindung_zu_wfsch = V_PJS_WFSch.objects.using(db_bezeichnung).get_or_create(
@@ -389,6 +472,7 @@ class V_Projektstruktur(models.Model):
             )
         verbindung_zu_wfsch.entaktualisieren(db_bezeichnung)
 
+    # PJS ROLLEN
     def rolle_hinzufügen(self, db_bezeichnung, v_rolle):
         verbindung_zu_rolle = V_PJS_Rolle.objects.using(db_bezeichnung).get_or_create(
             v_pjs = self,
@@ -429,7 +513,7 @@ class V_PJS_Ordner(models.Model):
             )
 
     def aktuell(self, db_bezeichnung):
-        return V_PJS_Ordner_Aktuell.objects.using(db_bezeichnung).filter(v_pjs_ordner = self).lateste('zeitstempel').aktuell
+        return V_PJS_Ordner_Aktuell.objects.using(db_bezeichnung).filter(v_pjs_ordner = self).latest('zeitstempel').aktuell
 
 class V_PJS_Ordner_Aktuell(models.Model):
     v_pjs_ordner = models.ForeignKey(V_PJS_Ordner, on_delete = models.CASCADE)

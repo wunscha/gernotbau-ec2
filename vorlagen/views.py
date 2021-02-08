@@ -3,40 +3,13 @@ from django.shortcuts import render
 from django.utils import timezone
 
 from superadmin.models import Projekt
-from .models import V_Ordner, V_Ordner_Bezeichnung, V_Ordner_Freigabe_Lesen, V_Rolle, V_Ordner_Rolle
+from .models import V_Ordner, V_Ordner_Bezeichnung, V_Ordner_Freigabe_Lesen, V_Projektstruktur, V_Rolle, V_Ordner_Rolle
 
 # Create your views here.
 def test_ordner_view(request, db_bezeichnung):
+    if request.method == 'POST':
+        v_pjs = V_Projektstruktur.objects.using('default').get(pk = 1)
+        v_pjs.ordnerstruktur_in_db_anlegen(db_bezeichnung_quelle = 'default', db_bezeichnung_ziel = db_bezeichnung)
     
     projekt = Projekt.objects.using('default').get(pk = db_bezeichnung)
-    v_ordner = V_Ordner.objects.using(db_bezeichnung).get(pk = 1)
-    v_rolle = V_Rolle.objects.using(db_bezeichnung).get(pk = 1)
-    
-
-    if request.method == 'POST':
-        
-        if request.POST['ordnerbezeichnung']:
-            update_v_ordner_bezeichnung = V_Ordner_Bezeichnung(
-                bezeichnung = request.POST['ordnerbezeichnung'],
-                v_ordner = v_ordner,
-                zeitstempel = timezone.now()
-                )
-            update_v_ordner_bezeichnung.save(using = db_bezeichnung)
-
-        update_v_ordner_freigabe_lesen = V_Ordner_Freigabe_Lesen(
-            v_ordner_rolle = V_Ordner_Rolle.objects.using(db_bezeichnung).get(v_ordner = v_ordner, v_rolle = v_rolle),
-            freigabe_lesen = True if 'freigabe_lesen' in request.POST else False,
-            zeitstempel = timezone.now()
-            )
-        update_v_ordner_freigabe_lesen.save(using = db_bezeichnung)
-
-    # Belade Context und rendere Template
-    ordnerbezeichnung = v_ordner.bezeichnung(db_bezeichnung)
-    lesefreigabe = v_ordner.freigabe_lesen(db_bezeichnung, v_rolle)
-    context = {
-        'projekt': projekt.__dict__,
-        'ordnerbezeichnung': ordnerbezeichnung,
-        'lesefreigabe': lesefreigabe
-        }
-
-    return render(request, './vorlagen/test_ordner.html', context)
+    return render(request, './vorlagen/test_ordner.html', context = {'projekt': projekt})

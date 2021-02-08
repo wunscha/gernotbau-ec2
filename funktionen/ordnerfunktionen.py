@@ -1,4 +1,4 @@
-from projektadmin.models import Ordner, Überordner_Unterordner, Ordner_Firma_Freigabe
+from projektadmin.models import Ordner, Ordner_Firma_Freigabe
 from superadmin.models import Firma
 from funktionen import hole_objs
 

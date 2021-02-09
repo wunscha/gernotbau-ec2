@@ -6,7 +6,7 @@ import datetime
 
 from gernotbau.settings import BASE_DIR
 from projektadmin.funktionen import Ordnerbaum, sortierte_stufenliste
-from projektadmin.models import Ordner_Firma_Freigabe, Ordner, Workflow_Schema, Workflow_Schema_Stufe, WFSch_Stufe_Mitarbeiter
+from projektadmin.models import Ordner_Firma_Freigabe, Ordner, Workflow_Schema, WFSch_Stufe, WFSch_Stufe_Mitarbeiter
 from superadmin.models import Firma, Projekt
 from .models import Dokument, MA_Stufe_Status_Update_Status, Status, Workflow, Workflow_Stufe, Mitarbeiter_Stufe_Status, Datei, Statuskommentar
 from .funktionen import user_hat_ordnerzugriff, speichere_datei_chunks, workflow_stufe_ist_aktuell, liste_prüffirmen, aktuelle_workflow_stufe

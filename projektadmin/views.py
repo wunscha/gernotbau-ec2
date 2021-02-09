@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from .funktionen import user_ist_projektadmin, sortierte_stufenliste, suche_letzte_stufe, Ordnerbaum
-from .models import Workflow_Schema, Workflow_Schema_Stufe, WFSch_Stufe_Firma, Ordner, Ordner_Firma_Freigabe
+from .models import Workflow_Schema, WFSch_Stufe, WFSch_Stufe_Firma, Ordner, Ordner_Firma_Freigabe
 from .forms import FirmaNeuForm, WFSchWählenForm
 from superadmin.models import Projekt, Firma, Projekt_Firma_Mail
 from django.urls import reverse

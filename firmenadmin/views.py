@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from django.contrib.auth import get_user_model
 from superadmin.models import Mitarbeiter, Projekt_Mitarbeiter_Mail, Projekt_Firma_Mail, Projekt
-from projektadmin.models import Workflow_Schema, Workflow_Schema_Stufe, WFSch_Stufe_Mitarbeiter
+from projektadmin.models import Workflow_Schema, WFSch_Stufe, WFSch_Stufe_Mitarbeiter
 from django.http import HttpResponse, HttpResponseRedirect
 from .forms import MitarbeiterNeuForm
 from django.urls import reverse

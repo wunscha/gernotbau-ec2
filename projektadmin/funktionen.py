@@ -1,7 +1,7 @@
 #########################################################
 # Funktionen für Workflowschema-Stufen
 
-from .models import Workflow_Schema, Workflow_Schema_Stufe, Ordner
+from .models import Workflow_Schema, WFSch_Stufe, Ordner
 from superadmin.models import Projekt, Projekt_Mitarbeiter_Mail
 
 #Gib die WFSCh-Stufe zurück, die die aktuelle Stufe als Vorstufe hat

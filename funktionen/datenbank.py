@@ -32,7 +32,7 @@ def dict_databases():
             },
         'furz': {
             'ENGINE': 'django.db.backends.postgresql',
-            'NAME': 'furz',
+            'NAME': 'furz2',
             'USER': 'postgres',
             'PASSWORD': 'postgres',
             'HOST': 'db',

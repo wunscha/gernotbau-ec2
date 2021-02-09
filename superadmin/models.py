@@ -1,6 +1,9 @@
 from django import db
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from django.db.models.fields import BooleanField, DateTimeField
+from django.db.models.fields.related import ForeignKey
+from django.utils import timezone
 
 class Firma(models.Model):
     bezeichnung = models.CharField(max_length=50)
@@ -16,8 +19,25 @@ class Firma(models.Model):
     def __str__(self):
         return self.kurzbezeichnung
 
-    ############
-    # Neue Herangehensweise (Funktionen in models definieren): 06.02.2021
+    # FIRMA GELÖSCHT
+    def löschen(self, db_bezeichnung):
+        Firma_Gelöscht.objects.using(db_bezeichnung).create(
+            firma = self,
+            gelöscht = True,
+            zeitstempel = timezone.now()
+            )
+
+    def entlöschen(self, db_bezeichnung):
+        Firma_Gelöscht.objects.using(db_bezeichnung).create(
+            firma = self,
+            gelöscht = False,
+            zeitstempel = timezone.now()
+            )
+
+    def gelöscht(self, db_bezeichnung):
+        return Firma_Gelöscht.objects.using(db_bezeichnung).filter(firma = self).latest('zeitstempel').gelöscht
+
+    # FIRMA ROLLEN
 
     def liste_rollen(self, db_bezeichnung):
     # Gibt Liste der aktuellen Rollen von Firma zurück
@@ -38,6 +58,11 @@ class Firma(models.Model):
                 # Freigaben übernehmen
                 if o.freigabe_lesen_rolle(db_bezeichnung, r): o.lesefreigabe_erteilen_firma(db_bezeichnung, self)
                 if o.freigabe_upload_rolle(db_bezeichnung, r): o.uploadfreigabe_erteilen_firma(db_bezeichnung, self)
+
+class Firma_Gelöscht(models.Model):
+    firma = ForeignKey(Firma, on_delete = models.CASCADE)
+    gelöscht = BooleanField()
+    zeitstempel = DateTimeField()
 
 class Mitarbeiter(AbstractUser):
     firma = models.ForeignKey(

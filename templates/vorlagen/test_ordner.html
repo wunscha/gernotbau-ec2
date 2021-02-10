@@ -1,6 +1,7 @@
 
     <form action="{% url 'vorlagen:test_ordner' db_bezeichnung %}" method="POST">
         {% csrf_token %}
-        <button class="m-2" type="submit" name="ereignis" value="ordnerstruktur_anlegen">Ordnerstruktur anlegen</button>
-        <button class="m-2" type="submit" name="ereignis" value="workflowschemata_anlegen">workflowschemata anlegen</button>
+        <p><button class="m-2" type="submit" name="ereignis" value="ordnerstruktur_anlegen">Ordnerstruktur anlegen</button></p>
+        <p><button class="m-2" type="submit" name="ereignis" value="workflowschemata_anlegen">workflowschemata anlegen</button></p>
+        <p> <button class="m-2" type="submit" name="ereignis" value="pjs_anlegen">Projektstruktur anlegen</button></p>
     </form>

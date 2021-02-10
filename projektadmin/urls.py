@@ -14,4 +14,7 @@ urlpatterns = [
 
     # Ordner-Verwaltung
     path('<projekt_id>/übersicht_ordner/', views.übersicht_ordner_view, name = 'übersicht_ordner'),
+
+    # Test
+    path('<projekt_id>/übersicht-wfsch/', views.übersicht_wfsch, name = 'übersicht_wfsch'),
 ]

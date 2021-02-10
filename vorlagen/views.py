@@ -15,4 +15,7 @@ def test_ordner_view(request, db_bezeichnung):
         if request.POST['ereignis'] == 'workflowschemata_anlegen':
             v_pjs.workflowschemata_in_db_anlegen(db_bezeichnung_quelle = 'default', db_bezeichnung_ziel = db_bezeichnung)
 
+        if request.POST['ereignis'] == 'pjs_anlegen':
+            v_pjs.in_db_anlegen(db_bezeichnung_quelle = 'default', db_bezeichnung_ziel = db_bezeichnung)
+
     return render(request, './vorlagen/test_ordner.html', context = {'db_bezeichnung': db_bezeichnung})

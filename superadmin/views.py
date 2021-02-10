@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from .models import Firma, Projekt, Projekt_Firma_Mail
+from .models import Firma, Projekt
 from projektadmin.models import Ordner, Ordner_Firma_Freigabe
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import make_password

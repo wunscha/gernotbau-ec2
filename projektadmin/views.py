@@ -2,7 +2,7 @@ from django.shortcuts import render
 from .funktionen import user_ist_projektadmin, sortierte_stufenliste, suche_letzte_stufe, Ordnerbaum
 from .models import Workflow_Schema, WFSch_Stufe, WFSch_Stufe_Firma, Ordner, Ordner_Firma_Freigabe
 from .forms import FirmaNeuForm, WFSchWählenForm
-from superadmin.models import Projekt, Firma, Projekt_Firma_Mail
+from superadmin.models import Projekt, Firma
 from django.urls import reverse
 from django.http import HttpResponse, HttpResponseRedirect
 from django import forms
@@ -97,6 +97,23 @@ def übersicht_firmen_view(request, projekt_id):
 
 ################################################
 # View für Workflows
+
+def übersicht_wfsch(request, projekt_id):
+    projekt = Projekt.objects.using('default').get(pk = projekt_id)
+    db_super = 'default'
+    db_projekt = projekt.db_bezeichnung(db_super)
+
+    li_wfsch = []
+    for wfsch in Workflow_Schema.objects.using(db_projekt).all():
+        if not wfsch.gelöscht(db_projekt):
+            li_wfsch.append(wfsch.wfsch_dict(db_super, db_projekt, projekt))
+    
+    context = {
+        'projekt_id': projekt.id,
+        'liste_wfsch': li_wfsch
+        }
+
+    return render(request, './projektadmin/übersicht_wfsch.html', context)
 
 def übersicht_workflowschemata(request, projekt_id):
     # Prüfung Login

@@ -2,7 +2,7 @@
 # Funktionen für Workflowschema-Stufen
 
 from .models import Workflow_Schema, WFSch_Stufe, Ordner
-from superadmin.models import Projekt, Projekt_Mitarbeiter_Mail
+from superadmin.models import Projekt, Projekt_Mitarbeiter
 
 #Gib die WFSCh-Stufe zurück, die die aktuelle Stufe als Vorstufe hat
 def suche_nächste_stufe(*,liste_stufen, aktuelle_stufe):

@@ -337,37 +337,54 @@ class V_Workflow_Schema(models.Model):
             
     # V_WORKFLOW_SCHEMA IN DB ANLEGEN
     def in_db_anlegen(self, db_bezeichnung_quelle, db_bezeichnung_ziel):
-        neues_wfsch = Workflow_Schema.objects.using(db_bezeichnung_ziel).create(
-            zeitstempel = timezone.now(),
-        )
-        neues_wfsch.bezeichnung_ändern(db_bezeichnung_ziel, neue_bezeichnung = self.bezeichnung(db_bezeichnung_quelle))
-        neues_wfsch.entlöschen(db_bezeichnung_ziel)
-        verbindung_vorlage = WFSch_Vorlage.objects.using(db_bezeichnung_ziel).create(
-            wfsch = neues_wfsch,
-            v_wfsch_id = self.id
-            )
+        # Nur anlegen wenn nicht bereits Instanz vorhanden
+        if not self.instanz(db_bezeichnung_ziel):
         
-        # Anfangsstufe anlegen
-        instanz_anfangsstufe = self.anfangsstufe(db_bezeichnung_quelle).in_db_anlegen(db_bezeichnung_quelle, db_bezeichnung_ziel)
-        neues_wfsch.anfangsstufe_festlegen(db_bezeichnung_ziel, instanz_anfangsstufe)
+            neues_wfsch = Workflow_Schema.objects.using(db_bezeichnung_ziel).create(
+                zeitstempel = timezone.now(),
+            )
+            neues_wfsch.bezeichnung_ändern(db_bezeichnung_ziel, neue_bezeichnung = self.bezeichnung(db_bezeichnung_quelle))
+            neues_wfsch.entlöschen(db_bezeichnung_ziel)
+            verbindung_vorlage = WFSch_Vorlage.objects.using(db_bezeichnung_ziel).create(
+                wfsch = neues_wfsch,
+                v_wfsch_id = self.id,
+                zeitstempel = timezone.now()
+                )
 
-        # Nachfolgende Stufen anlegen
-        def rekursion_nachfolgende_stufen_anlegen(v_stufe):
-            for v_s in v_stufe.liste_folgestufen(db_bezeichnung_quelle):
-                # Stufe anlegen
-                neue_stufe = v_s.in_db_anlegen(db_bezeichnung_quelle, db_bezeichnung_ziel)
-                # Verbindung Folgestufe anlegen
-                WFSch_Stufe_Folgestufe.objects.using(db_bezeichnung_ziel).create(
-                    wfsch_stufe = v_stufe.instanz(db_bezeichnung_ziel),
-                    wfsch_folgestufe = neue_stufe,
-                    zeitstempel = timezone.now()
-                    )
-                rekursion_nachfolgende_stufen_anlegen(v_s)
+            # Anfangsstufe anlegen
+            instanz_anfangsstufe = self.anfangsstufe(db_bezeichnung_quelle).in_db_anlegen(db_bezeichnung_quelle, db_bezeichnung_ziel)
+            neues_wfsch.anfangsstufe_festlegen(db_bezeichnung_ziel, instanz_anfangsstufe)
 
-        rekursion_nachfolgende_stufen_anlegen(self.anfangsstufe(db_bezeichnung_quelle))
+            # Nachfolgende Stufen anlegen
+            def rekursion_nachfolgende_stufen_anlegen(v_stufe):
+                for v_s in v_stufe.liste_folgestufen(db_bezeichnung_quelle):
+                    # Stufe anlegen
+                    neue_stufe = v_s.in_db_anlegen(db_bezeichnung_quelle, db_bezeichnung_ziel)
+                    # Verbindung Folgestufe anlegen
+                    WFSch_Stufe_Folgestufe.objects.using(db_bezeichnung_ziel).create(
+                        wfsch_stufe = v_stufe.instanz(db_bezeichnung_ziel),
+                        wfsch_folgestufe = neue_stufe,
+                        zeitstempel = timezone.now()
+                        )
+                    rekursion_nachfolgende_stufen_anlegen(v_s)
 
-    def instanz(self, db_bezeichnung_ziel):
-        return WFSch_Vorlage.objects.using(db_bezeichnung_ziel).get(v_wfsch_id = self.id).wfsch
+            rekursion_nachfolgende_stufen_anlegen(self.anfangsstufe(db_bezeichnung_quelle))
+
+    def instanz(self, db_bezeichnung):
+        verbindungen_zu_instanzen = WFSch_Vorlage.objects.using(db_bezeichnung).filter(v_wfsch_id = self.id)
+        if verbindungen_zu_instanzen and not verbindungen_zu_instanzen.latest('zeitstempel').wfsch.gelöscht(db_bezeichnung):
+            jüngste_instanz = verbindungen_zu_instanzen.latest('zeitstempel').wfsch
+            if not jüngste_instanz.gelöscht(db_bezeichnung):
+                return jüngste_instanz
+        # Wenn keine Instanz vorhanden: None zurückgeben
+        return None
+
+    # V_WORKFLOW_SCHEMA DICT
+    def v_wfsch_dict(self, db_bezeichnung):
+        wfsch_d = self.__dict__
+        wfsch_d['bezeichnung'] = self.bezeichnung(db_bezeichnung)
+
+        return wfsch_d
 
 class V_WFSch_Gelöscht(models.Model):
     v_wfsch = models.ForeignKey(V_Workflow_Schema, on_delete = models.CASCADE)
@@ -439,7 +456,8 @@ class V_WFSch_Stufe(models.Model):
         # Verbdindung zu Vorlage anlegen
         WFSch_Stufe_Vorlage.objects.using(db_bezeichnung_ziel).create(
             wfsch_stufe = neue_wfsch_stufe,
-            v_wfsch_stufe_id = self.id
+            v_wfsch_stufe_id = self.id,
+            zeitstempel = timezone.now()
             )
         # Verbindungen zu Rollen anlegen
         for v_r in self.liste_rollen(db_bezeichnung_quelle):
@@ -460,7 +478,13 @@ class V_WFSch_Stufe(models.Model):
         return neue_wfsch_stufe
 
     def instanz(self, db_bezeichnung):
-        return WFSch_Stufe_Vorlage.objects.using(db_bezeichnung).get(v_wfsch_stufe_id = self.id).wfsch_stufe
+        verbindungen_zu_instanzen = WFSch_Stufe_Vorlage.objects.using(db_bezeichnung).filter(v_wfsch_stufe_id = self.id)
+        if verbindungen_zu_instanzen:
+            jüngste_instanz = verbindungen_zu_instanzen.latest('zeitstempel').wfsch_stufe
+            if not jüngste_instanz.gelöscht(db_bezeichnung):
+                return jüngste_instanz
+        # Wenn keine nicht gelöschten Instanzen vorhanden None zurückgeben
+        return None
 
 class V_WFSch_Stufe_Gelöscht(models.Model):
     v_wfsch_stufe = models.ForeignKey(V_WFSch_Stufe, on_delete = models.CASCADE)
@@ -621,8 +645,8 @@ class V_Projektstruktur(models.Model):
         return li_wfsch
 
     def workflowschemata_in_db_anlegen(self, db_bezeichnung_quelle, db_bezeichnung_ziel):
-        for wfs in self.liste_wfsch(db_bezeichnung_quelle):
-            wfs.in_db_anlegen(db_bezeichnung_quelle, db_bezeichnung_ziel)
+        for wfsch in self.liste_wfsch(db_bezeichnung_quelle):
+            wfsch.in_db_anlegen(db_bezeichnung_quelle, db_bezeichnung_ziel)
 
     # PJS ROLLEN
     def rolle_hinzufügen(self, db_bezeichnung, v_rolle):
@@ -778,6 +802,22 @@ class Rolle(models.Model):
     def gelöscht(self, db_bezeichnung):
         return Rolle_Gelöscht.objects.using(db_bezeichnung).filter(rolle = self).latest('zeitstempel').gelöscht
 
+    # ROLLE FIRMA
+    def firma_zuweisen(self, db_bezeichnung, firma):
+        neue_verbindung_r_f = Rolle_Firma.objects.using(db_bezeichnung).get_or_create(
+            rolle = self,
+            firma_id = firma.id, 
+            defaults = {'zeitstempel':timezone.now()}
+            )[0]
+        neue_verbindung_r_f.aktualisieren(db_bezeichnung)
+
+    # ROLLE DICT
+    def dict_rolle(self, db_bezeichnung):
+        rolle_d = self.__dict__
+        rolle_d['bezeichnung'] = self.bezeichnung(db_bezeichnung)
+
+        return rolle_d
+
 class Rolle_Gelöscht(models.Model):
     rolle = models.ForeignKey(Rolle, on_delete = models.CASCADE)
     gelöscht = models.BooleanField()
@@ -793,9 +833,27 @@ class Rolle_Firma(models.Model):
     firma_id = models.CharField(max_length = 20)
     zeitstempel = models.DateTimeField()
 
-class Rolle_Firma_Aktiv(models.Model):
+    # ROLLE_FIRMA AKTUELL
+    def aktualisieren(self, db_bezeichnung):
+        Rolle_Firma_Aktuell.objects.using(db_bezeichnung).create(
+            rolle_firma = self,
+            aktuell = True,
+            zeitstempel = timezone.now()
+            )
+
+    def entaktualisieren(self, db_bezeichnung):
+        Rolle_Firma_Aktuell.objects.using(db_bezeichnung).create(
+            rolle_firma = self,
+            aktuell = False,
+            zeitstempel = timezone.now()
+            )
+
+    def aktuell(self, db_bezeichnung):
+        return Rolle_Firma_Aktuell.objects.using(db_bezeichnung).filter(rolle_firma = self).latest('zeitstempel').aktuell
+
+class Rolle_Firma_Aktuell(models.Model):
     rolle_firma = models.ForeignKey(Rolle_Firma, on_delete = models.CASCADE)
-    aktiv = models.BooleanField()
+    aktuell = models.BooleanField()
     zeitstempel = models.DateTimeField()
 
 class Rolle_Vorlage(models.Model):
@@ -825,14 +883,20 @@ class Workflow_Schema(models.Model):
             gelöscht = True,
             zeitstempel = timezone.now()
             )
-
+        
+        # Stufen löschen
+        stufe = self.anfangsstufe(db_bezeichnung)
+        while stufe:
+            stufe.löschen(db_bezeichnung)
+            stufe = stufe.folgestufe(db_bezeichnung)
+            
     def entlöschen(self, db_bezeichnung):
         WFSch_Gelöscht.objects.using(db_bezeichnung).create(
             wfsch = self,
             gelöscht = False,
             zeitstempel = timezone.now()
             )
-
+        
     def gelöscht(self, db_bezeichnung):
         return WFSch_Gelöscht.objects.using(db_bezeichnung).filter(wfsch = self).latest('zeitstempel').gelöscht
 
@@ -847,7 +911,23 @@ class Workflow_Schema(models.Model):
     def anfangsstufe(self, db_bezeichnung):
         return WFSch_Anfangsstufe.objects.using(db_bezeichnung).filter(wfsch = self).latest('zeitstempel').anfangsstufe
 
+    def letzte_stufe(self, db_bezeichnung):
+        # Letzte Stufe ist die Stufe ohne Folgestufe
+        for s in self.liste_stufen(db_bezeichnung):
+            if not s.folgestufe(db_bezeichnung):
+                return s
+
     # WORKFLOW_SCHEMA STUFEN
+    def stufe_hinzufügen(self, db_bezeichnung, bezeichnung_stufe):
+        # Neue Stufe anlegen
+        neue_wfsch_stufe = WFSch_Stufe.objects.using(db_bezeichnung).create(
+            zeitstempel = timezone.now()
+            )
+        neue_wfsch_stufe.entlöschen(db_bezeichnung)
+        neue_wfsch_stufe.bezeichnung_ändern(db_bezeichnung, neue_bezeichnung = bezeichnung_stufe)
+        # Neue Stufe wird Folgestufe von bisheriger letzter Stufe
+        self.letzte_stufe(db_bezeichnung).folgestufe_festlegen(db_bezeichnung, neue_wfsch_stufe)
+
     def liste_stufen(self, db_bezeichnung):
         stufe = self.anfangsstufe(db_bezeichnung)
         li_stufen = []
@@ -883,7 +963,8 @@ class WFSch_Gelöscht(models.Model):
 class WFSch_Vorlage(models.Model):
     wfsch = models.ForeignKey(Workflow_Schema, on_delete = models.CASCADE)
     v_wfsch_id = models.CharField(max_length = 20)
- 
+    zeitstempel = models.DateTimeField(null = True) # TODO: Nullable entfernen
+
 class WFSch_Stufe(models.Model):
     zeitstempel = models.DateTimeField()
 
@@ -971,6 +1052,23 @@ class WFSch_Stufe(models.Model):
         return li_rollen_dict
 
     # WFSCH_STUFE FIRMEN
+    def prüffirma_hinzufügen(self, db_bezeichnung, rolle, firma_id):
+        verbindung_wfschSt_rolle = WFSch_Stufe_Rolle.objects.using(db_bezeichnung).get(wfsch_stufe = self, rolle = rolle)
+        verbindung_wfschSt_firma = WFSch_Stufe_Firma.objects.using(db_bezeichnung).get_or_create(
+            wfsch_stufe_rolle = verbindung_wfschSt_rolle, 
+            firma_id = firma_id,
+            defaults = {'zeitstempel':timezone.now()}
+            )[0]
+        verbindung_wfschSt_firma.aktualisieren(db_bezeichnung)
+
+    def prüffirma_lösen(self, db_bezeichnung, rolle, firma_id):
+        verbindung_wfschSt_rolle = WFSch_Stufe_Rolle.objects.using(db_bezeichnung).get(wfsch_stufe = self, rolle = rolle)
+        verbindung_wfschSt_firma = WFSch_Stufe_Firma.objects.using(db_bezeichnung).get(
+            wfsch_stufe_rolle = verbindung_wfschSt_rolle,
+            firma_id = firma_id
+            )
+        verbindung_wfschSt_firma.entaktualisieren(db_bezeichnung)
+
     def liste_prüffirmen(self, db_bezeichnung_quelle, db_bezeichnung_ziel):
         li_prüffirmen = []
         for r in self.liste_rollen(db_bezeichnung_ziel):
@@ -990,7 +1088,7 @@ class WFSch_Stufe(models.Model):
     def liste_nicht_prüffirmen_dict(self, db_bezeichnung_quelle, db_bezeichnung_ziel, projekt):
         li_nicht_pf_dict = []
         for pf in self.liste_nicht_prüffirmen(db_bezeichnung_quelle, db_bezeichnung_ziel, projekt):
-            li_nicht_pf_dict.append(pf.__dict__)
+            li_nicht_pf_dict.append(pf.firma_dict(db_bezeichnung_quelle))
         return li_nicht_pf_dict
 
     # WFSCH_STUFE DICT
@@ -1125,6 +1223,7 @@ class WFSch_Stufe_Mitarbeiter(models.Model):
 class WFSch_Stufe_Vorlage(models.Model):
     wfsch_stufe = models.ForeignKey(WFSch_Stufe, on_delete = models.CASCADE)
     v_wfsch_stufe_id = models.CharField(max_length = 20)
+    zeitstempel = models.DateTimeField(null = True) # TODO: Nullable entfernen
 
 class Ordner(models.Model):
     # bezeichnung = models.CharField(max_length = 50)

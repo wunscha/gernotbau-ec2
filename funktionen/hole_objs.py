@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user, get_user_model
 
 from funktionen.workflows import wf_ist_abgeschlossen, wf_stufe_ist_aktuell
-from superadmin.models import Mitarbeiter, Firma, Projekt, Projekt_Mitarbeiter_Mail
+from superadmin.models import Mitarbeiter, Firma, Projekt, Projekt_Mitarbeiter
 from projektadmin.models import WFSch_Stufe_Firma
 from dokab.models import MA_Stufe_Status_Update_Status, Mitarbeiter_Stufe_Status, Workflow_Stufe, WF_Stufe_Update_Aktuell, WF_Update_Abgeschlossen
 

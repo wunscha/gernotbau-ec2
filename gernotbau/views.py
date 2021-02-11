@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from django.http import HttpResponseRedirect
-from superadmin.models import Projekt_Mitarbeiter_Mail
+from superadmin.models import Projekt_Mitarbeiter
 from django.conf import settings
 from django.contrib.auth import authenticate, login
 from django.urls import reverse

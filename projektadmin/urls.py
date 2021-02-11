@@ -17,4 +17,5 @@ urlpatterns = [
 
     # Test
     path('<projekt_id>/übersicht-wfsch/', views.übersicht_wfsch, name = 'übersicht_wfsch'),
+    path('<projekt_id>/firma-neu/', views.firma_neu_view, name = 'firma_neu'),
 ]

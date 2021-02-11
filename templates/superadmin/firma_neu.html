@@ -33,8 +33,8 @@
 
         <!-- Textfeld Kurzbezeichnung -->
         <div class="form-group">
-            <label for="kurzbezeichnung">Kurzebezeichnung (keine Leerzeichen)</label>
-            <input type="text" class="form-control" name="kurzbezeichnung" id="kurzbezeichnung" pattern="^\S*$" required>
+            <label for="kurzbezeichnung">Kurzebezeichnung</label>
+            <input type="text" class="form-control" name="kurzbezeichnung" id="kurzbezeichnung" required>
         </div>
 
         <!-- Textfelder Straße/HNr -->
@@ -72,8 +72,20 @@
         <!-- Textfeld Office-Mail -->
         <div class="form-group">
             <label for="email_office">Office E-Mail Adresse</label>
-            <input type="email" class="form-control" name="email_office" id="email_office" autocomplete="none" required>
+            <input type="email" class="form-control" name="email" id="email" autocomplete="none" required>
         </div>
+
+        {% if liste_rollen %}
+            <p>Rollen</p>
+            <div class="form-group">
+                <input hidden type="text" name="projekt_id" value="{{projekt.id}}">
+                {% for rolle in liste_rollen %}
+                <span class="col-1"></span>
+                <input type="checkbox" id="{{rolle.id}}" name="rolle_id" value="{{rolle.id}}">
+                <label for="{{rolle.id}}">{{rolle.bezeichnung}}</label><br>
+                {% endfor %}
+            </div>
+        {% endif %}
 
         <!-- Eingabefeld Passwort -->
         <div class="form-group border-top">
@@ -82,7 +94,7 @@
         </div>
 
         <!-- Submit Button -->
-        <button type="submit" class="btn btn-primary">Firma anlegen</button>
+        <button type="submit" class="btn btn-primary" name="ereignis" value="firma_neu">Firma anlegen</button>
 
     </form>
     

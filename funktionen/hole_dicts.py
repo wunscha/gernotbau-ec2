@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 
 from dokab.models import Dokument, Workflow, Workflow_Stufe, Mitarbeiter_Stufe_Status
-from superadmin.models import Firma, Mitarbeiter, Projekt, Projekt_Mitarbeiter_Mail
+from superadmin.models import Firma, Mitarbeiter, Projekt, Projekt_Mitarbeiter
 from projektadmin.models import Ordner, Ordner_Firma_Freigabe, WFSch_Stufe_Mitarbeiter, Workflow_Schema, WFSch_Stufe_Firma, WFSch_Stufe
 from . import hole_objs
 from . import workflows

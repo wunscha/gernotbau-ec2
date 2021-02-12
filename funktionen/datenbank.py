@@ -22,17 +22,17 @@ def dict_databases():
             'HOST': 'db',
             'PORT': 5432
             },
-        '10': {
+        'pj_18': {
             'ENGINE': 'django.db.backends.postgresql',
-            'NAME': '10',
+            'NAME': 'furz2',
             'USER': 'postgres',
             'PASSWORD': 'postgres',
             'HOST': 'db',
             'PORT': 5432
             },
-        'pj_17': {
+        'pj_19': {
             'ENGINE': 'django.db.backends.postgresql',
-            'NAME': 'furz2',
+            'NAME': 'projekt_19',
             'USER': 'postgres',
             'PASSWORD': 'postgres',
             'HOST': 'db',

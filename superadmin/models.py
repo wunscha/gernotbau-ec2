@@ -5,6 +5,21 @@ from django.contrib.auth.models import AbstractUser
 from django.db.models.fields import BooleanField, DateTimeField
 from django.db.models.fields.related import ForeignKey
 from django.utils import timezone
+from django.contrib.auth import get_user_model
+from django.contrib.auth.hashers import make_password
+
+###################################################################
+# FUNKTIONEN OHNE KLASSE
+
+def liste_alle_firmen(db_bezeichnung):
+    li_alle_firmen = []
+    for fa in Firma.objects.using(db_bezeichnung).all():
+        if not fa.gelöscht(db_bezeichnung):
+            li_alle_firmen.append(fa)
+    return li_alle_firmen
+
+#
+###################################################################
 
 class Firma(models.Model):
     zeitstempel = models.DateTimeField(null = True) # TODO: Nullable löschen
@@ -27,6 +42,7 @@ class Firma(models.Model):
     def gelöscht(self, db_bezeichnung):
         return Firma_Gelöscht.objects.using(db_bezeichnung).filter(firma = self).latest('zeitstempel').gelöscht
 
+    '''
     # FIRMA ROLLEN
     def liste_rollen(self, db_bezeichnung):
     # Gibt Liste der aktuellen Rollen von Firma zurück
@@ -47,6 +63,7 @@ class Firma(models.Model):
                 # Freigaben übernehmen
                 if o.freigabe_lesen_rolle(db_bezeichnung, r): o.lesefreigabe_erteilen_firma(db_bezeichnung, self)
                 if o.freigabe_upload_rolle(db_bezeichnung, r): o.uploadfreigabe_erteilen_firma(db_bezeichnung, self)
+    '''
 
     # FIRMA BEZEICHNUNG
     def bezeichnung_ändern(self, db_bezeichnung, neue_bezeichnung):
@@ -145,9 +162,37 @@ class Firma(models.Model):
     def email(self, db_bezeichnung):
         qs_fa_email = Firma_Email.objects.using(db_bezeichnung).filter(firma = self)
         if qs_fa_email:
-            return qs_fa_email.latest('zeitstempel')
+            return qs_fa_email.latest('zeitstempel').email
         else:
             return None
+
+    # FIRMA MITARBEITER
+    def mitarbeiter_anlegen(self, db_bezeichnung, formulardaten, ist_firmenadmin = False):
+        User = get_user_model()
+        neuer_mitarbeiter = User(
+            firma = self,
+            zeitstempel = timezone.now(),
+            username = formulardaten['email'],
+            password = make_password(formulardaten['passwort'])
+            )
+        neuer_mitarbeiter.save(using = 'default')
+        neuer_mitarbeiter.ist_firmenadmin_ändern(db_bezeichnung, ist_firmenadmin = ist_firmenadmin)
+        neuer_mitarbeiter.ist_superadmin_ändern(db_bezeichnung, ist_superadmin = False)
+
+    
+    # FIRMA PROJEKTADMIN
+    def ist_projektadmin_ändern(self, db_bezeichnung, projekt, ist_projektadmin):
+        verbindung_pj_fa = Projekt_Firma.objects.using(db_bezeichnung).get(firma = self, projekt = projekt)
+        Firma_Ist_Projektadmin.objects.using(db_bezeichnung).create(
+            projekt_firma = verbindung_pj_fa,
+            ist_projektadmin = ist_projektadmin,
+            zeitstempel = timezone.now( )
+            )
+
+    def ist_projektadmin(self, db_bezeichnung, projekt):
+        verbindung_pj_fa = Projekt_Firma.objects.using(db_bezeichnung).get(firma = self, projekt = projekt)
+        return Firma_Ist_Projektadmin.objects.using(db_bezeichnung).filter(projekt_firma = verbindung_pj_fa).latest('zeitstempel').ist_projektadmin
+    
 
     # FIRMA DICT
     def firma_dict(self, db_bezeichnung):
@@ -228,14 +273,7 @@ class Mitarbeiter(AbstractUser):
         return Mitarbeiter_Gelöscht.objects.using(db_bezeichnung).filter(mitarbeiter = self).latest('zeitstempel').gelöscht
 
     # MITARBEITER FIRMENADMIN
-    def firmenadmin_ernennen(self, db_bezeichnung):
-        Mitarbeiter_Ist_Firmenadmin.objects.using(db_bezeichnung).create(
-            mitarbeiter = self,
-            ist_firmenadmin = True,
-            zeitstempel = timezone.now()
-            )
-
-    def firmenadmin_entheben(self, db_bezeichnung):
+    def ist_firmenadmin_ändern(self, db_bezeichnung, ist_firmenadmin):
         Mitarbeiter_Ist_Firmenadmin.objects.using(db_bezeichnung).create(
             mitarbeiter = self,
             ist_firmenadmin = False,
@@ -246,17 +284,10 @@ class Mitarbeiter(AbstractUser):
         return Mitarbeiter_Ist_Firmenadmin.objects.using(db_bezeichnung).filter(mitarbeiter = self).latest('zeitstempel').ist_firmenadmin
 
     # MITARBEITER SUPERADMIN
-    def superadmin_ernennen(self, db_bezeichnung):
+    def ist_superadmin_ändern(self, db_bezeichnung, ist_superadmin):
         Mitarbeiter_Ist_Superadmin.objects.using(db_bezeichnung).create(
             mitarbeiter = self,
-            ist_superadmin = True,
-            zeitstempel = timezone.now()
-            )
-    
-    def superadmin_entheben(self, db_bezeichnung):
-        Mitarbeiter_Ist_Superadmin.objects.using(db_bezeichnung).create(
-            mitarbeiter = self,
-            ist_superadmin = False,
+            ist_superadmin = ist_superadmin,
             zeitstempel = timezone.now()
             )
 
@@ -348,17 +379,85 @@ class Projekt(models.Model):
     def kurzbezeichnung(self, db_bezeichnung):
         return Projekt_Kurzbezeichnung.objects.using(db_bezeichnung).filter(projekt = self).latest('zeitstempel').kurzbezeichnung
 
-    # PROJEKT LISTE FIRMEN
-    def liste_firmen(self, db_bezeichnung):
+    # PROJEKT DB_BEZEICHNUNG
+    def db_bezeichnung(self, db_bezeichnung):
+        return Projekt_DB.objects.using(db_bezeichnung).filter(projekt = self).latest('zeitstempel').db_bezeichnung
+
+    # PROJEKT FIRMEN
+    def liste_projektfirmen(self, db_bezeichnung):
         li_firmen = []
         for verbindung_pj_fa in Projekt_Firma.objects.using(db_bezeichnung).filter(projekt = self):
             if verbindung_pj_fa.aktuell(db_bezeichnung) and not verbindung_pj_fa.firma.gelöscht(db_bezeichnung):
                 li_firmen.append(verbindung_pj_fa.firma)
         return li_firmen
 
-    # PROJEKT DB_BEZEICHNUNG
-    def db_bezeichnung(self, db_bezeichnung):
-        return Projekt_DB.objects.using(db_bezeichnung).filter(projekt = self).latest('zeitstempel').db_bezeichnung
+    def liste_projektfirmen_dicts(self, db_bezeichnung):
+        li_firmen_dicts = []
+        for fa in self.liste_projektfirmen(db_bezeichnung):
+            fa_dict = fa.firma_dict(db_bezeichnung)
+            fa_dict['ist_projektadmin'] = self.firma_ist_projektadmin(db_bezeichnung, fa)
+            li_firmen_dicts.append(fa_dict)
+        return li_firmen_dicts
+
+    def liste_nicht_projektfirmen(self, db_bezeichnung):
+        li_nicht_projektfirmen = []
+        for fa in liste_alle_firmen(db_bezeichnung):
+            if not fa in self.liste_projektfirmen(db_bezeichnung):
+                li_nicht_projektfirmen.append(fa)
+        return li_nicht_projektfirmen
+    
+    def liste_nicht_projektfirmen_dicts(self, db_bezeichnung):
+        li_nicht_projektfirmen_dicts = []
+        for fa in self.liste_nicht_projektfirmen(db_bezeichnung):
+            li_nicht_projektfirmen_dicts.append(fa.firma_dict(db_bezeichnung))
+        return li_nicht_projektfirmen_dicts
+
+    def firma_anlegen(self, db_bezeichnung, formulardaten, ist_projektadmin = False):
+        # Firma anlegen
+        neue_firma = Firma.objects.using('default').create(
+            zeitstempel = timezone.now()
+            )
+        neue_firma.bezeichnung_ändern('default', formulardaten['bezeichnung'])
+        neue_firma.kurzbezeichnung_ändern('default', formulardaten['kurzbezeichnung'])
+        neue_firma.strasse_ändern('default', formulardaten['strasse'])
+        neue_firma.hausnummer_ändern('default', formulardaten['hausnummer'])
+        neue_firma.postleitzahl_ändern('default', formulardaten['postleitzahl'])
+        neue_firma.ort_ändern('default', formulardaten['ort'])
+        neue_firma.email_ändern('default', formulardaten['email'])
+        neue_firma.entlöschen(db_bezeichnung)
+        self.firma_verbinden(db_bezeichnung, neue_firma)
+        self.firma_ist_projektadmin_ändern(db_bezeichnung, firma = neue_firma, ist_projektadmin = ist_projektadmin)
+
+        # Firmenadmin anlegen
+        neue_firma.mitarbeiter_anlegen(db_bezeichnung, formulardaten, ist_firmenadmin = True)
+
+        return neue_firma
+
+    def firma_verbinden(self, db_bezeichnung, firma, ist_projektadmin = False):
+        verbindung_pj_fa = Projekt_Firma.objects.using(db_bezeichnung).get_or_create(
+            projekt = self,
+            firma = firma,
+            defaults = {'zeitstempel': timezone.now()}
+            )[0]
+        verbindung_pj_fa.aktualisieren(db_bezeichnung)
+        self.firma_ist_projektadmin_ändern(db_bezeichnung, firma = firma, ist_projektadmin = ist_projektadmin)
+
+    def firma_lösen(self, db_bezeichnung, firma):
+        verbindung_pj_fa = Projekt_Firma.objects.using(db_bezeichnung).get(projekt = self, firma = firma)
+        verbindung_pj_fa.entaktualisieren(db_bezeichnung)
+
+    # PROJEKT FIRMA IST PROJEKTADMIN
+    def firma_ist_projektadmin_ändern(self, db_bezeichnung,* , firma, ist_projektadmin):
+        verbindung_pj_fa = Projekt_Firma.objects.using(db_bezeichnung).get(projekt = self, firma = firma)
+        Firma_Ist_Projektadmin.objects.using(db_bezeichnung).create(
+            projekt_firma = verbindung_pj_fa,
+            ist_projektadmin = ist_projektadmin,
+            zeitstempel = timezone.now()
+            )
+
+    def firma_ist_projektadmin(self, db_bezeichnung, firma):
+        verbindung_pj_fa = Projekt_Firma.objects.using(db_bezeichnung).get(projekt = self, firma = firma)
+        return Firma_Ist_Projektadmin.objects.using(db_bezeichnung).filter(projekt_firma = verbindung_pj_fa).latest('zeitstempel').ist_projektadmin
 
 class Projekt_DB(models.Model):
     projekt = models.ForeignKey(Projekt, on_delete = models.CASCADE)
@@ -378,29 +477,6 @@ class Projekt_Bezeichnung(models.Model):
 class Projekt_Kurzbezeichnung(models.Model):
     projekt = models.ForeignKey(Projekt, on_delete = models.CASCADE)
     kurzbezeichnung = models.CharField(max_length = 20)
-    zeitstempel = models.DateTimeField()
-
-class Projekt_Mitarbeiter(models.Model):
-    projekt = models.ForeignKey('Projekt', on_delete = models.CASCADE)
-    mitarbeiter = models.ForeignKey('Mitarbeiter', on_delete = models.CASCADE)
-    zeitstempel = models.DateTimeField(null = True) # TODO: Nullable entfernen
-
-    def __str__(self):
-        return str('%s - %s, %s' % (self.projekt.kurzbezeichnung, self.mitarbeiter.last_name, self.mitarbeiter.first_name,))
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(fields = ['projekt', 'mitarbeiter'], name = 'verbindung_pj-ma_unique'), # Verbindung Projekt-Mitarbeiter soll unique sein
-        ]
-
-class Projekt_Mitarbeiter_Aktuell(models.Model):
-    projekt_mitarbeiter = models.ForeignKey(Projekt_Mitarbeiter, on_delete = models.CASCADE)
-    aktuell = models.BooleanField()
-    zeitstempel = timezone.now()
-
-class Mitarbeiter_Ist_Projektadmin(models.Model):
-    projekt_mitarbeiter = models.ForeignKey(Projekt_Mitarbeiter, on_delete = models.CASCADE)
-    ist_projektadmin = models.BooleanField()
     zeitstempel = models.DateTimeField()
 
 class Projekt_Firma(models.Model):
@@ -435,3 +511,31 @@ class Projekt_Firma_Aktuell(models.Model):
     projekt_firma = models.ForeignKey(Projekt_Firma, on_delete = models.CASCADE)
     aktuell = models.BooleanField()
     zeitstempel = models.DateTimeField()
+
+class Firma_Ist_Projektadmin(models.Model):
+    projekt_firma = models.ForeignKey(Projekt_Firma, on_delete = models.CASCADE)
+    ist_projektadmin = models.BooleanField()
+    zeitstempel = models.DateTimeField()
+
+class Projekt_Mitarbeiter(models.Model):
+    projekt_firma = models.ForeignKey(Projekt_Firma, on_delete = models.CASCADE, null = True) # TODO: Nullable entfernen
+    mitarbeiter = models.ForeignKey(Mitarbeiter, on_delete = models.CASCADE)
+    zeitstempel = models.DateTimeField(null = True) # TODO: Nullable entfernen
+
+    def __str__(self):
+        return str('%s - %s, %s' % (self.projekt.kurzbezeichnung, self.mitarbeiter.last_name, self.mitarbeiter.first_name,))
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields = ['projekt', 'mitarbeiter'], name = 'verbindung_pj-ma_unique'), # Verbindung Projekt-Mitarbeiter soll unique sein
+        ]
+
+class Mitarbeiter_Ist_Projektadmin(models.Model):
+    projekt_mitarbeiter = models.ForeignKey(Projekt_Mitarbeiter, on_delete = models.CASCADE)
+    ist_projektadmin = models.BooleanField()
+    zeitstempel = models.DateTimeField()
+
+class Projekt_Mitarbeiter_Aktuell(models.Model):
+    projekt_mitarbeiter = models.ForeignKey(Projekt_Mitarbeiter, on_delete = models.CASCADE)
+    aktuell = models.BooleanField()
+    zeitstempel = timezone.now()

@@ -75,17 +75,8 @@
             <input type="email" class="form-control" name="email" id="email" autocomplete="none" required>
         </div>
 
-        {% if liste_rollen %}
-            <p>Rollen</p>
-            <div class="form-group">
-                <input hidden type="text" name="projekt_id" value="{{projekt.id}}">
-                {% for rolle in liste_rollen %}
-                <span class="col-1"></span>
-                <input type="checkbox" id="{{rolle.id}}" name="rolle_id" value="{{rolle.id}}">
-                <label for="{{rolle.id}}">{{rolle.bezeichnung}}</label><br>
-                {% endfor %}
-            </div>
-        {% endif %}
+        <!-- Block Rollen für Vererbung Projektamin -->
+        {% block rollen %}{% endblock rollen %}
 
         <!-- Eingabefeld Passwort -->
         <div class="form-group border-top">

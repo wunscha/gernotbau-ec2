@@ -164,7 +164,6 @@ class V_Ordner(models.Model):
         self.in_db_anlegen(db_bezeichnung_quelle = db_bezeichnung_quelle, db_bezeichnung_ziel = db_bezeichnung_ziel)
         rekursion_ordnerbaum_anlegen(self)
 
-
 class V_Ordner_Gelöscht(models.Model):
     v_ordner = models.ForeignKey(V_Ordner, on_delete = models.CASCADE)
     gelöscht = models.BooleanField()
@@ -810,6 +809,31 @@ class Rolle(models.Model):
             defaults = {'zeitstempel':timezone.now()}
             )[0]
         neue_verbindung_r_f.aktualisieren(db_bezeichnung)
+
+    def ist_firmenrolle(self, db_bezeichnung, firma):
+        # Prüfen ob Verbindung Rolle-Firma aktuell
+        try:
+            verbindung_r_fa = Rolle_Firma.objects.using(db_bezeichnung).get(rolle = self, firma_id = firma.id)
+            if verbindung_r_fa.aktuell(db_bezeichnung):
+                return True
+            else:
+                return False
+        # Wenn keine Vebindung Rolle-Firam: False zurückgeben
+        except ObjectDoesNotExist:
+            return False
+
+    def ist_firmenrolle_ändern(self, db_bezeichnung, firma, ist_firmenrolle):
+        verbindung_r_fa = Rolle_Firma.objects.using(db_bezeichnung).get_or_create(
+            rolle = self,
+            firma_id = firma.id,
+            defaults = {'zeitstempel':timezone.now()}
+            )[0]
+
+        if ist_firmenrolle == True:
+            verbindung_r_fa.aktualisieren(db_bezeichnung)
+        else:
+            verbindung_r_fa.entaktualisieren(db_bezeichnung)
+        
 
     # ROLLE DICT
     def dict_rolle(self, db_bezeichnung):
@@ -1578,3 +1602,22 @@ class Ordner_WFSch(models.Model):
 class Projektstruktur(models.Model):
     zeitstempel = models.DateTimeField()
     v_pjs_id = models.CharField(max_length = 20)
+
+###################################################################
+# FUNKTIONEN OHNE KLASSE
+
+def liste_rollen(db_bezeichnung):
+    li_rollen = []
+    for r in Rolle.objects.using(db_bezeichnung).all():
+        if not r.gelöscht(db_bezeichnung):
+            li_rollen.append(r)
+    return li_rollen
+
+def liste_rollen_dict(db_bezeichnung):
+    li_rollen_dict = []
+    for r in liste_rollen(db_bezeichnung):
+        li_rollen_dict.append(r.dict_rolle(db_bezeichnung))
+    return li_rollen_dict
+
+#
+###################################################################

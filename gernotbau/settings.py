@@ -86,6 +86,9 @@ WSGI_APPLICATION = 'gernotbau.wsgi.application'
 from funktionen.datenbank import dict_databases
 DATABASES = dict_databases()
 
+# Bezeichnung Super-Datenbank mit Mitarbeitern, Projekten, Firmen, etc.
+DB_SUPER = 'default'
+
 # Password validation
 # https://docs.djangoproject.com/en/3.1/ref/settings/#auth-password-validators
 

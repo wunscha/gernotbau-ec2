@@ -4,11 +4,12 @@ from .models import V_Workflow_Schema, WFSch_Stufe_Rolle, Workflow_Schema, WFSch
 from .forms import FirmaNeuForm, WFSchWählenForm
 
 from superadmin.models import Projekt, Firma
-from projektadmin.models import Rolle
+from projektadmin.models import Rolle, liste_rollen_dict, liste_rollen
 from django.urls import reverse
 from django.http import HttpResponse, HttpResponseRedirect
 from django import forms
 from funktionen import hole_objs, hole_dicts, workflows, ordnerfunktionen
+from gernotbau.settings import DB_SUPER
 
 def zugriff_verweigert_projektadmin(request, projekt_id):
     if not user_ist_projektadmin(request.user, projekt_id):
@@ -18,125 +19,106 @@ def zugriff_verweigert_projektadmin(request, projekt_id):
 
 
 # NEUE VIEW (11.02.2021)
-def firma_neu_view(request, projekt_id):
+def firma_anlegen_view(request, projekt_id):
     projekt = Projekt.objects.using('default').get(pk = projekt_id)
-    db_projekt = projekt.db_bezeichnung('default')
-    
-    li_rollen = []
-    for r in Rolle.objects.using(db_projekt).all():
-        if not r.gelöscht(db_projekt):
-            li_rollen.append(r.dict_rolle(db_projekt))
+    db_projekt = projekt.db_bezeichnung(DB_SUPER)
+    erfolgsmeldung = ''
 
+    # TODO: Kontrolle LogIn
+    # TODO: Kontrolle Projektadmin
+
+    if request.method == 'POST':
+        neue_firma = projekt.firma_anlegen(DB_SUPER, formulardaten = request.POST, ist_projektadmin = False)
+        erfolgsmeldung = 'Firma "' + neue_firma.bezeichnung(DB_SUPER) + '" wurde angelegt.'
+
+        return HttpResponseRedirect(reverse('projektadmin:übersicht_firmen', args = [projekt_id]))
+
+    # Packe Context und Lade Template
     context = {
-        'liste_rollen': li_rollen,
-        'projekt_id': projekt_id
+        'liste_rollen': liste_rollen_dict(db_projekt),
+        'projekt_id': projekt_id,
+        'erfolgsmeldung': erfolgsmeldung
         }
-
-    return render(request, './superadmin/firma_neu.html', context)
+    return render(request, './projektadmin/firma_anlegen.html', context)
 
 def übersicht_firmen_view(request, projekt_id):
+    # TODO: Kontrolle Login
+    # TODO: Kontrolle Projektadmin
+
+    projekt = Projekt.objects.using(DB_SUPER).get(pk = projekt_id)
     
-    # Prüfung Login
-    if not request.user.is_authenticated:
-        return HttpResponseRedirect('login')
-
-    '''
-    # Prüfung Projektadmin
-    if zugriff_verweigert_projektadmin(request, projekt_id):
-        return zugriff_verweigert_projektadmin(request, projekt_id)
-    '''    
-
-    projekt = Projekt.objects.using('default').get(pk = projekt_id)
-    fehlermeldung = '' # Fehlermeldung für context
-        
-    # Wenn POST: Verbinde/Löse Projekt mit/von Firma aus Forumlardaten
+    # POST
     if request.method == 'POST':
+        
+        # EREIGNIS FIRMA HINZUFÜGEN
+        if request.POST['ereignis'] == 'firma_hinzufügen':
+            fa = Firma.objects.using(DB_SUPER).get(pk = request.POST['firma_id'])
+            projekt.firma_verbinden(db_bezeichnung = DB_SUPER, firma = fa)
 
-        # Wenn Aufruf von "Firma lösen Formular": Entferne Verbindung Projekt-Firma aus Formulardaten
-        if 'firma_lösen_id' in request.POST:
-            firma_lösen = Firma.objects.get(pk = request.POST['firma_lösen_id'])
-            projekt_firma_mail = Projekt_Firma_Mail.objects.get(projekt = projekt_id, firma = firma_lösen)
-            
-            # Wenn Projektadmin-Firma: Fehlermeldung für context
-            if projekt_firma_mail.ist_projektadmin:
-                fehlermeldung = 'Die Projektadmin-Firma kann nicht vom Projekt gelöst werden'
-                
-            else:
-                projekt_firma_mail.delete(using = 'default')
+        # EREIGNIS FIRMA LÖSEN
+        if request.POST['ereignis'] == 'firma_lösen':
+            fa = Firma.objects.using(DB_SUPER).get(pk = request.POST['firma_id'])
+            projekt.firma_lösen(db_bezeichnung = DB_SUPER, firma = fa)
 
-            # Ordnerfreigaben für die Firma löschen
-            ordnerfunktionen.lösche_ordnerfreigaben_firma(projekt, firma = firma_lösen)
-
-            # TODO: Warnhinweis "Wollen Sie wirklich löschen?"
-
-        # Wenn Aufruf von "Firma verbinden Formular": Verbinde Projekt mit Firma aus Forumlardaten
-        if 'firma_verbinden_id' in request.POST:
-            firma = Firma.objects.using('default').get(pk = request.POST['firma_verbinden_id'])
-            neu_projekt_firma_mail = Projekt_Firma_Mail(
-                email = projekt.kurzbezeichnung + '.' + firma.email, # TODO: Funktion für Prüfung auf vorhandene Mailadressen
-                firma = firma, 
-                ist_projektadmin = False,
-                projekt = projekt
-            )
-            neu_projekt_firma_mail.save(using='default')
-
-            # Ordnerfreigabe initialisieren
-            ordnerfunktionen.initialisiere_ordnerfreigaben_firma(projekt, firma = firma)
-
-            # Fehlermeldung für context leeren
-            fehlermeldung=''
-
-            # TODO: Log-Einträge
-            # TODO: InfoMails
-    
-    # Liste aller Firmen im Projekt für context
-    liste_pj_fa_mail = Projekt_Firma_Mail.objects.filter(projekt = projekt)
-    liste_firmen_projekt = []
-    for eintrag in liste_pj_fa_mail:
-        dict_firma = {}
-        dict_firma['id'] = eintrag.firma.id
-        dict_firma['bezeichnung'] = eintrag.firma.bezeichnung
-        dict_firma['ist_projektadmin'] = eintrag.ist_projektadmin
-        liste_firmen_projekt.append(dict_firma)
-    
-    # Liste aller Firmen, die nicht im Projekt sind für context
-    liste_firmen_außerhalb_obj = Firma.objects.exclude(projekt = projekt)
-    liste_firmen_außerhalb = []
-    for firma in liste_firmen_außerhalb_obj:
-        dict_firma = {}
-        dict_firma['id'] = firma.id
-        dict_firma['kurzbezeichnung'] = firma.kurzbezeichnung
-        liste_firmen_außerhalb.append(dict_firma)
-    
-    # Lade Template
+    # Packe Context und Lade Template
     context = {
-        'fehlermeldung': fehlermeldung,
         'projekt_id': projekt_id,
-        'liste_firmen_projekt': liste_firmen_projekt,
-        'liste_firmen_außerhalb': liste_firmen_außerhalb,
-    }
+        'liste_projektfirmen': projekt.liste_projektfirmen_dicts(DB_SUPER),
+        'liste_nicht_projektfirmen': projekt.liste_nicht_projektfirmen_dicts(DB_SUPER),
+        }
+
     return render(request, './projektadmin/übersicht_firmen.html', context)
-            
+
+def detailansicht_firma_view(request, projekt_id, firma_id):#
+    # TODO: Kontrolle Login
+    # TODO: Kontrolle Projektadmin
+
+    projekt = Projekt.objects.using(DB_SUPER).get(pk = projekt_id)
+    firma = Firma.objects.using(DB_SUPER).get(pk = firma_id)
+    db_projekt = projekt.db_bezeichnung(DB_SUPER)
+
+    # POST
+    if request.method == 'POST':
+        
+        # EREIGNIS ROLLEN AKTUALISIEREN
+        if request.POST['ereignis'] == 'rollen_aktualisieren':
+            for r in liste_rollen(db_projekt):
+                ist_firmenrolle = True if str(r.id) in request.POST else False
+                r.ist_firmenrolle_ändern(db_projekt, firma, ist_firmenrolle)
+
+        # EREIGNIS IST FIRMENADMIN AKTUALISIEREN
+        if request.POST['ereignis'] == 'ist_projektadmin_aktualisieren':
+            ist_projektadmin = True if 'ist_projektadmin' in request.POST else False
+            firma.ist_projektadmin_ändern(DB_SUPER, projekt, ist_projektadmin)
+
+    # Liste Rollen
+    li_rollen_dict = []
+    for r in liste_rollen(db_projekt):
+        dict_r = r.dict_rolle(db_projekt)
+        dict_r['ist_firmenrolle'] = r.ist_firmenrolle(db_projekt, firma)
+        li_rollen_dict.append(r)
+    
+    # Packe Context und Lade Template
+    context = {
+        'projekt_id': projekt_id,
+        'liste_rollen': li_rollen_dict,
+        'firma': firma.firma_dict(DB_SUPER),
+        'firma_ist_projektadmin': firma.ist_projektadmin(DB_SUPER, projekt)
+        }
+
+    return render(request, './projektadmin/detailansicht_firma.html', context)
+
 
 ################################################
 # View für Workflows
 
 # NEUE VIEW (11.02.2021)
-def übersicht_wfsch(request, projekt_id):
-    # Prüfung Login
-    if not request.user.is_authenticated:
-        return HttpResponseRedirect('login')
+def übersicht_wfsch_view(request, projekt_id):
+    # TODO: Kontrolle LogIn
+    # TODO: Kontrolle Projektadmin
 
-    '''
-    # Prüfung Projektadmin
-    if zugriff_verweigert_projektadmin(request, projekt_id):
-        return zugriff_verweigert_projektadmin(request, projekt_id)
-    '''
-
-    # Variablen initialisieren
     projekt = Projekt.objects.using('default').get(pk = projekt_id)
-    db_super = 'default'
-    db_projekt = projekt.db_bezeichnung(db_super)
+    db_projekt = projekt.db_bezeichnung(DB_SUPER)
 
     # POST
     if request.method == 'POST':
@@ -159,8 +141,8 @@ def übersicht_wfsch(request, projekt_id):
 
         # EREIGNIS WFSCH VORLAGE ANLEGEN
         if request.POST['ereignis'] == 'wfsch_vorlage_anlegen':
-            v_wfsch = V_Workflow_Schema.objects.using(db_super).get(pk = request.POST['v_wfsch_id'])
-            v_wfsch.in_db_anlegen(db_bezeichnung_quelle = db_super, db_bezeichnung_ziel = db_projekt)
+            v_wfsch = V_Workflow_Schema.objects.using(DB_SUPER).get(pk = request.POST['v_wfsch_id'])
+            v_wfsch.in_db_anlegen(db_bezeichnung_quelle = DB_SUPER, db_bezeichnung_ziel = db_projekt)
 
         # TODO: EREIGNIS STUFE HINZUFÜGEN/ENTFERNEN IMPLEMENTIEREN
         # TODO: EREIGNIS ROLLE HINZUFÜGEN/ENTFERNEN IMPLEMENTIEREN
@@ -168,15 +150,15 @@ def übersicht_wfsch(request, projekt_id):
 
     # Liste Vorlagen WFSch
     li_v_wfsch = []
-    for v_wfsch in V_Workflow_Schema.objects.using(db_super).all():
-        if not v_wfsch.gelöscht(db_super) and not v_wfsch.instanz(db_projekt):
-            li_v_wfsch.append(v_wfsch.v_wfsch_dict(db_super))
+    for v_wfsch in V_Workflow_Schema.objects.using(DB_SUPER).all():
+        if not v_wfsch.gelöscht(DB_SUPER) and not v_wfsch.instanz(db_projekt):
+            li_v_wfsch.append(v_wfsch.v_wfsch_dict(DB_SUPER))
 
     # Liste WFSch
     li_wfsch = []
     for wfsch in Workflow_Schema.objects.using(db_projekt).all():
         if not wfsch.gelöscht(db_projekt):
-            li_wfsch.append(wfsch.wfsch_dict(db_super, db_projekt, projekt))
+            li_wfsch.append(wfsch.wfsch_dict(DB_SUPER, db_projekt, projekt))
     
     context = {
         'projekt_id': projekt.id,

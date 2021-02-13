@@ -21,6 +21,20 @@
     <!-- Auflistung Ordner -->
     <ul class="list-group">
 
+        <!-- Formular PJS anlegen -->
+        <li class="list-group-item" style="background-color: #f8f9fa;">
+            <form class="p-2 form-inline" action="{% url 'projektadmin:übersicht_ordner' projekt_id %}" method="POST">
+                {% csrf_token %}
+                <label for="pjs_id">Projekstruktur importieren</label>
+                <select class="form-control" name="pjs_id" id="pjs_id">
+                    {% for v_pjs in liste_v_pjs %}
+                    <option value="{{v_pjs.id}}">{{v_pjs.bezeichnung}}</option>
+                    {% endfor %}
+                </select>
+                <button class="mx-2 btn btn-outline-primary" type="submit" name="ereignis" value="pjs_importieren">importieren</button>
+            </form>
+        </li>
+        
         <!-- Formular "Ordner hinzufügen" -->
         <li class="list-group-item" style="background-color: #f8f9fa;">
             <form class="p-2 form-inline" action="{% url 'projektadmin:übersicht_ordner' projekt_id %}" method="POST">
@@ -41,7 +55,7 @@
                         {% csrf_token %}
                         <input hidden type="text" name="anwendungsfall" value="ordner_löschen">
                         <label for="button_ordner_löschen" class="font-">
-                            <strong>{{ordner.darstellung}}{{ordner.bezeichnung}}</strong>
+                            <strong>{{ordner.bezeichnung}}</strong>
                         </label>
                         <button type="submit" 
                                 class="btn btn-outline-danger align-middle p-0 m-2" 
@@ -64,7 +78,7 @@
         
                 <!-- Anzeige aktuelles Workflowschema -->
                 <div class="p-2 col-2 text-center border-right bd-highlight">
-                    {{ordner.workflowschema_bezeichnung}}
+                    {{ordner.workflowschema.bezeichnung}}
                 </div>
 
                 <!-- Formular "Workflowschema zuweisen" -->
@@ -74,7 +88,7 @@
                         <input hidden type="text" name="anwendungsfall" value="workflowschema_zuweisen">
                         <!-- Auswahlliste Workflowschemata -->
                         <select class="mx-1 form-control" name="workflowschema_id" id="workflowschema_id">
-                            {% for workflowschema in liste_workflowschemata %}
+                            {% for workflowschema in liste_wfsch %}
                             <option value="{{workflowschema.id}}">{{workflowschema.bezeichnung}}</option>
                             {% endfor %}
                         </select>

@@ -1,10 +1,10 @@
 from django.shortcuts import render
 from .funktionen import user_ist_projektadmin, sortierte_stufenliste, suche_letzte_stufe, Ordnerbaum
-from .models import V_Workflow_Schema, WFSch_Stufe_Rolle, Workflow_Schema, WFSch_Stufe, WFSch_Stufe_Firma, Ordner, Ordner_Firma_Freigabe
+from .models import Projektstruktur, V_Workflow_Schema, WFSch_Stufe_Rolle, Workflow_Schema, WFSch_Stufe, WFSch_Stufe_Firma, Ordner, Ordner_Firma_Freigabe
 from .forms import FirmaNeuForm, WFSchWählenForm
 
 from superadmin.models import Projekt, Firma
-from projektadmin.models import Rolle, liste_rollen_dict, liste_rollen
+from projektadmin.models import V_Projektstruktur, Rolle, liste_rollen_dict, liste_rollen, liste_ordner_dict, liste_wfsch_dict, liste_v_pjs_dict
 from django.urls import reverse
 from django.http import HttpResponse, HttpResponseRedirect
 from django import forms
@@ -290,95 +290,30 @@ def übersicht_workflowschemata(request, projekt_id):
 # Views für Ordnerverwaltung
 
 def übersicht_ordner_view(request, projekt_id):
+    # TODO: Kontrolle Login
+    # TODO: Kontrolle Projektadmin
 
-    # Prüfung Login
-    if not request.user.is_authenticated:
-        return HttpResponseRedirect('login')
-    else:
+    projekt = Projekt.objects.using(DB_SUPER).get(pk = projekt_id)
+    db_projekt = projekt.db_bezeichnung(DB_SUPER)
 
-        # Prüfung Projektadmin
-        if not user_ist_projektadmin(request.user, projekt_id):
-            fehlermeldung = 'Bitte Loggen Sie sich als Projektadministrator für das gewünschte Projekt ein'
-            context = {'fehlermeldung': fehlermeldung}
-            return render(request, './registration/login.html', context)
-        else:
-            
-            projekt = Projekt.objects.using('default').get(pk = projekt_id)
-            # Wenn POST:
-            # - Neuen Ordner anlegen/löschen
-            # - Workflowschema zuordnen
-            if request.method == 'POST':
-                anwendungsfall = request.POST['anwendungsfall']
+    # POST
+    if request.method == 'POST':
 
-                if anwendungsfall == 'ordner_anlegen':
-                    # Unterordner anlegen
-                    neuer_ordner = Ordner(
-                        bezeichnung = request.POST['unterordner_bezeichnung'],
-                        ist_root_ordner = False,
-                    )
-                    neuer_ordner.save(using = projekt_id)
-                    
-                    '''
-                    AUSKOMMENTIERT WEGEN NEUER HERANGEHENSWEISE (08.02.2021)
+        # EREIGNIS PJS IMPORTIEREN
+        if request.POST['ereignis'] == 'pjs_importieren':
+            pjs = V_Projektstruktur.objects.using(DB_SUPER).get(pk = request.POST['pjs_id'])
+            pjs.in_db_anlegen(DB_SUPER, db_projekt)
 
-                    # Unterordner bei Überordner registrieren 
-                    # (nicht mittels 'add()'-Methode weil sonst symmetrische Beziehung entsteht, die zu Endlossschleife bei 'erzeuge_darstellung_ordnerbaum()' führt )
-                    überordner = Ordner.objects.using(projekt_id).get(pk = request.POST['ordner_id'])
-                    neuer_eintrag_überordner_unterordner = Überordner_Unterordner(unterordner = neuer_ordner, überordner = überordner)
-                    neuer_eintrag_überordner_unterordner.save(using = projekt_id)
-                    '''
+    # Packe context und lade Template
+    context = {
+        'projekt_id': projekt_id,
+        'liste_ordner': liste_ordner_dict(db_projekt),
+        'liste_wfsch': liste_wfsch_dict(db_projekt),
+        'liste_v_pjs': liste_v_pjs_dict(DB_SUPER) if not Projektstruktur.objects.using(db_projekt).all() else None # Nur ausfüllen wenn noch keine PJS importiert
+        } 
+    
+    return render(request, './projektadmin/übersicht_ordner.html', context)
 
-                    # Ordnerfreigaben anlegen
-                    ordnerfunktionen.initialisiere_ordnerfreigaben_ordner(projekt, ordner = neuer_ordner)
-
-                if anwendungsfall == 'ordner_löschen':
-                    ordner_löschen = Ordner.objects.using(projekt_id).get(pk = request.POST['ordner_löschen_id'])
-                    liste_ordner_löschen = hole_objs.unterordner(projekt, ordner = ordner_löschen)
-                    liste_ordner_löschen.append(ordner_löschen)
-                    # TODO: Kontrolle, ob Ordner inhalt hat (wird dzt nur durch on_delete.PROTECT übernommen)
-                    
-                    for löschkandidat in liste_ordner_löschen:
-                        # TODO: Kontrolle, ob Ordner inhalt hat (wird dzt nur durch on_delete.PROTECT übernommen)
-                        # Ordner löschen(Root-Ordner darf nicht gelöscht werden)
-                        if not löschkandidat.ist_root_ordner:
-                            löschkandidat.delete(using = projekt_id)
-                            
-                            ''' 
-                            AUSKOMMENTIER WEGEN NEUER HERANGEHENSWEISE 08.02.2021
-
-                            # Verknüpungen Überordner-Unterordner löschen
-                            liste_einträge_überordner_unterordner = Überordner_Unterordner.objects.using(projekt_id).filter(überordner = löschkandidat)
-                            for eintrag in liste_einträge_überordner_unterordner:
-                                eintrag.delete(using = projekt_id)
-                            '''
-                            
-                            # Ordnerfreigaben löschen
-                            ordnerfunktionen.lösche_ordnerfreigaben_ordner(projekt, löschkandidat)
-
-                    # TODO: Warnhinweis
-                    
-                if anwendungsfall == 'workflowschema_zuweisen':
-                    workflowschema = Workflow_Schema.objects.using(projekt_id).get(pk = request.POST['workflowschema_id'])
-                    wfsch_ordner = Ordner.objects.using(projekt_id).get(pk = request.POST['ordner_id'])
-                    wfsch_ordner.workflow_schema = workflowschema
-                    wfsch_ordner.save(using = projekt_id)
-
-                # TODO: InfoMails
-
-            # Packe context und lade Übersicht Workflowschemata
-            root_ordner = Ordner.objects.using(projekt_id).get(ist_root_ordner = True)
-            liste_ordner = ordnerfunktionen.erzeuge_darstellung_ordnerbaum(projekt, root_ordner = root_ordner)
-            liste_workflowschemata = hole_dicts.workflowschemata(projekt)
-
-            context = {
-                'projekt_id': projekt_id,
-                'root_ordner_id': root_ordner.id,
-                'liste_ordner': liste_ordner,
-                'liste_workflowschemata': liste_workflowschemata,
-            }
-
-            return render(request, './projektadmin/übersicht_ordner.html', context)
-         
 def freigabeverwaltung_ordner(request, firma_id, projekt_id):
     
     # Prüfung Login

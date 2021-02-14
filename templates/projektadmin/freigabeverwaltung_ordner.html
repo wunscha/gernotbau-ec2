@@ -15,14 +15,28 @@
     <!-- Seitenüberschrift -->
     <h1 class="mb-5 text-center">{{firma.bezeichnung}}: Freigabeverwaltung Ordner</h1>
 
+    <!-- Formular Freigaben von Rollen übernehmen -->
+    {% if firma.liste_rollen %}
+        <ul class="mb-5 list-group">
+            
+            <li class="list-group-item">
+                <form action="{% url 'projektadmin:freigabeverwaltung_ordner' projekt_id firma.id %}" method="POST">
+                    <strong>Freigabe von Rollen übernehmen: </strong>
+                        {% for rolle in firma.liste_rollen %}
+                            {%if forloop.counter > 1 %}, {% endif %}
+                            {{rolle.bezeichnung}}
+                        {% endfor %}
+                
+                    {% csrf_token %}
+                    <button class="m-2 btn btn-outline-primary" type="submit" name="ereignis" value="freigaben_rollen_übernehmen">Freigaben übernehmen</button>
+                </form>
+            </li>
+        </ul>
+    {% endif %}
+
     <!--- Tabelle mit Freigabeeinstellungen (als ein großes Formular) -->
     <form action="{% url 'projektadmin:freigabeverwaltung_ordner' projekt_id firma.id %}" method="POST">
         {% csrf_token %}
-
-        <!-- Submit-Button -->
-        <div class="mb-3 container">
-            <button type="submit" class="btn btn-outline-success">Änderungen Bestätigen</button>
-        </div>
 
         <!-- Tabelle -->
         <table class="table">
@@ -32,36 +46,33 @@
                     <th class="text-center">Lesefreigabe</th>
                     <th class="text-center">Uploadfreigabe</th>
                     <th class="text-center">Keine Freigabe</th>
-                    <th class="text-center">Freigaben erben</th>
                 </tr>
             </thead>
 
             <tbody>
                 {% for ordner in liste_ordner %}
                 <tr>
-                    <td>{{ordner.darstellung}}{{ordner.bezeichnung}}</td>
+                    <td>{{ordner.bezeichnung}}</td>
                     <!-- Radiobuttons -->
                     <fieldset>
                         <td class="text-center">
-                            <input type="radio" name="freigabe_{{ordner.id}}" value="lesefreigabe" {% if ordner.freigabe_lesen %}checked{% endif %}>
+                            <input type="radio" name="{{ordner.id}}" value="freigabe_lesen" {% if ordner.freigabe_lesen %}checked{% endif %}>
                         </td>
                         <td class="text-center">
-                            <input type="radio" name="freigabe_{{ordner.id}}" value="uploadfreigabe" {% if ordner.freigabe_upload %}checked{% endif %}>
+                            <input type="radio" name="{{ordner.id}}" value="freigabe_upload" {% if ordner.freigabe_upload %}checked{% endif %}>
                         </td>
                         <td class="text-center">
-                            <input type="radio" name="freigabe_{{ordner.id}}" value="keine_freigabe" {% if ordner.freigabe_lesen == False and ordner.freigabe_upload == False %}checked{% endif %}>
+                            <input type="radio" name="{{ordner.id}}" value="keine_freigabe" {% if ordner.keine_freigabe %}checked{% endif %}>
                         </td>
                     </fieldset>
-                    <td class="text-center">
-                        <input type="checkbox" name="freigaben_erben_{{ordner.id}}" {% if ordner.freigaben_erben %}checked{% endif %}>
-                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
 
+        <!-- Submit-Button -->
+        <button type="submit" class="m-3 btn btn-outline-success" name="ereignis" value="aktualisieren">Freigaben Aktualisieren</button>
+        
     </form>
-    
-    <p style="color: red;">{{vererbt_text}}</p>
     
 {% endblock inhalt %}

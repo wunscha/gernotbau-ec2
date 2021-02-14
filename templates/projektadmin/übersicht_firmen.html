@@ -55,7 +55,7 @@
 
             <li class="list-group-item">
                 <p><a href="{% url 'projektadmin:detailansicht_firma' projekt_id firma.id %}">Detailansicht Firma</a></p>
-                <p><a href="#">Ordnerfreigaben verwalten</a></p>
+                <p><a href="{% url 'projektadmin:freigabeverwaltung_ordner' projekt_id firma.id %}">Ordnerfreigaben verwalten</a></p>
             </li>
 
         </ul>

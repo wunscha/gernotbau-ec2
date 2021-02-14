@@ -13,95 +13,103 @@
 
 <!-- Seiteninhalt -->
 {% block inhalt %}
-<div class="container">
+<div class="container-fluid">
+    <div class="row">
 
+    <div class="col-1"></div>
+
+    <div class="col-md">
     <!-- Seitenüberschrift -->
     <h1 class="mb-5 text-center">Übersicht Ordner</h1>
 
     <!-- Auflistung Ordner -->
     <ul class="list-group">
 
-        <!-- Formular PJS anlegen -->
+        <!-- Formular PJS anlegen (nur anzeigen wenn noch keine PJS gewählt) -->
+        {% if liste_v_pjs %}
+            <li class="list-group-item" style="background-color: #f8f9fa;">
+                <form class="p-2 form-inline" action="{% url 'projektadmin:übersicht_ordner' projekt_id %}" method="POST">
+                    {% csrf_token %}
+                    <label class="col-md" for="pjs_id">Projekstruktur importieren</label>
+                    <select class="col-md form-control" name="pjs_id" id="pjs_id">
+                        {% for v_pjs in liste_v_pjs %}
+                        <option value="{{v_pjs.id}}">{{v_pjs.bezeichnung}}</option>
+                        {% endfor %}
+                    </select>
+                    <button class="mx-2 col-md btn btn-outline-primary" type="submit" name="ereignis" value="pjs_importieren">importieren</button>
+                </form>
+            </li>
+        {% endif %}        
+
+        <!-- Formular Ordner anlegen -->
         <li class="list-group-item" style="background-color: #f8f9fa;">
             <form class="p-2 form-inline" action="{% url 'projektadmin:übersicht_ordner' projekt_id %}" method="POST">
                 {% csrf_token %}
-                <label for="pjs_id">Projekstruktur importieren</label>
-                <select class="form-control" name="pjs_id" id="pjs_id">
-                    {% for v_pjs in liste_v_pjs %}
-                    <option value="{{v_pjs.id}}">{{v_pjs.bezeichnung}}</option>
-                    {% endfor %}
-                </select>
-                <button class="mx-2 btn btn-outline-primary" type="submit" name="ereignis" value="pjs_importieren">importieren</button>
+                <input type="text" class="form-control" name="ordner_bezeichnung">
+                <button class="mx-2 btn btn-outline-primary" type="submit" name="ereignis" value="ordner_anlegen">Ordner anlegen</button>
             </form>
         </li>
-        
-        <!-- Formular "Ordner hinzufügen" -->
-        <li class="list-group-item" style="background-color: #f8f9fa;">
-            <form class="p-2 form-inline" action="{% url 'projektadmin:übersicht_ordner' projekt_id %}" method="POST">
-                {% csrf_token %}
-                <input hidden type="text" name="anwendungsfall" value="ordner_anlegen">
-                <input type="text" class="form-control" name="unterordner_bezeichnung">
-                <button class="mx-2 btn btn-outline-primary" type="submit" name="ordner_id" value="{{root_ordner_id}}">Ordner hinzufügen</button>
-            </form>
-        </li>
-
-        <!-- Ordner -->
-        {% for ordner in liste_ordner %}
-        <li class="list-group-item">
-            <!-- Ordnerbezeichnung inkl. Lösch-Button -->
-            <div class="d-flex flex-row bd-highlight">
-                <div class="p-3 flex-grow-1 bd-highlight">
-                    <form class="form-inline" action="{% url 'projektadmin:übersicht_ordner' projekt_id %}" method="POST">
-                        {% csrf_token %}
-                        <input hidden type="text" name="anwendungsfall" value="ordner_löschen">
-                        <label for="button_ordner_löschen" class="font-">
-                            <strong>{{ordner.bezeichnung}}</strong>
-                        </label>
-                        <button type="submit" 
-                                class="btn btn-outline-danger align-middle p-0 m-2" 
-                                name="ordner_löschen_id" 
-                                id="button_ordner_löschen" 
-                                style="height: 20px; width: 20px; font-size: small"
-                                value="{{ordner.id}}">-</button>
-                    </form>
-                </div>
-            
-                <!-- Formular "Unterordner hinzufügen" -->
-                <div class="p-2 border-right bd-highlight">
-                    <form class="form-inline" action="{% url 'projektadmin:übersicht_ordner' projekt_id %}" method="POST">
-                        <input hidden type="text" name="anwendungsfall" value="ordner_anlegen">
-                        {% csrf_token %}
-                        <input type="text" class="form-control" name="unterordner_bezeichnung">
-                        <button class="mx-2 btn btn-outline-primary" name="ordner_id" value="{{ordner.id}}">Unterordner hinzufügen</button>
-                    </form>
-                </div>
-        
-                <!-- Anzeige aktuelles Workflowschema -->
-                <div class="p-2 col-2 text-center border-right bd-highlight">
-                    {{ordner.workflowschema.bezeichnung}}
-                </div>
-
-                <!-- Formular "Workflowschema zuweisen" -->
-                <div class="p-2 bd-highlight">
-                    <form class="form-inline" action="{% url 'projektadmin:übersicht_ordner' projekt_id %}" method="POST">
-                        {% csrf_token %}
-                        <input hidden type="text" name="anwendungsfall" value="workflowschema_zuweisen">
-                        <!-- Auswahlliste Workflowschemata -->
-                        <select class="mx-1 form-control" name="workflowschema_id" id="workflowschema_id">
-                            {% for workflowschema in liste_wfsch %}
-                            <option value="{{workflowschema.id}}">{{workflowschema.bezeichnung}}</option>
-                            {% endfor %}
-                        </select>
-                        <button class="mx-1 btn btn-outline-success" type="submit" name="ordner_id" value="{{ordner.id}}"> 
-                            OK
-                        </button>    
-                    </form>
-                </div>
-
-            </div>
-
-        </li>
-        {% endfor %}
 
     </ul>
+
+    <table class="table">
+        <thead>
+            <th><!-- Spalte für Button Ordner löschen --></th>
+            <th>Bezeichnung</th>
+            <th>Worflowschema</th>
+            <th>WFSch ändern</th>
+            <th>Unterordner hinzufügen</th>
+        </thead>
+
+        <tbody>
+            {% for ordner in liste_ordner %}
+            <tr>
+                <td><!-- Button Ordner löschen -->
+                    <form action="{% url 'projektadmin:übersicht_ordner' projekt_id %}" method="POST">
+                        {% csrf_token %}
+                        <input hidden type="text" name="ordner_id" value="{{ordner.id}}">
+                        <button type="submit"
+                                class="p-0 m-2 align-middle btn btn-outline-danger"
+                                name="ereignis"
+                                value="ordner_löschen"
+                                style="height: 20px; width: 20px; font-size: small">
+                        -
+                        </button>
+                    </form>
+                </td>
+                <td><!-- Ordner Bezeichnung -->    
+                    {{ordner.bezeichnung}}</td>
+                <td><!-- WFSch Bezeichnung -->
+                    {% if ordner.wfsch %}{{ordner.wfsch.bezeichnung}}{% else %}<span style="color: lightgrey;">Kein WFSch</span>{% endif %}</td>
+                <td><!-- Formular WFSch ändern -->
+                    <form class="form-inline" action="{% url 'projektadmin:übersicht_ordner' projekt_id %}" method="POST">
+                        {% csrf_token %}
+                        <input hidden type="text" name="ordner_id" value="{{ordner.id}}">
+                        <select class="form-control" name="wfsch_id">
+                            <option>Kein WFSch</option>
+                            {% for wfsch in liste_wfsch %}
+                            {% if not wfsch.bezeichnung == ordner.wfsch.bezeichnung %}<option value="{{wfsch.id}}">{{wfsch.bezeichnung}}</option>{% endif %}
+                            {% endfor %}
+                        </select>
+                        <button class="mx-2 btn btn-outline-primary" name="ereignis" value="wfsch_ändern">WFSch ändern</button>
+                    </form>
+                </td>
+                <td><!-- Formular Unterordner anlegen -->
+                    <form class="form-inline" action="{% url 'projektadmin:übersicht_ordner' projekt_id %}" method="POST">
+                        {% csrf_token %}
+                        <input hidden type="text" name="ordner_id" value="{{ordner.id}}">
+                        <input class="form-control" type="text" name="unterordner_bezeichnung">
+                        <button type="submit" class="mx-2 btn btn-outline-success" name="ereignis" value="unterordner_anlegen">OK</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+
+    <div class="col-1"></div>
+
+    </div>
+</div>
 {% endblock inhalt %}

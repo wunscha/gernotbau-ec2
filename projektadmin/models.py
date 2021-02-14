@@ -914,7 +914,6 @@ class Rolle(models.Model):
             verbindung_r_fa.aktualisieren(db_bezeichnung)
         else:
             verbindung_r_fa.entaktualisieren(db_bezeichnung)
-        
 
     # ROLLE DICT
     def dict_rolle(self, db_bezeichnung):
@@ -922,6 +921,14 @@ class Rolle(models.Model):
         rolle_d['bezeichnung'] = self.bezeichnung(db_bezeichnung)
 
         return rolle_d
+
+    # ROLLE FREIGABEN AUF FIRMA ÜBERTRAGEN
+    def freigaben_übertragen_firma(self, db_bezeichnung, firma):
+        for o in liste_ordner(db_bezeichnung):
+            if o.lesefreigabe_rolle(db_bezeichnung, self) and not o.lesefreigabe_firma(db_bezeichnung, firma):
+                o.lesefreigabe_erteilen_firma(db_bezeichnung, firma)
+            if o.uploadfreigabe_rolle(db_bezeichnung, self) and not o.uploadfreigabe_firma(db_bezeichnung, firma):
+                o.uploadfreigabe_erteilen_firma(db_bezeichnung, firma)
 
 class Rolle_Gelöscht(models.Model):
     rolle = models.ForeignKey(Rolle, on_delete = models.CASCADE)
@@ -1355,15 +1362,15 @@ class Ordner(models.Model):
             ordner = self,
             wfsch = wfsch,
             defaults = {'zeitstempel': timezone.now()}
-            )
+            )[0]
         verbindung_ordner_wfsch.aktualisieren(db_bezeichnung)
 
-    def verbindung_wfsch_lösen(self, db_bezeichnung, wfsch):
-        verbindung_ordner_wfsch = Ordner_WFSch.objects.using(db_bezeichnung).get(
-            ordner = self,
-            wfsch = wfsch,
-            )
-        verbindung_ordner_wfsch.entaktualisieren(db_bezeichnung)
+    def verbindung_wfsch_löschen(self, db_bezeichnung):
+        try:
+            verbindung_ordner_wfsch = Ordner_WFSch.objects.using(db_bezeichnung).filter(ordner = self).latest('zeitstempel')
+            verbindung_ordner_wfsch.entaktualisieren(db_bezeichnung)
+        except ObjectDoesNotExist:
+            pass
 
     def wfsch(self, db_bezeichnung):
         try:
@@ -1391,7 +1398,11 @@ class Ordner(models.Model):
 
     # ORDNER LESEFREIGABE ROLLE
     def lesefreigabe_erteilen_rolle(self, db_bezeichnung, rolle):
-        o_ro = Ordner_Rolle.objects.using(db_bezeichnung).get(ordner = self, rolle = rolle)
+        o_ro = Ordner_Rolle.objects.using(db_bezeichnung).get_or_create(
+            ordner = self, 
+            rolle = rolle,
+            defaults = {'zeitstempel': timezone.now()}
+            )[0]
         Freigabe_Lesen_Rolle.objects.using(db_bezeichnung).create(
             ordner_rolle = o_ro,
             freigabe_lesen = True,
@@ -1407,12 +1418,19 @@ class Ordner(models.Model):
             )
 
     def lesefreigabe_rolle(self, db_bezeichnung, rolle):
-        o_ro = Ordner_Rolle.objects.using(db_bezeichnung).get(ordner = self, rolle = rolle)
-        return Freigabe_Lesen_Rolle.objects.using(db_bezeichnung).filter(Ordner_Rolle = o_ro).latest('zeitstempel').freigabe_lesen
+        try:
+            o_ro = Ordner_Rolle.objects.using(db_bezeichnung).get(ordner = self, rolle = rolle)
+            return Freigabe_Lesen_Rolle.objects.using(db_bezeichnung).filter(ordner_rolle = o_ro).latest('zeitstempel').freigabe_lesen
+        except ObjectDoesNotExist:
+            return False
 
     # ORDNER UPLOADFREIGABE ROLLE
     def uploadfreigabe_erteilen_rolle(self, db_bezeichnung, rolle):
-        o_ro = Ordner_Rolle.objects.using(db_bezeichnung).get(ordner = self, rolle = rolle)
+        o_ro = Ordner_Rolle.objects.using(db_bezeichnung).get_or_create(
+            ordner = self, 
+            rolle = rolle,
+            defaults = {'zeitstempel': timezone.now()}
+            )[0]
         Freigabe_Upload_Rolle.objects.using(db_bezeichnung).create(
             ordner_rolle = o_ro, 
             freigabe_upload = True, 
@@ -1428,8 +1446,11 @@ class Ordner(models.Model):
             )
 
     def uploadfreigabe_rolle(self, db_bezeichnung, rolle):
-        o_ro = Ordner_Rolle.objects.using(db_bezeichnung).get(ordner = self, rolle = rolle)
-        return Freigabe_Upload_Rolle.objects.using(db_bezeichnung).filter(ordner_rolle = o_ro).latest('zeitstempel').freigabe_upload
+        try:
+            o_ro = Ordner_Rolle.objects.using(db_bezeichnung).get(ordner = self, rolle = rolle)
+            return Freigabe_Upload_Rolle.objects.using(db_bezeichnung).filter(ordner_rolle = o_ro).latest('zeitstempel').freigabe_upload
+        except ObjectDoesNotExist:
+            return False
 
     # ORDNER FREIGABEN VORLAGE
     def vorlage(self, db_bezeichnung_quelle, db_bezeichnung_ziel):
@@ -1466,15 +1487,25 @@ class Ordner(models.Model):
     
     # ORDNER LESEFREIGABE FIRMA
     def lesefreigabe_erteilen_firma(self, db_bezeichnung, firma):
-        o_fa = Ordner_Firma.objects.using(db_bezeichnung).get(ordner = self, firma = firma)
+        o_fa = Ordner_Firma.objects.using(db_bezeichnung).get_or_create(
+            ordner = self, 
+            firma_id = firma.id,
+            defaults = {'zeitstempel': timezone.now()}
+            )[0]
         Freigabe_Lesen_Firma.objects.using(db_bezeichnung).create(
             ordner_firma = o_fa,
             freigabe_lesen = True,
             zeitstempel = timezone.now()
             )
+        # Uploadfreigabe entziehen (gleichzeitige Lese- und Uploadfreigabe vermeiden)
+        Freigabe_Upload_Firma.objects.using(db_bezeichnung).create(
+            ordner_firma = o_fa,
+            freigabe_upload = False,
+            zeitstempel = timezone.now()
+            )
 
     def lesefreigabe_entziehen_firma(self, db_bezeichnung, firma):
-        o_fa = Ordner_Firma.objects.using(db_bezeichnung).get(ordner = self, firma = firma)
+        o_fa = Ordner_Firma.objects.using(db_bezeichnung).get(ordner = self, firma_id = firma.id)
         Freigabe_Lesen_Firma.objects.using(db_bezeichnung).create(
             ordner_firma = o_fa,
             freigabe_lesen = False,
@@ -1482,20 +1513,33 @@ class Ordner(models.Model):
             )
 
     def lesefreigabe_firma(self, db_bezeichnung, firma):
-        o_fa = Ordner_Firma.objects.using(db_bezeichnung).get(ordner = self, firma = firma)
-        return Freigabe_Lesen_Firma.objects.using(db_bezeichnung).filter(ordner_firma = o_fa).lateste('zeitstempel').freigabe_lesen
+        try:
+            o_fa = Ordner_Firma.objects.using(db_bezeichnung).get(ordner = self, firma_id = firma.id)
+            return Freigabe_Lesen_Firma.objects.using(db_bezeichnung).filter(ordner_firma = o_fa).latest('zeitstempel').freigabe_lesen
+        except ObjectDoesNotExist:
+            return False
 
     # ORDNER UPLOADFREIGABE FIRMA
     def uploadfreigabe_erteilen_firma(self, db_bezeichnung, firma):
-        o_fa = Ordner_Firma.objects.using(db_bezeichnung).get(ordner = self, firma = firma)
+        o_fa = Ordner_Firma.objects.using(db_bezeichnung).get_or_create(
+            ordner = self, 
+            firma_id = firma.id,
+            defaults = {'zeitstempel': timezone.now()}
+            )[0]
         Freigabe_Upload_Firma.objects.using(db_bezeichnung).create(
             ordner_firma = o_fa,
             freigabe_upload = True,
             zeitstempel = timezone.now()
             )
+        # Lesefreigabe entziehen (gleichzeitige Lese- und Uploadfreigabe vermeiden)
+        Freigabe_Lesen_Firma.objects.using(db_bezeichnung).create(
+            ordner_firma = o_fa,
+            freigabe_lesen = False,
+            zeitstempel = timezone.now()
+            )
 
     def uploadfreigabe_entziehen_firma(self, db_bezeichnung, firma):
-        o_fa = Ordner_Firma.objects.using(db_bezeichnung).get(ordner = self, firma = firma)
+        o_fa = Ordner_Firma.objects.using(db_bezeichnung).get(ordner = self, firma_id = firma.id)
         Freigabe_Upload_Firma.objects.using(db_bezeichnung).create(
             ordner_firma = o_fa,
             freigabe_upload = False,
@@ -1503,8 +1547,36 @@ class Ordner(models.Model):
             )
 
     def uploadfreigabe_firma(self, db_bezeichnung, firma):
-        o_fa = Ordner_Firma.objects.using(db_bezeichnung).get(ordner = self, firma = firma)
-        return Freigabe_Upload_Firma.objects.using(db_bezeichnung).filter(ordner_firma = o_fa).latest('zeitstempel').freigabe_upload
+        try:
+            o_fa = Ordner_Firma.objects.using(db_bezeichnung).get(ordner = self, firma_id = firma.id)
+            return Freigabe_Upload_Firma.objects.using(db_bezeichnung).filter(ordner_firma = o_fa).latest('zeitstempel').freigabe_upload
+        except ObjectDoesNotExist:
+            return False
+
+    # ORDNER ALLE FREIGABEN
+    def freigaben_übertragen_rollen_firma(self, db_bezeichnung, firma):
+        self.freigaben_entziehen_firma(db_bezeichnung, firma)
+        for rolle in liste_rollen_firma(db_bezeichnung, firma):
+            if self.lesefreigabe_rolle(db_bezeichnung, rolle) and not self.lesefreigabe_firma(db_bezeichnung, firma) and not self.uploadfreigabe_firma(db_bezeichnung, firma):
+                self.lesefreigabe_erteilen_firma(db_bezeichnung, firma)
+            if self.uploadfreigabe_rolle(db_bezeichnung, rolle) and not self.uploadfreigabe_firma(db_bezeichnung, firma):
+                self.uploadfreigabe_erteilen_firma(db_bezeichnung, firma)
+    
+    def freigaben_entziehen_firma(self, db_bezeichnung, firma):
+        try:
+            o_fa = Ordner_Firma.objects.using(db_bezeichnung).get(ordner = self, firma_id = firma.id)
+            Freigabe_Lesen_Firma.objects.using(db_bezeichnung).create(
+                ordner_firma = o_fa,
+                freigabe_lesen = False,
+                zeitstempel = timezone.now()
+                )
+            Freigabe_Upload_Firma.objects.using(db_bezeichnung).create(
+                ordner_firma = o_fa,
+                freigabe_upload = False,
+                zeitstempel = timezone.now()
+                )        
+        except ObjectDoesNotExist:
+            pass
 
     # ORDNER UNTERORDNER
     def unterordner_anlegen(self, db_bezeichnung, bezeichnung_unterordner):
@@ -1513,18 +1585,17 @@ class Ordner(models.Model):
             ist_root_ordner = False,
             )
         neuer_unterordner.bezeichnung_ändern(db_bezeichnung, bezeichnung_unterordner)
-        # Mit "nicht gelöscht" initialisieren
-        Ordner_Gelöscht.objects.using(db_bezeichnung).create(
-            ordner = neuer_unterordner,
-            gelöscht = False,
-            zeitstempel = timezone.now()
-            )
+        neuer_unterordner.entlöschen(db_bezeichnung)
         # Verbindung Ordner-Unterordner anlegen
-        Ordner_Unterordner.objects.using(db_bezeichnung).create(
+        self.unterordner_verbinden(db_bezeichnung, neuer_unterordner)
+
+    def unterordner_verbinden(self, db_bezeichnung, unterordner):
+        verbindung_o_uo = Ordner_Unterordner.objects.using(db_bezeichnung).create(
             ordner = self,
-            unterordner = neuer_unterordner,
+            unterordner = unterordner,
             zeitstempel = timezone.now()
             )
+        verbindung_o_uo.aktualisieren(db_bezeichnung)
 
     def liste_unterordner(self, db_bezeichnung):
         qs_verbindungen_o_uo = Ordner_Unterordner.objects.using(db_bezeichnung).filter(ordner = self)
@@ -1556,14 +1627,25 @@ class Ordner(models.Model):
     # ORDNER LÖSCHEN
     def löschen(self, db_bezeichnung):
     # Verbindungen zu Über-/ Unterordnern werden nicht mitgelöscht, sonst fehlen sie wenn Ordner wieder entlöscht wird
+        # Ornder löschen
         Ordner_Gelöscht.objects.using(db_bezeichnung).create(
-            ordner = self,
-            gelöscht = True, 
-            zeitstempel = timezone.now()
-            )
-            
-            # TODO: Prüfen ob Dokumente, Unterordner etc. verknüpft
-            # TODO: Unterliegenden Ordnerbaum mitlöschen
+                    ordner = self,
+                    gelöscht = True, 
+                    zeitstempel = timezone.now()
+                    )
+        # Unterliegenden Ordnerbaum mitlöschen
+        def rekursion_ordnerbaum_löschen(ordner):
+            for uo in ordner.liste_unterordner(db_bezeichnung):
+                rekursion_ordnerbaum_löschen(uo)
+                Ordner_Gelöscht.objects.using(db_bezeichnung).create(
+                    ordner = uo,
+                    gelöscht = True, 
+                    zeitstempel = timezone.now()
+                    )
+        
+        rekursion_ordnerbaum_löschen(self)
+        # TODO: Prüfen ob Dokumente, Unterordner etc. verknüpft
+        # TODO: Unterliegenden Ordnerbaum mitlöschen
 
     def entlöschen(self, db_bezeichnung):
         Ordner_Gelöscht.objects.using(db_bezeichnung).create(
@@ -1575,22 +1657,24 @@ class Ordner(models.Model):
     def gelöscht(self, db_bezeichnung):
         return Ordner_Gelöscht.objects.using(db_bezeichnung).filter(ordner = self).latest('zeitstempel').gelöscht
 
-    def ordner_dict(self,db_bezeichnung):
+    def ordner_dict(self,db_super, db_projekt):
         dict_o = self.__dict__
-        dict_o['bezeichnung'] = self.bezeichnung(db_bezeichnung)
-        wfsch = self.wfsch(db_bezeichnung)
-        dict_o['wfsch'] = wfsch.wfsch_dict(db_bezeichnung_quelle = DB_SUPER, db_bezeichnung_ziel = db_bezeichnung, projekt = projekt(db_bezeichnung)) if wfsch else None
+        dict_o['bezeichnung'] = self.bezeichnung(db_projekt)
+        wfsch = self.wfsch(db_projekt)
+        dict_o['wfsch'] = wfsch.wfsch_dict(db_bezeichnung_quelle = db_super, db_bezeichnung_ziel = db_projekt, projekt = projekt(db_projekt)) if wfsch else None
         
         # Ordnerebene (oberste Ebene, also die direkt unter ROOT-Ordner, ist Ebene '0')
         ebene = 0
         o = self
-        while o.überordner(db_bezeichnung):
+        while o.überordner(db_projekt):
             ebene += 1
-            o = o.überordner(db_bezeichnung)
+            o = o.überordner(db_projekt)
 
         dict_o['ebene'] = ebene
+        dict_o['vorlage'] = self.vorlage(db_super, db_projekt)
 
         return dict_o
+
 ###################################
 # Neue Herangehensweise 08.02.2021
 
@@ -1696,15 +1780,15 @@ class Freigabe_Upload_Rolle(models.Model):
 class Ordner_Firma(models.Model):
     ordner = models.ForeignKey(Ordner, on_delete = models.CASCADE, null = True) #TODO: Nullable entfernen
     firma_id = models.CharField(max_length = 20)
-    zeitstempel = models.DateTimeField
+    zeitstempel = models.DateTimeField(null = True) # TODO: Nullable entfernen
 
 class Freigabe_Lesen_Firma(models.Model):
-    ordner_rolle_firma = models.ForeignKey(Ordner_Firma, on_delete = models.CASCADE)
+    ordner_firma = models.ForeignKey(Ordner_Firma, on_delete = models.CASCADE)
     freigabe_lesen = models.BooleanField()
     zeitstempel = models.DateTimeField()
 
 class Freigabe_Upload_Firma(models.Model):
-    ordner_rolle_firma = models.ForeignKey(Ordner_Firma, on_delete = models.CASCADE)
+    ordner_firma = models.ForeignKey(Ordner_Firma, on_delete = models.CASCADE)
     freigabe_upload = models.BooleanField()
     zeitstempel = models.DateTimeField()
 
@@ -1744,6 +1828,8 @@ class Projektstruktur(models.Model):
 ###################################################################
 # FUNKTIONEN OHNE KLASSE
 
+# ROLLEN
+
 def liste_rollen(db_bezeichnung):
     li_rollen = []
     for r in Rolle.objects.using(db_bezeichnung).all():
@@ -1756,6 +1842,20 @@ def liste_rollen_dict(db_bezeichnung):
     for r in liste_rollen(db_bezeichnung):
         li_rollen_dict.append(r.dict_rolle(db_bezeichnung))
     return li_rollen_dict
+
+def liste_rollen_firma(db_bezeichnung, firma):
+    qs_verbindungen_rolle_firma = Rolle_Firma.objects.using(db_bezeichnung).filter(firma_id = firma.id)
+    li_rollen_firma = []
+    for verbindung_rolle_firma in qs_verbindungen_rolle_firma:
+        if verbindung_rolle_firma.aktuell(db_bezeichnung) and not verbindung_rolle_firma.rolle.gelöscht(db_bezeichnung):
+            li_rollen_firma.append(verbindung_rolle_firma.rolle)
+    return li_rollen_firma
+
+def liste_rollen_firma_dict(db_bezeichnung, firma):
+    li_rollen_firma_dicts = []
+    for r in liste_rollen_firma(db_bezeichnung, firma):
+        li_rollen_firma_dicts.append(r.dict_rolle(db_bezeichnung))
+    return li_rollen_firma_dicts
 
 def liste_oberste_ordner(db_bezeichnung):
     li_oberste_o = []
@@ -1771,6 +1871,7 @@ def liste_oberste_v_ordner(db_bezeichnung):
             li_oberste_v_o.append(v_o)
     return li_oberste_v_o
 
+# ORDNER
 def liste_ordner(db_bezeichnung):
     # Ordnerliste, sortiert nach Ordnerbaum
     li_ordner = []
@@ -1785,12 +1886,13 @@ def liste_ordner(db_bezeichnung):
 
     return li_ordner
 
-def liste_ordner_dict(db_bezeichnung):
+def liste_ordner_dict(db_super, db_projekt):
     li_ordner_dict = []
-    for o in liste_ordner(db_bezeichnung):
-        li_ordner_dict.append(o.ordner_dict(db_bezeichnung))
+    for o in liste_ordner(db_projekt):
+        li_ordner_dict.append(o.ordner_dict(db_super, db_projekt))
     return li_ordner_dict
 
+# WFSCH
 def liste_wfsch(db_bezeichnung):
     li_wfsch = []
     for wfsch in Workflow_Schema.objects.using(db_bezeichnung).all():
@@ -1804,6 +1906,7 @@ def liste_wfsch_dict(db_bezeichnung):
         li_wfsch_dict.append(wfsch.wfsch_dict(db_bezeichnung_quelle = DB_SUPER, db_bezeichnung_ziel = db_bezeichnung, projekt = projekt(db_bezeichnung)))
     return li_wfsch_dict
 
+# PJS
 def liste_v_pjs(db_bezeichnung):
     li_v_pjs = []
     for v_pjs in V_Projektstruktur.objects.using(db_bezeichnung).all():
@@ -1822,5 +1925,6 @@ def projekt(db_bezeichnung):
     if not db_bezeichnung_projekt.projekt.gelöscht(DB_SUPER):
         projekt = db_bezeichnung_projekt.projekt
     return projekt
+
 #
 ###################################################################

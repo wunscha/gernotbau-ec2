@@ -1,13 +1,14 @@
 from django.shortcuts import render
 from .funktionen import user_ist_projektadmin, sortierte_stufenliste, suche_letzte_stufe, Ordnerbaum
-from .models import Projektstruktur, V_Workflow_Schema, WFSch_Stufe_Rolle, Workflow_Schema, WFSch_Stufe, WFSch_Stufe_Firma, Ordner, Ordner_Firma_Freigabe
+from .models import Ordner_WFSch, Projektstruktur, V_Workflow_Schema, WFSch_Stufe_Rolle, Workflow_Schema, WFSch_Stufe, WFSch_Stufe_Firma, Ordner, Ordner_Firma_Freigabe
 from .forms import FirmaNeuForm, WFSchWählenForm
-
-from superadmin.models import Projekt, Firma
-from projektadmin.models import V_Projektstruktur, Rolle, liste_rollen_dict, liste_rollen, liste_ordner_dict, liste_wfsch_dict, liste_v_pjs_dict
 from django.urls import reverse
 from django.http import HttpResponse, HttpResponseRedirect
 from django import forms
+from django.utils import timezone
+
+from superadmin.models import Projekt, Firma
+from projektadmin.models import V_Projektstruktur, Rolle, liste_rollen_dict, liste_rollen, liste_rollen_firma_dict, liste_ordner_dict, liste_ordner, liste_wfsch_dict, liste_v_pjs_dict
 from funktionen import hole_objs, hole_dicts, workflows, ordnerfunktionen
 from gernotbau.settings import DB_SUPER
 
@@ -304,82 +305,85 @@ def übersicht_ordner_view(request, projekt_id):
             pjs = V_Projektstruktur.objects.using(DB_SUPER).get(pk = request.POST['pjs_id'])
             pjs.in_db_anlegen(DB_SUPER, db_projekt)
 
+        # EREIGNIS ORDNER LÖSCHEN
+        if request.POST['ereignis'] == 'ordner_löschen':
+            ordner = Ordner.objects.using(db_projekt).get(pk = request.POST['ordner_id'])
+            ordner.löschen(db_projekt)
+
+        # EREIGNIS ORDNER ANLEGEN
+        if request.POST['ereignis'] == 'ordner_anlegen':
+            neuer_ordner = Ordner.objects.using(db_projekt).create(
+                zeitstempel = timezone.now()
+                )
+            neuer_ordner.bezeichnung_ändern(db_projekt, request.POST['ordner_bezeichnung'])
+            neuer_ordner.entlöschen(db_projekt)
+
+        # EREIGNIS UNTERORDNER ANLEGEN
+        if request.POST['ereignis'] == 'unterordner_anlegen':
+            ordner = Ordner.objects.using(db_projekt).get(pk = request.POST['ordner_id'])
+            ordner.unterordner_anlegen(db_projekt, request.POST['unterordner_bezeichnung'])
+
+        # EREIGNIS WFSCH ÄNDERN
+        if request.POST['ereignis'] == 'wfsch_ändern':
+            ordner = Ordner.objects.using(db_projekt).get(pk = request.POST['ordner_id'])
+            if request.POST['wfsch_id'] == 'Kein WFSch':
+                ordner.verbindung_wfsch_löschen(db_projekt)    
+            else:
+                wfsch = Workflow_Schema.objects.using(db_projekt).get(pk = request.POST['wfsch_id'])
+                ordner.verbindung_wfsch_herstellen(db_projekt, wfsch)
+
     # Packe context und lade Template
     context = {
         'projekt_id': projekt_id,
-        'liste_ordner': liste_ordner_dict(db_projekt),
+        'liste_ordner': liste_ordner_dict(DB_SUPER, db_projekt),
         'liste_wfsch': liste_wfsch_dict(db_projekt),
         'liste_v_pjs': liste_v_pjs_dict(DB_SUPER) if not Projektstruktur.objects.using(db_projekt).all() else None # Nur ausfüllen wenn noch keine PJS importiert
         } 
     
     return render(request, './projektadmin/übersicht_ordner.html', context)
 
-def freigabeverwaltung_ordner(request, firma_id, projekt_id):
+def freigabeverwaltung_ordner_view(request, firma_id, projekt_id):
+    # TODO: Kontrolle Login
+    # TODO: Kontrolle Projektadmin
+
+    projekt = Projekt.objects.using(DB_SUPER).get(pk = projekt_id)
+    db_projekt = projekt.db_bezeichnung(DB_SUPER)
+    firma = Firma.objects.using(DB_SUPER).get(pk = firma_id)
+
+    if request.method == 'POST':
+        # EREIGNIS FREIGABEN AKTUALISIEREN
+        if request.POST['ereignis'] == 'aktualisieren':
+            for key, value in request.POST.items():
+                if 'freigabe' in value:
+                    ordner = Ordner.objects.using(db_projekt).get(pk = key)
+                    if value == 'freigabe_lesen':
+                        ordner.lesefreigabe_erteilen_firma(db_projekt, firma)
+                    elif value == 'freigabe_upload':
+                        ordner.uploadfreigabe_erteilen_firma(db_projekt, firma)
+                    else:
+                        ordner.freigaben_entziehen_firma(db_projekt, firma)
+
+        # EREIGNIS FREIGABEN ÜBERNEHMEN ROLLE
+        if request.POST['ereignis'] == 'freigaben_rollen_übernehmen':
+            for o in liste_ordner(db_projekt):
+                o.freigaben_übertragen_rollen_firma(db_projekt, firma)
+
+    li_ordner_dict = []
+    for o in liste_ordner(db_projekt):
+        dict_o = o.ordner_dict(DB_SUPER, db_projekt)
+        dict_o['freigabe_lesen'] = True if o.lesefreigabe_firma(db_projekt, firma) else False
+        dict_o['freigabe_upload'] = True if o.uploadfreigabe_firma(db_projekt, firma) else False
+        dict_o['keine_freigabe'] = True if not dict_o['freigabe_lesen'] and not dict_o['freigabe_upload'] else False
+        li_ordner_dict.append(dict_o)
     
-    # Prüfung Login
-    if not request.user.is_authenticated:
-        return HttpResponseRedirect('login')
-    else:
-        
-        # Prüfung Projektadmin
-        if not user_ist_projektadmin(request.user, projekt_id):
-            fehlermeldung = 'Bitte loggens Sie sich als Projektadmin für das gewünschte Projekt ein'
-            context = {'fehlermeldung': fehlermeldung}
-            return render(request, './registration/login.html', context)
-        else:
-            projekt = Projekt.objects.using('default').get(pk = projekt_id)
-            firma = Firma.objects.using('default').get(pk = firma_id)
+    # Packe Context und lade Template
+    dict_firma = firma.firma_dict(DB_SUPER)
+    dict_firma['liste_rollen'] = liste_rollen_firma_dict(db_projekt, firma)
 
-            vererbt_text = ''
+    context = {
+        'projekt_id': projekt_id,
+        'firma': dict_firma,
+        'liste_ordner': li_ordner_dict,
+        }
 
-            # POST:
-            # Aktualisiere Ordnerfreigaben
-            if request.method == 'POST':
-                for key, value in request.POST.items():
-                    # Suche Freigabeeinstellungen in POST und aktualisiere in DB
-                    if 'freigabe_' in key:
-                        ordner_id = key.split('_')[1] # Extrahiere Ordner-ID aus key
-                        ordner = Ordner.objects.using(projekt_id).get(pk = ordner_id)
-                        freigabeeinstellung = Ordner_Firma_Freigabe.objects.using(projekt_id).get(firma_id = firma.id, ordner = ordner)
-
-                        # "freigaben_erben" aus Formular übernehmen
-                        key_freigabevererbung = 'freigaben_erben_' + ordner_id
-                        freigabeeinstellung.freigaben_erben = True if key_freigabevererbung in request.POST.keys() else False
-                        
-                        if freigabeeinstellung.freigaben_erben:
-                            überordner = hole_objs.überordner(projekt, ordner)
-                            freigabe_überordner = Ordner_Firma_Freigabe.objects.using(projekt_id).get(ordner = überordner, firma_id = firma.id)
-                            freigabeeinstellung.freigabe_lesen = freigabe_überordner.freigabe_lesen
-                            freigabeeinstellung.freigabe_upload = freigabe_überordner.freigabe_upload
-                            freigabeeinstellung.save(using = projekt_id)
-
-                        # Wenn keine Vererbung eingestellt: Freigabeeinstellungen aus Formular übernehmen
-                        else:
-                            if value == 'lesefreigabe':
-                                freigabeeinstellung.freigabe_lesen = True
-                                freigabeeinstellung.freigabe_upload = False
-                            elif value == 'uploadfreigabe':
-                                freigabeeinstellung.freigabe_lesen = False
-                                freigabeeinstellung.freigabe_upload = True
-                            else:
-                                freigabeeinstellung.freigabe_lesen = False
-                                freigabeeinstellung.freigabe_upload = False
-
-                            freigabeeinstellung.save(using = projekt_id)
-                    
-            # Packe Context und Lade Übersicht
-            root_ordner = Ordner.objects.using(projekt_id).get(ist_root_ordner = True)
-            liste_ordner = ordnerfunktionen.erzeuge_darstellung_ordnerbaum(
-                projekt = projekt, 
-                root_ordner = root_ordner,
-                firma = firma
-            )
-
-            context = {
-                'vererbt_text': vererbt_text,
-                'firma': firma.__dict__,
-                'projekt_id': projekt_id,
-                'liste_ordner': liste_ordner,
-            }
-
-            return render(request, './projektadmin/freigabeverwaltung_ordner.html', context)
+    return render(request, './projektadmin/freigabeverwaltung_ordner.html', context)

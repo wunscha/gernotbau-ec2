@@ -1,15 +1,35 @@
+from gernotbau.settings import DB_SUPER
 from django.shortcuts import render
 from django.contrib.auth import get_user_model
-from superadmin.models import Mitarbeiter, Projekt_Mitarbeiter, Projekt
-from projektadmin.models import Workflow_Schema, WFSch_Stufe, WFSch_Stufe_Mitarbeiter
+from superadmin.models import Mitarbeiter, Projekt_Mitarbeiter, Projekt, Firma
+from projektadmin.models import Workflow_Schema, WFSch_Stufe, WFSch_Stufe_Mitarbeiter, liste_rollen_firma_dict
 from django.http import HttpResponse, HttpResponseRedirect
 from .forms import MitarbeiterNeuForm
 from django.urls import reverse
 from funktionen import hole_dicts, emailfunktionen
 from django.contrib.auth.hashers import make_password
 
-def übersicht_mitarbeiter_view(request):
+def übersicht_mitarbeiter_view(request, firma_id):
+    # TODO: Kontrolle Login
+    # TODO: Kontrolle Firmenadmin
 
+    firma = Firma.objects.using(DB_SUPER).get(pk = firma_id)
+
+    # POST
+    if request.method == 'POST':
+        # EREIGNIS MITARBEITER LÖSCHEN
+        if request.POST['ereignis'] == 'mitarbeiter_löschen':
+            User = get_user_model()
+            User.objects.using(DB_SUPER).get(pk = request.POST['mitarbeiter_id']).löschen()
+
+    # Pakte Context und Lade Template
+    context = {
+        'firma': firma.firma_dict(),
+        'liste_mitarbeiter': firma.liste_mitarbeiter()
+        }
+    return render(request, './firmenadmin/übersicht_mitarbeiter.html', context)
+
+    '''
     # Prüfung Login:
     if not request.user.is_authenticated:
         return HttpResponseRedirect('login')
@@ -34,9 +54,33 @@ def übersicht_mitarbeiter_view(request):
             liste_mitarbeiter = hole_dicts.firmenmitarbeiter(firma = request.user.firma)
             context = {'liste_mitarbeiter': liste_mitarbeiter}
             return render(request, './firmenadmin/übersicht_mitarbeiter.html', context)
-    
-def mitarbeiter_neu_view(request):
+    '''
 
+def mitarbeiter_anlegen_view(request, firma_id):
+    # TODO: Kontrolle Login
+    # TODO: Kontrolle Firmenadmin
+    firma = Firma.objects.using(DB_SUPER).get(pk = firma_id)
+
+    # POST
+    if request.method == 'POST':
+        # EREIGNIS MITARBEITER ANLEGEN
+        if request.POST['ereignis'] == 'mitarbeiter_anlegen':
+            firma.mitarbeiter_anlegen(DB_SUPER, formulardaten = request.POST)
+
+    # Packe Context und Lade Template
+    li_projekte = []
+    for pj in firma.liste_projekte():
+        dict_pj = pj.projekt_dict()
+        dict_pj['liste_rollen'] = liste_rollen_firma_dict(pj.db_bezeichnung(), firma)
+        li_projekte.append(dict_pj)
+
+    context = {
+        'firma': firma,
+        'liste_projekte': li_projekte
+        }
+    return render(request, './firmenadmin/mitarbeiter_anlegen.html', context)
+
+    '''
     # Prüfung Login:
     if not request.user.is_authenticated:
         return HttpResponseRedirect('login')
@@ -78,68 +122,29 @@ def mitarbeiter_neu_view(request):
             
             context = {'neuer_mitarbeiter': dict_neuer_mitarbeiter}
             return render(request, './firmenadmin/mitarbeiter_neu.html', context)
+    '''
 
-def übersicht_projekte_view(request):
+def übersicht_projekte_view(request, firma_id):
+    # TODO: Kontrolle Login
+    # TODO: Kontrolle Firmenadmin
 
-    # Prüfung Login:
-    if not request.user.is_authenticated:
-        return HttpResponseRedirect('login')
-    else:
+    firma = Firma.objects.using(DB_SUPER).get(pk = firma_id)
 
-        # Prüfung Firmenadmin:
-        if not request.user.ist_firmenadmin:
-            fehlermeldung = 'Bitte loggen Sie sich als Firmenadmin für die gewünschte Firma ein'
-            context = {'fehlermeldung': fehlermeldung}
-            return render(request, './firmenadmin/login.html', context)
-        else:
-            if request.method == 'POST':
-                # Mitarbeiter zu Projekt hinzufügen
-                if request.POST['ereignis'] == 'mitarbeiter_hinzufügen':
-                    mitarbeiter_hinzu = Mitarbeiter.objects.using('default').get(pk = request.POST['mitarbeiter_id'])
-                    projekt = Projekt.objects.using('default').get(pk = request.POST['projekt_id'])
-                    neuer_eintrag_pj_ma_mail = Projekt_Mitarbeiter_Mail(
-                        mitarbeiter = mitarbeiter_hinzu,
-                        projekt = projekt,
-                        email = projekt.kurzbezeichnung + '.' + mitarbeiter_hinzu.email, # TODO: evtl. in 'generiere-Email' Funktion auslagern
-                        ist_projektadmin = False
-                    )
-                    neuer_eintrag_pj_ma_mail.save(using = 'default')
-                
-                # TODO: InfoMails
-                # TODO: Logs
-                
-                # Mitarbeiter von Projekt lösen
-                elif request.POST['ereignis'] == 'mitarbeiter_lösen':
-                    mitarbeiter_lösen = Mitarbeiter.objects.using('default').get(pk = request.POST['mitarbeiter_id'])
-                    projekt = Projekt.objects.using('default').get(pk = request.POST['projekt_id'])
-                    eintrag_pj_ma_mail = Projekt_Mitarbeiter_Mail.objects.using('default').get(mitarbeiter = mitarbeiter_lösen, projekt = projekt)
-                    eintrag_pj_ma_mail.delete(using = 'default')
-                
-                # TODO: InfoMails
-                # TODO: Logs (aktiv/inaktiv?)
-                # TODO: Kontrolle, ob Prüfer für WFSch
+    # Packe Context und lade Template
+    li_projekte_dicts = []
+    for projekt in firma.liste_projekte():
+        dict_projekt = projekt.projekt_dict()
+        dict_projekt['liste_rollen'] = liste_rollen_firma_dict(projekt, firma)
+        dict_projekt['liste_projektmitarbeiter'] = firma.liste_mitarbeiter_projekt_dict(projekt)
+        dict_projekt['firma_ist_projektadmin'] = firma.ist_projektadmin(projekt)
+        li_projekte_dicts.append(dict_projekt)
 
-                # Projektadmin wählen
-                elif request.POST['ereignis'] == 'projektadmin_wählen':
-                    mitarbeiter_gewählt = Mitarbeiter.objects.using('default').get(pk = request.POST['mitarbeiter_id'])
-                    projekt = Projekt.objects.using('default').get(pk = request.POST['projekt_id'])
-                    eintrag_pj_ma_mail = Projekt_Mitarbeiter_Mail.objects.using('default').get(mitarbeiter = mitarbeiter_gewählt, projekt = projekt)
-                    eintrag_pj_ma_mail.ist_projektadmin = True
-                    eintrag_pj_ma_mail.save(using = 'default')
-
-                # Projektadmin abwählen
-                elif request.POST['ereignis'] == 'projektadmin_abwählen':
-                    mitarbeiter_abgewählt = Mitarbeiter.objects.using('default').get(pk = request.POST['mitarbeiter_id'])
-                    projekt = Projekt.objects.using('default').get(pk = request.POST['projekt_id'])
-                    eintrag_pj_ma_mail = Projekt_Mitarbeiter_Mail.objects.using('default').get(mitarbeiter = mitarbeiter_abgewählt, projekt = projekt)
-                    eintrag_pj_ma_mail.ist_projektadmin = False
-                    eintrag_pj_ma_mail.save(using = 'default')
-
-            # context packen und Übersich laden
-            liste_projekte = hole_dicts.liste_projekte_firma(firma = request.user.firma)
-            context = {'liste_projekte': liste_projekte}
-            
-            return render(request, './firmenadmin/übersicht_projekte.html', context)
+    context = {
+        'firma': firma,
+        'liste_projekte': li_projekte_dicts, 
+        }
+    
+    return render(request, './firmenadmin/übersicht_projekte.html', context)
 
 def übersicht_wfsch_view(request):
     

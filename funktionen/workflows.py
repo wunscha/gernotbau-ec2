@@ -1,4 +1,3 @@
-from firmenadmin.views import mitarbeiter_neu_view
 from funktionen import hole_objs
 from projektadmin.models import WFSch_Stufe_Firma, WFSch_Stufe_Mitarbeiter, WFSch_Stufe
 from superadmin.models import Firma

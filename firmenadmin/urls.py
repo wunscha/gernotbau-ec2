@@ -6,11 +6,11 @@ app_name = 'firmenadmin'
 
 urlpatterns = [
     # Mitarbeiter
-    path('übersicht_mitarbeiter/',views.übersicht_mitarbeiter_view, name='übersicht_mitarbeiter'),
-    path('mitarbeiter_neu/', views.mitarbeiter_neu_view, name = 'mitarbeiter_neu'),
+    path('<firma_id>/übersicht_mitarbeiter/',views.übersicht_mitarbeiter_view, name='übersicht_mitarbeiter'),
+    path('<firma_id>/mitarbeiter_anlegen/', views.mitarbeiter_anlegen_view, name = 'mitarbeiter_anlegen'),
     
     # Projekte
-    path('übersicht_projekte/',views.übersicht_projekte_view, name='übersicht_projekte'),
+    path('<firma_id>/übersicht_projekte/',views.übersicht_projekte_view, name='übersicht_projekte'),
     
     # Workflows
     path('übersicht_wfsch/',views.übersicht_wfsch_view, name='übersicht_wfsch'),

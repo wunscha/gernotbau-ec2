@@ -5,6 +5,7 @@ from django.db.models.fields.related import OneToOneField
 from django.db.models.query_utils import Q
 from django.utils import timezone
 from django.core.exceptions import ObjectDoesNotExist
+from django.contrib.auth import get_user_model
 
 from superadmin.models import Firma, Projekt_DB
 from gernotbau.settings import DB_SUPER
@@ -889,7 +890,8 @@ class Rolle(models.Model):
             firma_id = firma.id, 
             defaults = {'zeitstempel':timezone.now()}
             )[0]
-        neue_verbindung_r_f.aktualisieren(db_bezeichnung)
+        if not neue_verbindung_r_f.aktuell(db_bezeichnung):
+            neue_verbindung_r_f.aktualisieren(db_bezeichnung)
 
     def ist_firmenrolle(self, db_bezeichnung, firma):
         # Prüfen ob Verbindung Rolle-Firma aktuell
@@ -915,10 +917,44 @@ class Rolle(models.Model):
         else:
             verbindung_r_fa.entaktualisieren(db_bezeichnung)
 
+    # ROLLE MITARBEITER
+    def liste_rolleninhaber_firma(self, projekt, firma):
+        db_projekt = projekt.db_bezeichnung()
+        verbindung_ro_fa = Rolle_Firma.objects.using(db_projekt).get(rolle = self, firma_id = firma.id)
+        qs_verbindungen_ro_ma = Rolle_Mitarbeiter.objects.using(db_projekt).filter(rolle_firma = verbindung_ro_fa)
+        li_rolleninhaber_firma = []
+        User = get_user_model()
+        for verbindung_ro_ma in qs_verbindungen_ro_ma:
+            if verbindung_ro_ma.aktuell(db_projekt):
+                ma = User.objects.using(DB_SUPER).get(pk = verbindung_ro_ma.mitarbeiter_id)
+                if not ma.gelöscht():
+                    li_rolleninhaber_firma.append(ma)
+        return li_rolleninhaber_firma
+
+    def liste_rolleninhaber_firma_dict(self, projekt, firma):
+        li_ri_dict = []
+        for ri in self.liste_rolleninhaber_firma(projekt, firma):
+            li_ri_dict.append(ri.mitarbeiter_dict())
+        return li_ri_dict
+
+    def liste_nicht_rolleninhaber_firma(self, projekt, firma):
+        li_nicht_rolleninhaber = []
+        li_rolleninhaber = self.liste_rolleninhaber_firma(projekt, firma)
+        for ma in firma.liste_mitarbeiter_projekt(projekt):
+            if ma not in li_rolleninhaber:
+                li_nicht_rolleninhaber.append(ma)
+        return li_nicht_rolleninhaber
+
+    def liste_nicht_rolleninhaber_firma_dict(self, projekt, firma):
+        li_nri_dict = []
+        for nri in self.liste_nicht_rolleninhaber_firma(projekt, firma):
+            li_nri_dict.append(nri.mitarbeiter_dict())
+        return li_nri_dict
+
     # ROLLE DICT
     def dict_rolle(self, db_bezeichnung):
         rolle_d = self.__dict__
-        rolle_d['bezeichnung'] = self.bezeichnung(db_bezeichnung)
+        # rolle_d['bezeichnung'] = self.bezeichnung(db_bezeichnung)
 
         return rolle_d
 
@@ -965,6 +1001,37 @@ class Rolle_Firma(models.Model):
 
 class Rolle_Firma_Aktuell(models.Model):
     rolle_firma = models.ForeignKey(Rolle_Firma, on_delete = models.CASCADE)
+    aktuell = models.BooleanField()
+    zeitstempel = models.DateTimeField()
+
+class Rolle_Mitarbeiter(models.Model):
+    rolle_firma = models.ForeignKey(Rolle_Firma, on_delete = models.CASCADE, null = True) # TODO: Nullable entfernen
+    mitarbeiter_id = models.CharField(max_length = 20)
+    zeitstempel = models.DateTimeField()
+
+    # ROLLE_MITARBEITER AKTUELL
+    def aktualisieren(self, db_projekt):
+        Rolle_Mitarbeiter_Aktuell.objects.using(db_projekt).create(
+            rolle_mitarbeiter = self,
+            aktuell = True, 
+            zeitstempel = timezone.now() 
+            )
+    
+    def entaktualisieren(self, db_projekt):
+        Rolle_Mitarbeiter_Aktuell.objects.using(db_projekt).create(
+            rolle_mitarbeiter = self,
+            aktuell = False, 
+            zeitstempel = timezone.now() 
+            )
+
+    def aktuell(self, db_projekt):
+        try:
+            return Rolle_Mitarbeiter_Aktuell.objects.using(db_projekt).filter(rolle_mitarbeiter = self).latest('zeitstempel').aktuell
+        except ObjectDoesNotExist:
+            return False
+
+class Rolle_Mitarbeiter_Aktuell(models.Model):
+    rolle_mitarbeiter = models.ForeignKey(Rolle_Mitarbeiter, on_delete = models.CASCADE)
     aktuell = models.BooleanField()
     zeitstempel = models.DateTimeField()
 
@@ -1164,14 +1231,15 @@ class WFSch_Stufe(models.Model):
         return li_rollen_dict
 
     # WFSCH_STUFE FIRMEN
-    def prüffirma_hinzufügen(self, db_bezeichnung, rolle, firma_id):
+    def prüffirma_hinzufügen(self, db_bezeichnung, rolle, firma):
         verbindung_wfschSt_rolle = WFSch_Stufe_Rolle.objects.using(db_bezeichnung).get(wfsch_stufe = self, rolle = rolle)
         verbindung_wfschSt_firma = WFSch_Stufe_Firma.objects.using(db_bezeichnung).get_or_create(
             wfsch_stufe_rolle = verbindung_wfschSt_rolle, 
-            firma_id = firma_id,
+            firma_id = firma.id,
             defaults = {'zeitstempel':timezone.now()}
             )[0]
-        verbindung_wfschSt_firma.aktualisieren(db_bezeichnung)
+        if not verbindung_wfschSt_firma.aktuell(db_bezeichnung): 
+            verbindung_wfschSt_firma.aktualisieren(db_bezeichnung)
 
     def prüffirma_lösen(self, db_bezeichnung, rolle, firma_id):
         verbindung_wfschSt_rolle = WFSch_Stufe_Rolle.objects.using(db_bezeichnung).get(wfsch_stufe = self, rolle = rolle)
@@ -1315,7 +1383,10 @@ class WFSch_Stufe_Firma(models.Model):
             )
 
     def aktuell(self, db_bezeichnung):
-        return WFSch_Stufe_Firma_Aktuell.objects.using(db_bezeichnung).filter(wfsch_stufe_firma = self).latest('zeitstempel').aktuell
+        try:
+            return WFSch_Stufe_Firma_Aktuell.objects.using(db_bezeichnung).filter(wfsch_stufe_firma = self).latest('zeitstempel').aktuell
+        except ObjectDoesNotExist:
+            return False
 
 class WFSch_Stufe_Firma_Aktuell(models.Model):
     wfsch_stufe_firma = models.ForeignKey(WFSch_Stufe_Firma, on_delete = models.CASCADE)
@@ -1829,7 +1900,6 @@ class Projektstruktur(models.Model):
 # FUNKTIONEN OHNE KLASSE
 
 # ROLLEN
-
 def liste_rollen(db_bezeichnung):
     li_rollen = []
     for r in Rolle.objects.using(db_bezeichnung).all():
@@ -1851,12 +1921,30 @@ def liste_rollen_firma(db_bezeichnung, firma):
             li_rollen_firma.append(verbindung_rolle_firma.rolle)
     return li_rollen_firma
 
-def liste_rollen_firma_dict(db_bezeichnung, firma):
+def liste_rollen_firma_dict(projekt, firma):
+    db_projekt = projekt.db_bezeichnung()
     li_rollen_firma_dicts = []
-    for r in liste_rollen_firma(db_bezeichnung, firma):
-        li_rollen_firma_dicts.append(r.dict_rolle(db_bezeichnung))
+    for r in liste_rollen_firma(db_projekt, firma):
+        dict_rolle = r.dict_rolle(db_projekt)
+        dict_rolle['liste_rolleninhaber'] = r.liste_rolleninhaber_firma_dict(projekt, firma)
+        dict_rolle['liste_nicht_rolleninhaber'] = r.liste_nicht_rolleninhaber_firma_dict(projekt, firma)
+        li_rollen_firma_dicts.append(r.dict_rolle(db_projekt))
     return li_rollen_firma_dicts
 
+def firma_projektrollen_zuweisen(db_projekt, firma, formulardaten):
+    for r in liste_rollen(db_projekt):
+        ist_firmenrolle = True if str(r.id) in formulardaten else False
+        r.ist_firmenrolle_ändern(db_projekt, firma, ist_firmenrolle)
+
+def firma_rolle_zuweisen(db_projekt, firma, rolle):
+    verbindung_ro_fa = Rolle_Firma.objects.using(db_projekt).get_or_create(
+        rolle = rolle, 
+        firma_id = firma.id,
+        defaults = {'zeitstempel': timezone.now()}
+        )
+    verbindung_ro_fa.aktualisieren(db_projekt)
+
+# ORDNER
 def liste_oberste_ordner(db_bezeichnung):
     li_oberste_o = []
     for o in Ordner.objects.using(db_bezeichnung).all():
@@ -1871,7 +1959,6 @@ def liste_oberste_v_ordner(db_bezeichnung):
             li_oberste_v_o.append(v_o)
     return li_oberste_v_o
 
-# ORDNER
 def liste_ordner(db_bezeichnung):
     # Ordnerliste, sortiert nach Ordnerbaum
     li_ordner = []

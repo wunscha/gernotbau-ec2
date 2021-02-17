@@ -3,7 +3,7 @@
 
 <!-- Link App-Titel -->
 {% block href_titel_app %}
-    {% url 'firmenadmin:übersicht_mitarbeiter' %}
+    {% url 'firmenadmin:übersicht_mitarbeiter' firma.id %}
 {% endblock href_titel_app %}
 
 <!-- App-Titel -->
@@ -17,11 +17,11 @@
     <ul class="nav nav-tabs">
 
         <li class="nav-item">
-            <a href="{% url 'firmenadmin:übersicht_mitarbeiter' %}" class="nav-link {% block mitarbeiter_active %}{% endblock mitarbeiter_active %}">Mitarbeiter</a>
+            <a href="{% url 'firmenadmin:übersicht_mitarbeiter' firma.id %}" class="nav-link {% block mitarbeiter_active %}{% endblock mitarbeiter_active %}">Mitarbeiter</a>
         </li>
 
         <li class="nav-item">
-            <a href="{% url 'firmenadmin:übersicht_projekte' %}" class="nav-link {% block projekte_active %}{% endblock projekte_active %}">Projekte</a>
+            <a href="{% url 'firmenadmin:übersicht_projekte' firma.id %}" class="nav-link {% block projekte_active %}{% endblock projekte_active %}">Projekte</a>
         </li>
 
         <li class="nav-item">

@@ -20,7 +20,7 @@
     <!-- Link zu Formular 'Neuer Mitarbeiter' -->
     <ul class="my-3 list-group">
         <li class="list-group-item" style="background-color: #f8f9fa;">
-            <a href="{% url 'firmenadmin:mitarbeiter_neu' %}">Neuen Mitarbeiter anlegen</a>
+            <a href="{% url 'firmenadmin:mitarbeiter_anlegen' firma.id %}">Neuen Mitarbeiter anlegen</a>
         </li>
     </ul>
 
@@ -38,9 +38,9 @@
 
                         <!-- Mitarbeiter löschen -->
                         <div class="p-2 justify-content-end">
-                            <form class="form-inline" action="{% url 'firmenadmin:übersicht_mitarbeiter' %}" method="POST">
+                            <form class="form-inline" action="{% url 'firmenadmin:übersicht_mitarbeiter' firma.id %}" method="POST">
                             {% csrf_token %}
-                            <input hidden type="text" name="mitarbeiter_löschen_id" value="{{mitarbeiter.id}}">
+                            <input hidden type="text" name="mitarbeiter_id" value="{{mitarbeiter.id}}">
                             <button type="submit"
                                     class="btn btn-outline-danger align-middle p-0"
                                     name="ereignis"

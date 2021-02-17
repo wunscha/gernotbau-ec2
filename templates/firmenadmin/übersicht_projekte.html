@@ -24,81 +24,39 @@
             {{projekt.bezeichnung}} {% if projekt.firma_ist_projektadmin %} - Projektadmin{% endif %}
         </li>
 
-        <!-- Auflistung Mitarbeiter -->
+        {% for rolle in projekt.liste_rollen %}
+        <!-- Auflistung Rollen -->
         <li class="list-group-item">
-            <ul>
-                {% for mitarbeiter in projekt.liste_projektmitarbeiter %}
-                <li>
-                    <form class="form-inline" action="{% url 'firmenadmin:übersicht_projekte' %}" method="POST">
-                        {% csrf_token %}
-                        <input hidden type="text" name="ereignis" value="mitarbeiter_lösen">
-                        <input hidden type="text" name="projekt_id" value="{{projekt.id}}">
-                        <label for="mitarbeiter_lösen_button">{{mitarbeiter.first_name}} {{mitarbeiter.last_name}}</label>
-                        <button type="submit"
-                                class="m-2 p-0 btn btn-outline-danger align-middle"
-                                name="mitarbeiter_id"
-                                id="mitarbeiter_lösen_button"
-                                style="height: 20px; width: 20px; font-size: small"
-                                value="{{mitarbeiter.id}}">-</button>
-                    </form>
-
-                    {% if mitarbeiter.ist_projektadmin %}
-                    <form class="form-inline" action="{% url 'firmenadmin:übersicht_projekte' %}" method="POST">
-                        {% csrf_token %}
-                        <input hidden type="text" name="ereignis" value="projektadmin_abwählen">
-                        <input hidden type="text" name="projekt_id" value="{{projekt.id}}">
-                        <label for="projektadmin_abwählen_button">(Projektadmin)</label>
-                        <button type="submit"
-                                class="m-2 py-0 btn btn-outline-danger align-middle"
-                                name="mitarbeiter_id"
-                                id="projektadmin_abwählen_button"
-                                style="height: 20px; font-size: small"
-                                value="{{mitarbeiter.id}}">abwählen</button>
-                    </form>
-                    {% endif %}
-
-                </li>
-                {% endfor %}
-            </ul>
-        </li>
-
-        <!-- Mitarbeiter hinzufügen Formular -->
-        <li class="list-group-item">
-            <form class="form-inline" action="{% url 'firmenadmin:übersicht_projekte' %}" method="POST">
-                {% csrf_token %}
-                <label class="mx-1" for="mitarbeiter_id">Mitarbeiter zuordnen:</label>
-
-                <select class="mx-1 form-control" name="mitarbeiter_id" id="mitarbeiter_id">
-                    {% for mitarbeiter in projekt.liste_nicht_projektmitarbeiter %}
-                        <option value="{{mitarbeiter.id}}">{{mitarbeiter.first_name}} {{mitarbeiter.last_name}}</option>
-                    {% endfor %}
-                </select>
-
-                <input hidden type="text" name="ereignis" value="mitarbeiter_hinzufügen">
-
-                <button class="mx-1 btn btn-outline-success" type="submit" name="projekt_id" value="{{projekt.id}}">Zuordnen</button>
+            <span class="border-bottom font-weight-bolder">{{rolle.bezeichnung}}</span>
+            <form action="{% url 'firmenadmin:übersicht_projekte' firma.id%}" method="POST">
+                  {% csrf_token %}
+                  <input hidden type="text" name="projekt_id" value="{{projekt.id}}">
+                  <input hidden type="text" name="rolle_id" value="{{rolle.id}}">
+                  <select class="form-control" name="mitarbeiter_id">
+                      {% for mitarbeiter in rolle.liste_nicht_rolleninhaber %}
+                      <option value="{{mitarbeiter.id}}">{{mitarbeiter.first_name}} {{mitarbeiter.last_name}}</option>
+                      {% endfor %}
+                  </select>
             </form>
+            
+            {% for mitarbeiter in rolle.liste_rolleninhaber %}
+                <form action="{% url 'firmenadmin:übersicht_projekte' firma.id %}" method="POST">
+                    {% csrf_token %}
+                    <input hidden type="text" name="projekt_id" value="{{projekt.id}}">
+                    <input hidden type="text" name="rolle_id" value="{{rolle.id}}">
+                    <input hidden type="text" name="mitarbeiter_id" value="{{mitarbeiter.id}}">
+                    <button class="p-0 btn btn-outline-danger text-center" 
+                            name="ereignis" 
+                            value="mitarbeiter_lösen"
+                            style="width: 20px; height: 20px; font-size: small;">-</button>
+                    <label for="mitarbeiter">{{mitarbeiter.first_name}} {{mitarbeiter.last_name}}</label>
+                </form>
+            {% endfor %}
+        
+        {% endfor %}
         </li>
 
-        <!-- Formular "Projektadmin wählen" -->
-        {% if projekt.firma_ist_projektadmin %}
-        <li class="list-group-item">
-            <form class="form-inline" action="{% url 'firmenadmin:übersicht_projekte' %}" method="POST">
-                {% csrf_token %}
-                <label class="mx-1" for="mitarbeiter_id">Projektadmin zuordnen:</label>
-
-                <select class="mx-1 form-control" name="mitarbeiter_id" id="mitarbeiter_id">
-                    {% for mitarbeiter in projekt.liste_projektmitarbeiter %}
-                        <option value="{{mitarbeiter.id}}">{{mitarbeiter.first_name}} {{mitarbeiter.last_name}}</option>
-                    {% endfor %}
-                </select>
-
-                <input hidden type="text" name="ereignis" value="projektadmin_wählen">
-
-                <button class="mx-1 btn btn-outline-primary" type="submit" name="projekt_id" value="{{projekt.id}}">Zuordnen</button>
-            </form>
-        </li>
-        {% endif %}
+        
 
     </ul>
     {% endfor %}

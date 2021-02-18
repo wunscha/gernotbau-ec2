@@ -28,20 +28,19 @@ def firma_anlegen_view(request, projekt_id):
     # TODO: Kontrolle Projektadmin
     
     projekt = Projekt.objects.using('default').get(pk = projekt_id)
-    db_projekt = projekt.db_bezeichnung(DB_SUPER)
     erfolgsmeldung = ''
 
     # POST
     if request.method == 'POST':
-        neue_firma = projekt.firma_anlegen(DB_SUPER, formulardaten = request.POST, ist_projektadmin = False)
-        firma_projektrollen_zuweisen(db_projekt, firma = neue_firma, formulardaten = request.POST)
-        erfolgsmeldung = 'Firma "' + neue_firma.bezeichnung(DB_SUPER) + '" wurde angelegt.'
+        neue_firma = projekt.firma_anlegen(formulardaten = request.POST, ist_projektadmin = False)
+        firma_projektrollen_zuweisen(projekt, firma = neue_firma, formulardaten = request.POST)
+        erfolgsmeldung = 'Firma "' + neue_firma.bezeichnung() + '" wurde angelegt.'
 
         return HttpResponseRedirect(reverse('projektadmin:übersicht_firmen', args = [projekt_id]))
 
     # Packe Context und Lade Template
     context = {
-        'liste_rollen': liste_rollen_dict(db_projekt),
+        'liste_rollen': liste_rollen_dict(projekt),
         'projekt_id': projekt_id,
         'erfolgsmeldung': erfolgsmeldung
         }
@@ -59,18 +58,18 @@ def übersicht_firmen_view(request, projekt_id):
         # EREIGNIS FIRMA HINZUFÜGEN
         if request.POST['ereignis'] == 'firma_hinzufügen':
             fa = Firma.objects.using(DB_SUPER).get(pk = request.POST['firma_id'])
-            projekt.firma_verbinden(db_bezeichnung = DB_SUPER, firma = fa)
+            projekt.firma_verbinden(firma = fa)
 
         # EREIGNIS FIRMA LÖSEN
         if request.POST['ereignis'] == 'firma_lösen':
             fa = Firma.objects.using(DB_SUPER).get(pk = request.POST['firma_id'])
-            projekt.firma_lösen(db_bezeichnung = DB_SUPER, firma = fa)
+            projekt.firma_lösen(firma = fa)
 
     # Packe Context und Lade Template
     context = {
         'projekt_id': projekt_id,
-        'liste_projektfirmen': projekt.liste_projektfirmen_dicts(DB_SUPER),
-        'liste_nicht_projektfirmen': projekt.liste_nicht_projektfirmen_dicts(DB_SUPER),
+        'liste_projektfirmen': projekt.liste_projektfirmen_dicts(),
+        'liste_nicht_projektfirmen': projekt.liste_nicht_projektfirmen_dicts(),
         }
 
     return render(request, './projektadmin/übersicht_firmen.html', context)
@@ -81,14 +80,13 @@ def detailansicht_firma_view(request, projekt_id, firma_id):
 
     projekt = Projekt.objects.using(DB_SUPER).get(pk = projekt_id)
     firma = Firma.objects.using(DB_SUPER).get(pk = firma_id)
-    db_projekt = projekt.db_bezeichnung(DB_SUPER)
-
+    
     # POST
     if request.method == 'POST':
         
         # EREIGNIS ROLLEN AKTUALISIEREN
         if request.POST['ereignis'] == 'rollen_aktualisieren':
-            firma_projektrollen_zuweisen(db_projekt, firma, formulardaten = request.POST)
+            firma_projektrollen_zuweisen(projekt, firma, formulardaten = request.POST)
             '''
             for r in liste_rollen(db_projekt):
                 ist_firmenrolle = True if str(r.id) in request.POST else False
@@ -102,9 +100,9 @@ def detailansicht_firma_view(request, projekt_id, firma_id):
 
     # Liste Rollen
     li_rollen_dict = []
-    for r in liste_rollen(db_projekt):
-        dict_r = r.dict_rolle(db_projekt)
-        dict_r['ist_firmenrolle'] = r.ist_firmenrolle(db_projekt, firma)
+    for r in liste_rollen(projekt):
+        dict_r = r.dict_rolle(projekt)
+        dict_r['ist_firmenrolle'] = r.ist_firmenrolle(projekt, firma)
         li_rollen_dict.append(r)
     
     # Packe Context und Lade Template
@@ -112,7 +110,7 @@ def detailansicht_firma_view(request, projekt_id, firma_id):
         'projekt_id': projekt_id,
         'liste_rollen': li_rollen_dict,
         'firma': firma.firma_dict(),
-        'firma_ist_projektadmin': firma.ist_projektadmin(DB_SUPER, projekt)
+        'firma_ist_projektadmin': firma.ist_projektadmin(projekt)
         }
 
     return render(request, './projektadmin/detailansicht_firma.html', context)
@@ -126,7 +124,7 @@ def übersicht_wfsch_view(request, projekt_id):
     # TODO: Kontrolle Projektadmin
 
     projekt = Projekt.objects.using('default').get(pk = projekt_id)
-    db_projekt = projekt.db_bezeichnung(DB_SUPER)
+    db_projekt = projekt.db_bezeichnung()
     kontrolle = 0
 
     # POST
@@ -136,23 +134,23 @@ def übersicht_wfsch_view(request, projekt_id):
             rolle = Rolle.objects.using(db_projekt).get(pk = request.POST['rolle_id'])
             wfsch_stufe = WFSch_Stufe.objects.using(db_projekt).get(pk = request.POST['wfsch_stufe_id'])
             prüffirma = Firma.objects.using(DB_SUPER).get(pk = request.POST['prüffirma_id'])
-            wfsch_stufe.prüffirma_hinzufügen(db_bezeichnung = db_projekt, rolle = rolle, firma = prüffirma)
+            wfsch_stufe.prüffirma_hinzufügen(projekt, rolle = rolle, firma = prüffirma)
 
         # EREIGNIS PRÜFFIRMA LÖSEN
         if request.POST['ereignis'] == 'prüffirma_lösen':
             rolle = Rolle.objects.using(db_projekt).get(pk = request.POST['rolle_id'])
             wfsch_stufe = WFSch_Stufe.objects.using(db_projekt).get(pk = request.POST['wfsch_stufe_id'])
-            wfsch_stufe.prüffirma_lösen(db_bezeichnung = db_projekt, rolle = rolle, firma_id = request.POST['prüffirma_id'])
+            wfsch_stufe.prüffirma_lösen(projekt, rolle = rolle, firma_id = request.POST['prüffirma_id'])
 
         # EREIGNIS WFSCH LÖSCHEN
         if request.POST['ereignis'] == 'wfsch_löschen':
             wfsch = Workflow_Schema.objects.using(db_projekt).get(pk = request.POST['wfsch_id'])
-            wfsch.löschen(db_bezeichnung = db_projekt)
+            wfsch.löschen(projekt)
 
         # EREIGNIS WFSCH VORLAGE ANLEGEN
         if request.POST['ereignis'] == 'wfsch_vorlage_anlegen':
             v_wfsch = V_Workflow_Schema.objects.using(DB_SUPER).get(pk = request.POST['v_wfsch_id'])
-            v_wfsch.in_db_anlegen(db_bezeichnung_quelle = DB_SUPER, db_bezeichnung_ziel = db_projekt)
+            v_wfsch.in_db_anlegen(projekt)
 
         # TODO: EREIGNIS STUFE HINZUFÜGEN/ENTFERNEN IMPLEMENTIEREN
         # TODO: EREIGNIS ROLLE HINZUFÜGEN/ENTFERNEN IMPLEMENTIEREN
@@ -162,24 +160,24 @@ def übersicht_wfsch_view(request, projekt_id):
         if request.POST['ereignis'] == 'firmen_nach_rollen_zuweisen':
             
             wfsch = Workflow_Schema.objects.using(db_projekt).get(pk = request.POST['wfsch_id'])
-            for s in wfsch.liste_stufen(db_projekt):
-                for r in s.liste_rollen(db_projekt):
-                    for f in projekt.liste_projektfirmen(DB_SUPER):
-                        if r in liste_rollen_firma(db_projekt, f):
+            for s in wfsch.liste_stufen(projekt):
+                for r in s.liste_rollen(projekt):
+                    for f in projekt.liste_projektfirmen():
+                        if r in liste_rollen_firma(projekt, f):
                             kontrolle += 1
-                            s.prüffirma_hinzufügen(db_projekt, firma = f, rolle = r)
+                            s.prüffirma_hinzufügen(projekt, firma = f, rolle = r)
 
     # Liste Vorlagen WFSch
     li_v_wfsch = []
     for v_wfsch in V_Workflow_Schema.objects.using(DB_SUPER).all():
-        if not v_wfsch.gelöscht(DB_SUPER) and not v_wfsch.instanz(db_projekt):
-            li_v_wfsch.append(v_wfsch.v_wfsch_dict(DB_SUPER))
+        if not v_wfsch.gelöscht() and not v_wfsch.instanz(projekt):
+            li_v_wfsch.append(v_wfsch.v_wfsch_dict())
 
     # Liste WFSch
     li_wfsch = []
     for wfsch in Workflow_Schema.objects.using(db_projekt).all():
-        if not wfsch.gelöscht(db_projekt):
-            li_wfsch.append(wfsch.wfsch_dict(DB_SUPER, db_projekt, projekt))
+        if not wfsch.gelöscht(projekt):
+            li_wfsch.append(wfsch.wfsch_dict(projekt))
     
     context = {
         'projekt_id': projekt.id,
@@ -198,7 +196,7 @@ def übersicht_ordner_view(request, projekt_id):
     # TODO: Kontrolle Projektadmin
 
     projekt = Projekt.objects.using(DB_SUPER).get(pk = projekt_id)
-    db_projekt = projekt.db_bezeichnung(DB_SUPER)
+    db_projekt = projekt.db_bezeichnung()
 
     # POST
     if request.method == 'POST':
@@ -206,41 +204,41 @@ def übersicht_ordner_view(request, projekt_id):
         # EREIGNIS PJS IMPORTIEREN
         if request.POST['ereignis'] == 'pjs_importieren':
             pjs = V_Projektstruktur.objects.using(DB_SUPER).get(pk = request.POST['pjs_id'])
-            pjs.in_db_anlegen(DB_SUPER, db_projekt)
+            pjs.in_db_anlegen(projekt)
 
         # EREIGNIS ORDNER LÖSCHEN
         if request.POST['ereignis'] == 'ordner_löschen':
             ordner = Ordner.objects.using(db_projekt).get(pk = request.POST['ordner_id'])
-            ordner.löschen(db_projekt)
+            ordner.löschen(projekt)
 
         # EREIGNIS ORDNER ANLEGEN
         if request.POST['ereignis'] == 'ordner_anlegen':
             neuer_ordner = Ordner.objects.using(db_projekt).create(
                 zeitstempel = timezone.now()
                 )
-            neuer_ordner.bezeichnung_ändern(db_projekt, request.POST['ordner_bezeichnung'])
-            neuer_ordner.entlöschen(db_projekt)
+            neuer_ordner.bezeichnung_ändern(projekt, request.POST['ordner_bezeichnung'])
+            neuer_ordner.entlöschen(projekt)
 
         # EREIGNIS UNTERORDNER ANLEGEN
         if request.POST['ereignis'] == 'unterordner_anlegen':
             ordner = Ordner.objects.using(db_projekt).get(pk = request.POST['ordner_id'])
-            ordner.unterordner_anlegen(db_projekt, request.POST['unterordner_bezeichnung'])
+            ordner.unterordner_anlegen(projekt, request.POST['unterordner_bezeichnung'])
 
         # EREIGNIS WFSCH ÄNDERN
         if request.POST['ereignis'] == 'wfsch_ändern':
             ordner = Ordner.objects.using(db_projekt).get(pk = request.POST['ordner_id'])
             if request.POST['wfsch_id'] == 'Kein WFSch':
-                ordner.verbindung_wfsch_löschen(db_projekt)    
+                ordner.verbindung_wfsch_löschen(projekt)    
             else:
                 wfsch = Workflow_Schema.objects.using(db_projekt).get(pk = request.POST['wfsch_id'])
-                ordner.verbindung_wfsch_herstellen(db_projekt, wfsch)
+                ordner.verbindung_wfsch_herstellen(projekt, wfsch)
 
     # Packe context und lade Template
     context = {
         'projekt_id': projekt_id,
-        'liste_ordner': liste_ordner_dict(DB_SUPER, db_projekt),
-        'liste_wfsch': liste_wfsch_dict(db_projekt),
-        'liste_v_pjs': liste_v_pjs_dict(DB_SUPER) if not Projektstruktur.objects.using(db_projekt).all() else None # Nur ausfüllen wenn noch keine PJS importiert
+        'liste_ordner': liste_ordner_dict(projekt),
+        'liste_wfsch': liste_wfsch_dict(projekt),
+        'liste_v_pjs': liste_v_pjs_dict() if not Projektstruktur.objects.using(db_projekt).all() else None # Nur ausfüllen wenn noch keine PJS importiert
         } 
     
     return render(request, './projektadmin/übersicht_ordner.html', context)
@@ -250,7 +248,7 @@ def freigabeverwaltung_ordner_view(request, firma_id, projekt_id):
     # TODO: Kontrolle Projektadmin
 
     projekt = Projekt.objects.using(DB_SUPER).get(pk = projekt_id)
-    db_projekt = projekt.db_bezeichnung(DB_SUPER)
+    db_projekt = projekt.db_bezeichnung()
     firma = Firma.objects.using(DB_SUPER).get(pk = firma_id)
 
     if request.method == 'POST':
@@ -260,28 +258,28 @@ def freigabeverwaltung_ordner_view(request, firma_id, projekt_id):
                 if 'freigabe' in value:
                     ordner = Ordner.objects.using(db_projekt).get(pk = key)
                     if value == 'freigabe_lesen':
-                        ordner.lesefreigabe_erteilen_firma(db_projekt, firma)
+                        ordner.lesefreigabe_erteilen_firma(projekt, firma)
                     elif value == 'freigabe_upload':
-                        ordner.uploadfreigabe_erteilen_firma(db_projekt, firma)
+                        ordner.uploadfreigabe_erteilen_firma(projekt, firma)
                     else:
-                        ordner.freigaben_entziehen_firma(db_projekt, firma)
+                        ordner.freigaben_entziehen_firma(projekt, firma)
 
         # EREIGNIS FREIGABEN ÜBERNEHMEN ROLLE
         if request.POST['ereignis'] == 'freigaben_rollen_übernehmen':
-            for o in liste_ordner(db_projekt):
-                o.freigaben_übertragen_rollen_firma(db_projekt, firma)
+            for o in liste_ordner(projekt):
+                o.freigaben_übertragen_rollen_firma(projekt, firma)
 
     li_ordner_dict = []
-    for o in liste_ordner(db_projekt):
-        dict_o = o.ordner_dict(DB_SUPER, db_projekt)
-        dict_o['freigabe_lesen'] = True if o.lesefreigabe_firma(db_projekt, firma) else False
-        dict_o['freigabe_upload'] = True if o.uploadfreigabe_firma(db_projekt, firma) else False
+    for o in liste_ordner(projekt):
+        dict_o = o.ordner_dict(projekt)
+        dict_o['freigabe_lesen'] = True if o.lesefreigabe_firma(projekt, firma) else False
+        dict_o['freigabe_upload'] = True if o.uploadfreigabe_firma(projekt, firma) else False
         dict_o['keine_freigabe'] = True if not dict_o['freigabe_lesen'] and not dict_o['freigabe_upload'] else False
         li_ordner_dict.append(dict_o)
     
     # Packe Context und lade Template
-    dict_firma = firma.firma_dict(DB_SUPER)
-    dict_firma['liste_rollen'] = liste_rollen_firma_dict(db_projekt, firma)
+    dict_firma = firma.firma_dict()
+    dict_firma['liste_rollen'] = liste_rollen_firma_dict(projekt, firma)
 
     context = {
         'projekt_id': projekt_id,

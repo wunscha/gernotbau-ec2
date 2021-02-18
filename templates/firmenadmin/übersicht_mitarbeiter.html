@@ -52,14 +52,16 @@
                 </li>
 
                 {% if mitarbeiter.liste_projekte %}
-                <li class="list-group-item">
-                    Projekte:
-                    <ul>
-                        {% for projekt in mitarbeiter.liste_projekte %}
-                            <li>{{projekt.bezeichnung}}</li>
-                        {% endfor %}
-                    </ul>
-                </li>
+                    {% for projekt in mitarbeiter.liste_projekte %}
+                    <li class="list-group-item">
+                        <p class="font-weight-bolder">Projekt: {{projekt.bezeichnung}}</p>
+                        <ul>
+                            {% for rolle in projekt.liste_rollen %}
+                                <li>{{rolle.bezeichnung}}</li>
+                            {% endfor %}
+                        </ul>
+                    </li>
+                    {% endfor %}
                 {% endif %}
             </ul>
         {% endif %}

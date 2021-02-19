@@ -7,7 +7,7 @@ from django.utils import timezone
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth import get_user_model
 
-from superadmin.models import Projekt, Firma, Projekt_DB
+from superadmin.models import Mitarbeiter, Projekt, Firma, Projekt_DB
 from gernotbau.settings import DB_SUPER
 ######################################
 # VORLAGEN
@@ -928,6 +928,18 @@ class Rolle(models.Model):
         except ObjectDoesNotExist:
             return None
 
+    def ist_mitarbeiterrolle(self, projekt, mitarbeiter):
+        # Prüfen ob Verbindung Rolle-Mitarbeiter aktuell
+        try:
+            verbindung_ro_fa = Rolle_Firma.objects.using(projekt.db_bezeichnung()).get(rolle = self, firma_id = mitarbeiter.firma.id)
+            verbindung_ro_ma = Rolle_Mitarbeiter.objects.using(projekt.db_bezeichnung()).get(rolle_firma = verbindung_ro_fa, mitarbeiter_id = mitarbeiter.id)
+            if verbindung_ro_ma.aktuell(projekt):
+                return True
+            else:
+                return False
+        except ObjectDoesNotExist:
+            return False
+
     def rolleninhaber_hinzufügen(self, projekt, mitarbeiter):
         verbindung_rolle_firma = Rolle_Firma.objects.using(projekt.db_bezeichnung()).get(rolle = self, firma_id = mitarbeiter.firma.id)
         verbindung_rolle_mitarbeiter = Rolle_Mitarbeiter.objects.using(projekt.db_bezeichnung()).get_or_create(
@@ -1088,7 +1100,7 @@ class Workflow_Schema(models.Model):
             zeitstempel = timezone.now()
             )
 
-    def bezeichnung(self, projekt):
+    def _bezeichnung(self, projekt):
         return WFSch_Bezeichnung.objects.using(projekt.db_bezeichnung()).filter(wfsch = self).latest('zeitstempel').bezeichnung
 
     # WORKFLOW_SCHEMA GELÖSCHT
@@ -1157,14 +1169,26 @@ class Workflow_Schema(models.Model):
             li_stufen_dict.append(s.wfsch_stufe_dict(projekt, firma))
         return li_stufen_dict
 
+    # WORKFLOW_SCHEMA PRÜFER
+    def firmenprüfer_nach_rollen_zuweisen(self, projekt, firma):
+        for s in self.liste_stufen(projekt):
+            if s._firma_ist_prüffirma(projekt, firma):
+                for ro in s._liste_rollen(projekt):
+                    if ro.ist_firmenrolle(projekt, firma):
+                        for ma in firma.liste_mitarbeiter():
+                            if ro.ist_mitarbeiterrolle(projekt, ma):
+                                wfschSt_ro = WFSch_Stufe_Rolle.objects.using(projekt.db_bezeichnung()).get(wfsch_stufe = s, rolle = ro)
+                                wfschSt_fa = WFSch_Stufe_Firma.objects.using(projekt.db_bezeichnung()).get(wfsch_stufe_rolle = wfschSt_ro, firma_id = firma.id)
+                                wfschSt_fa.firmenprüfer_hinzufügen(projekt, ma)
+
     # WORKFLOW_SCHEMA DICT
     def wfsch_dict(self, projekt, firma = None):
         wfsch_dict = self.__dict__
-        wfsch_dict['bezeichnung'] = self.bezeichnung(projekt)
+        wfsch_dict['bezeichnung'] = self._bezeichnung(projekt)
         wfsch_dict['liste_wfsch_stufen'] = self.liste_stufen_dict(projekt, firma)
 
         return wfsch_dict
-
+  
 class WFSch_Bezeichnung(models.Model):
     wfsch = models.ForeignKey(Workflow_Schema, on_delete = models.CASCADE)
     bezeichnung = models.CharField(max_length = 50)
@@ -1250,21 +1274,24 @@ class WFSch_Stufe(models.Model):
             )
         verbindung_wfsch_rolle.entaktualisieren(projekt)
 
-    def liste_rollen(self, projekt):
+    def _liste_rollen(self, projekt):
         li_rollen = []
         for verbindung_wfschSt_r in WFSch_Stufe_Rolle.objects.using(projekt.db_bezeichnung()).filter(wfsch_stufe = self):
             if verbindung_wfschSt_r.aktuell(projekt) and not verbindung_wfschSt_r.rolle.gelöscht(projekt):
                 li_rollen.append(verbindung_wfschSt_r.rolle)
         return li_rollen
 
-    def liste_rollen_dict(self, projekt):
+    def liste_rollen_dict(self, projekt, firma = None):
         li_rollen_dict= []
-        for r in self.liste_rollen(projekt):
+        for r in self._liste_rollen(projekt):
             rolle_dict = r.__dict__
             rolle_dict['bezeichnung'] = r.bezeichnung(projekt)
             verbindung_wfsch_stufe_rolle = WFSch_Stufe_Rolle.objects.using(projekt.db_bezeichnung()).get(wfsch_stufe = self, rolle = r)
             rolle_dict['liste_prüffirmen'] = verbindung_wfsch_stufe_rolle.liste_firmen_dict(projekt)
             
+            if firma:
+                rolle_dict['rolle_ist_firmenrolle'] = True if firma in verbindung_wfsch_stufe_rolle.liste_firmen(projekt) else False
+
             li_rollen_dict.append(rolle_dict)
         return li_rollen_dict
 
@@ -1289,7 +1316,7 @@ class WFSch_Stufe(models.Model):
 
     def liste_prüffirmen(self, projekt):
         li_prüffirmen = []
-        for r in self.liste_rollen(projekt):
+        for r in self._liste_rollen(projekt):
             verbindung_wfschSt_rolle = WFSch_Stufe_Rolle.objects.using(projekt.db_bezeichnung()).get(wfsch_stufe = self, rolle = r)
             for fa in verbindung_wfschSt_rolle.liste_firmen(projekt):
                 if not fa in li_prüffirmen:
@@ -1309,7 +1336,7 @@ class WFSch_Stufe(models.Model):
             li_nicht_pf_dict.append(pf.firma_dict())
         return li_nicht_pf_dict
 
-    def ist_firmenstufe(self, projekt, firma):
+    def _firma_ist_prüffirma(self, projekt, firma):
         if firma in self.liste_prüffirmen(projekt):
             return True
         else:
@@ -1320,11 +1347,11 @@ class WFSch_Stufe(models.Model):
     def wfsch_stufe_dict(self, projekt, firma):
         wfsch_s_dict = self.__dict__
         wfsch_s_dict['liste_nicht_prüffirmen'] = self.liste_nicht_prüffirmen_dict(projekt)
-        wfsch_s_dict['liste_rollen'] = self.liste_rollen_dict(projekt)
+        wfsch_s_dict['liste_rollen'] = self.liste_rollen_dict(projekt, firma)
         wfsch_s_dict['bezeichnung'] = self.bezeichnung(projekt)
         
         if firma:
-            wfsch_s_dict['ist_firmenstufe'] = self.ist_firmenstufe(projekt, firma)
+            wfsch_s_dict['firma_ist_prüffirma'] = self._firma_ist_prüffirma(projekt, firma)
 
         return wfsch_s_dict
 
@@ -1401,8 +1428,16 @@ class WFSch_Stufe_Rolle(models.Model):
     def liste_firmen_dict(self, projekt):
         li_firmen_dict = []
         for fa in self.liste_firmen(projekt):
-            li_firmen_dict.append(fa.firma_dict())
+            dict_fa = fa.firma_dict()
+            verbindung_wfschSt_fa = WFSch_Stufe_Firma.objects.using(projekt.db_bezeichnung()).get(wfsch_stufe_rolle = self, firma_id = fa.id)
+            dict_fa['liste_firmenprüfer'] = verbindung_wfschSt_fa._liste_firmenprüfer(projekt)
+            dict_fa['liste_nicht_firmenprüfer'] = verbindung_wfschSt_fa._liste_nicht_firmenprüfer(projekt)
+            li_firmen_dict.append(dict_fa)
         return li_firmen_dict
+
+    # WFSCH_STUFE_ROLLE MITARBEITER
+    def liste_mitarbeiter_firma(self, projekt, firma):
+        pass
 
 class WFSch_Stufe_Rolle_Aktuell(models.Model):
     wfsch_stufe_rolle = models.ForeignKey(WFSch_Stufe_Rolle, on_delete = models.CASCADE)
@@ -1435,20 +1470,111 @@ class WFSch_Stufe_Firma(models.Model):
         except ObjectDoesNotExist:
             return False
 
+    # WFSCH_STUFE_FIRMA MITARBEITER (BZW. "FIRMENPRÜFER")
+    def _liste_firmenprüfer(self, projekt):
+        qs_verbindungen_wfschSt_ma = WFSch_Stufe_Mitarbeiter.objects.using(projekt.db_bezeichnung()).filter(wfsch_stufe_firma = self)
+        li_wfschSt_ma = []
+        for verbindung_wfschSt_ma in qs_verbindungen_wfschSt_ma:
+            ma = Mitarbeiter.objects.using(DB_SUPER).get(pk = verbindung_wfschSt_ma.mitarbeiter_id)
+            if verbindung_wfschSt_ma.aktuell(projekt) and not ma.gelöscht():
+                li_wfschSt_ma.append(ma)
+        return li_wfschSt_ma
+
+    def _liste_firmenprüfer_dict(self, projekt):
+        li_wfschSt_ma_dict = []
+        for ma in self._liste_firmenprüfer(projekt):
+            dict_ma = ma.mitarbeiter_dict()
+            verbindung_wfschSt_ma = WFSch_Stufe_Mitarbeiter.objects.using(projekt.db_bezeichnung()).get(wfsch_stufe_firma = self)
+            dict_ma['immer_erforderlich'] = verbindung_wfschSt_ma.immer_erforderlich(projekt)
+            li_wfschSt_ma_dict.append(dict_ma)
+        return li_wfschSt_ma_dict
+
+    def _liste_nicht_firmenprüfer(self, projekt):
+        li_nicht_fp = []
+        firma = Firma.objects.using(DB_SUPER).get(pk = self.firma_id)
+        for ma in firma_liste_mitarbeiter_projekt(projekt, firma):
+            if not ma in self._liste_firmenprüfer(projekt):
+                li_nicht_fp.append(ma)
+        return li_nicht_fp
+
+    def _liste_nicht_firmenprüfer_dict(self, projekt):
+        li_nicht_fp_dict = []
+        for fp in self._liste_nicht_firmenprüfer(self, projekt):
+            li_nicht_fp_dict.append(fp.mitarbeiter_dict())
+        return li_nicht_fp_dict
+
+    def firmenprüfer_hinzufügen(self, projekt, firmenprüfer_neu):
+        verbindung_firmenprüfer_neu = WFSch_Stufe_Mitarbeiter.objects.using(projekt.db_bezeichnung()).get_or_create(
+            wfsch_stufe_firma = self,
+            mitarbeiter_id = firmenprüfer_neu.id,
+            defaults = {'zeitstempel': timezone.now()}
+            )[0]
+        verbindung_firmenprüfer_neu.aktualisieren(projekt)
+
+    def firmenprüfer_lösen(self, projekt, firmenprüfer_lö):
+        verbindung_firmenprüfer_lö = WFSch_Stufe_Mitarbeiter.objects.using(projekt.db_bezeichnung()).get(
+            wfsch_stufe_firma = self,
+            mitarbeiter_id = firmenprüfer_lö.id
+            )
+        verbindung_firmenprüfer_lö.entaktualisieren(projekt)
+
 class WFSch_Stufe_Firma_Aktuell(models.Model):
     wfsch_stufe_firma = models.ForeignKey(WFSch_Stufe_Firma, on_delete = models.CASCADE)
     aktuell = models.BooleanField()
     zeitstempel = models.DateTimeField()
 
 class WFSch_Stufe_Mitarbeiter(models.Model):
-    immer_erforderlich = models.BooleanField()
-    wfsch_stufe = models.ForeignKey(WFSch_Stufe, on_delete = models.CASCADE)
-    mitarbeiter_id = models.CharField(max_length=20, default='Das ist nicht gültig')
-    gelöscht = models.BooleanField(default = False)
+    wfsch_stufe_firma = models.ForeignKey(WFSch_Stufe_Firma, on_delete = models.CASCADE, null = True) # TODO: Nullable entfernen
+    mitarbeiter_id = models.CharField(max_length=20, default='Das ist nicht gültig') # TODO: Default entfernen
     zeitstempel = models.DateTimeField(default = timezone.now)
 
-    def __str__(self):
-        return str('%s - %s' % (self.wfsch_stufe.workflow_schema.bezeichnung, self.mitarbeiter.last_name,))
+    # WFSCH_STUFE_MITARBEITER AKTUELL
+
+    def aktualisieren(self, projekt):
+        WFSch_Stufe_Mitarbeiter_Aktuell.objects.using(projekt.db_bezeichnung()).create(
+            wfsch_stufe_mitarbeiter = self,
+            aktuell = True,
+            zeitstempel = timezone.now()
+            )
+    
+    def entaktualisieren(self, projekt):
+        WFSch_Stufe_Mitarbeiter_Aktuell.objects.using(projekt.db_bezeichnung()).create(
+            wfsch_stufe_mitarbeiter = self,
+            aktuell = False,
+            zeitstempel = timezone.now()
+            )
+
+    def aktuell(self, projekt):
+        try:
+            qs_wfschSt_ma_aktuell = WFSch_Stufe_Mitarbeiter_Aktuell.objects.using(projekt.db_bezeichnung()).filter(wfsch_stufe_mitarbeiter = self)
+            return qs_wfschSt_ma_aktuell.latest('zeitstempel').aktuell
+        except ObjectDoesNotExist:
+            return False
+
+    # WFSCH_STUFE_MITARBEITER IMMER ERFORDERLICH
+    def immer_erforderlich_ändern(self, projekt, immer_erforderlich_neu):
+        WFSch_Stufe_Mitarbeiter_Immer_Erforderlich.objects.using(projekt.db_bezeichnung()).create(
+            wfsch_stufe_mitarbeiter = self,
+            immer_erforderlicht = immer_erforderlich_neu,
+            zeitstempel = timezone.now()
+            )
+    
+    def immer_erforderlich(self, projekt):
+        try:
+            qs_wfschSt_ma_immer_erf = WFSch_Stufe_Mitarbeiter_Immer_Erforderlich.objects.using(projekt.db_bezeichnung()).filter(wfsch_stufe_mitarbeiter = self)
+            return qs_wfschSt_ma_immer_erf.latest('zeitstempel').immer_erforderlich
+        except ObjectDoesNotExist:
+            return False
+
+class WFSch_Stufe_Mitarbeiter_Aktuell(models.Model):
+    wfsch_stufe_mitarbeiter = models.ForeignKey(WFSch_Stufe_Mitarbeiter, on_delete = models.CASCADE)
+    aktuell = models.BooleanField()
+    zeitstempel = models.DateTimeField()
+
+class WFSch_Stufe_Mitarbeiter_Immer_Erforderlich(models.Model):
+    wfsch_stufe_mitarbeiter = models.ForeignKey(WFSch_Stufe_Mitarbeiter, on_delete = models.CASCADE)
+    immer_erforderlich = models.BooleanField()
+    zeitstempel = models.DateTimeField()
 
 class WFSch_Stufe_Vorlage(models.Model):
     wfsch_stufe = models.ForeignKey(WFSch_Stufe, on_delete = models.CASCADE)
@@ -1775,6 +1901,64 @@ class Ordner(models.Model):
     def gelöscht(self, projekt):
         return Ordner_Gelöscht.objects.using(projekt.db_bezeichnung()).filter(ordner = self).latest('zeitstempel').gelöscht
 
+    # ORDNER DOKUMENTE
+    def _dokument_anlegen(self, projekt, mitarbeiter, formulardaten, liste_dateien):
+        neues_dokument = Dokument.objects.using(projekt.db_bezeichnung()).create(
+            mitarbeiter = mitarbeiter,
+            zeitstempel = timezone.now()
+            )
+        neues_dokument.entlöschen(projekt)
+        # Neue Verbindung Dokument-Ordner anlegen
+        Dokument_Ordner.objects.using(projekt.db_bezeichnung()).create(
+            dokument = neues_dokument,
+            ordner = self,
+            zeitstempel = timezone.now()
+            )
+
+        # TODO: liste_dateien bearbeiten: Hochladen, Dateien anlegen, Verbindungen Dokument-Datei anlegen
+
+    def _liste_dokumente(self, projekt):
+        qs_dok_ord = Dokument_Ordner.objects.using(projekt.db_bezeichnung()).filter(ordner = self)
+        li_dok = []
+        for dok_ord in qs_dok_ord:
+            if not dok_ord.dokument.gelöscht(projekt):
+                li_dok.append(dok_ord.dokument)
+        return li_dok
+
+    def _liste_dokumente_dict(self, projekt):
+        li_dok_dict = []
+        for dok in self._liste_dokumente(projekt):
+            li_dok_dict.append(dok._dokument_dict(projekt))
+        return li_dok_dict
+
+    def _liste_dokumente_freigegeben(self, projekt):
+        qs_dok_ord = Dokument_Ordner.objects.using(projekt.db_bezeichnung()).filter(ordner = self)
+        li_dok_frei = []
+        for dok_ord in qs_dok_ord:
+            if not dok_ord.dokument.gelöscht(projekt) and dok_ord.dokument.freigegeben(projekt):
+                li_dok_frei.append(dok_ord.dokument)
+        return li_dok_frei
+
+    def _liste_dokumente_freigegeben_dict(self, projekt):
+        li_dok_frei_dict = []
+        for dok in self._liste_dokumente_freigegeben(projekt):
+            li_dok_frei_dict.append(dok._dokument_dict(projekt))
+        return li_dok_frei_dict
+
+    def _liste_dokumente_mitarbeiter(self, projekt, mitarbeiter):
+        qs_dok_ord = Dokument_Ordner.objects.using(projekt.db_bezeichnung()).filter(ordner = self)
+        li_dok_ma = []
+        for dok_ord in qs_dok_ord:
+            if not dok_ord.dokument.gelöscht(projekt) and dok_ord.dokument.mitarbeiter == mitarbeiter:
+                li_dok_ma.append(dok_ord.dokument)
+        return li_dok_ma
+
+    def _liste_dokumente_mitarbeiter_dict(self, projekt, mitarbeiter):
+        li_dok_ma_dict = []
+        for dok in self._liste_dokumente_mitarbeiter(projekt, mitarbeiter):
+            li_dok_ma_dict.append(dok._dokument_dict(projekt))
+        return li_dok_ma_dict
+
     def ordner_dict(self, projekt):
         dict_o = self.__dict__
         dict_o['bezeichnung'] = self.bezeichnung(projekt)
@@ -1942,6 +2126,199 @@ class Ordner_WFSch_Aktuell(models.Model):
 class Projektstruktur(models.Model):
     zeitstempel = models.DateTimeField()
     v_pjs_id = models.CharField(max_length = 20)
+
+
+#####################################
+# DOKUMENTE
+
+class Dokument(models.Model):
+    mitarbeiter = models.ForeignKey(Mitarbeiter, on_delete = models.CASCADE)
+    zeitstempel = models.DateTimeField()
+
+    # DOKUMENT BEZEICHNUNG
+    def _bezeichnung_ändern(self, projekt, bezeichnung_neu):
+        Dokument_Bezeichnung.objects.using(projekt.db_bezeichnung()).create(
+            dokument = self,
+            bezeichnung = bezeichnung_neu,
+            zeitstempel = timezone.now()
+            )
+    
+    def _bezeichnung(self, projekt):
+        return Dokument_Bezeichnung.objects.using(projekt.db_bezeichnung()).filter(dokument = self).latest('zeitstempel').bezeichnung
+
+    # DOKUMENT GELÖSCHT
+    def _löschen(self, projekt):
+        Dokument_Gelöscht.objects.using(projekt.db_bezeichnung()).create(
+            dokument = self,
+            gelöscht = True,
+            zeitstempel = timezone.now()
+            )
+
+    def _entlöschen(self, projekt):
+        Dokument_Gelöscht.objects.using(projekt.db_bezeichnung()).create(
+            dokument = self,
+            gelöscht = False,
+            zeitstempel = timezone.now()
+            )
+
+    def _gelöscht(self, projekt):
+        return Dokument_Gelöscht.objects.using(projekt.db_bezeichnung()).filter(dokument = self).latest('zeitstempel').gelöscht
+
+    # DOKUMENT FREIGEGEBEN
+    def _freigabe_erteilen(self, projekt):
+        Dokument_Freigegeben.objects.using(projekt.db_bezeichnung()).create(
+            dokument = self,
+            freigegeben = True,
+            zeitstempel = timezone.now()
+            )
+
+    def _freigegeben(self, projekt):
+        try:
+            return Dokument_Freigegeben.objects.using(projekt.db_bezeichnung()).filter(dokument = self).latest('zeitstempel').freigegeben
+        except ObjectDoesNotExist:
+            return False
+
+    # DOKUMENT ORDNER
+    def _ordner_ändern(self, projekt, ordner_neu):
+        dokument_ordner_neu = Dokument_Ordner.objects.using(projekt.db_bezeichnung()).create(
+            dokument = self,
+            ordner = ordner_neu,
+            zeitstempel = timezone.now()
+            )
+        
+    def _ordner(self, projekt):
+        # Dokument hat immer nur einen Ordner --> letzter Ordner wird zurückgegeben
+        return Dokument_Ordner.objects.using(projekt.db_bezeichnung()).filter(dokument = self).latest('zeitstempel').ordner
+
+    # DOKUMENT DATEIEN
+    def _datei_anlegen(self, projekt, dateiname_neu):
+        projektpfad = Pfad.objects.using(projekt.db_bezeichnung()).latest('zeitstempel')        
+        neue_datei = Datei.objects.using(projekt.db_bezeichnung()).create(
+            dateiname = dateiname_neu,
+            pfad = projektpfad,
+            zeitstempel = timezone.now()
+            )
+        # Verbindung Dokument-Datei anlegen
+        Dokument_Datei.objects.using(projekt.db_bezeichnung()).create(
+            dokument = self,
+            datei = neue_datei,
+            zeitstempel = timezone.now()
+            )
+    
+    def _liste_dateien(self, projekt):
+        qs_dokument_datei = Dokument_Datei.objects.using(projekt.db_bezeichnung()).filter(dokument = self)
+        li_dateien = []
+        for dok_dat in qs_dokument_datei:
+            li_dateien.append(dok_dat.datei)
+        return li_dateien
+    
+    def _liste_dateien_dict(self, projekt):
+        li_dateien_dict = []
+        for dat in self._liste_dateien(projekt):
+            li_dateien_dict.append(dat.__dict__)
+        return li_dateien_dict
+
+    # DOKUMENT KOMMENTARE
+    def _kommentar_anlegen(self, projekt, mitarbeiter, kommentartext_neu, liste_dateien):
+        neues_kommentar = Kommentar.objects.using(projekt.db_bezeichnung()).create(
+            mitarbeiter = mitarbeiter,
+            kommentartext = kommentartext_neu,
+            zeitstempel = timezone.now()
+            )
+        # Verbindung Dokument-Kommentar anlegen
+        Dokument_Kommentar.objects.using(projekt.db_bezeichnung()).create(
+            dokument = self,
+            kommentar = neues_kommentar,
+            zeitstempel = timezone.now()
+            )
+        
+        # TODO: liste_dateien bearbeiten: Hochladen, Dateien anlegen, Verbindungen Kommentar-Datei anlegen
+
+    def _liste_kommentare(self, projekt):
+        qs_dok_kom = Dokument_Kommentar.objects.using(projekt.db_bezeichnung()).filter(dokument = self)
+        li_kommentare = []
+        for dok_kom in qs_dok_kom:
+            li_kommentare.append(dok_kom.kommentar)
+        return li_kommentare
+
+    def _liste_kommentare_dict(self, projekt):
+        li_kommentare_dict = []
+        for k in self._liste_kommentare(projekt):
+            dict_k = k.__dict__
+            dict_k['liste_dateien'] = k._liste_dateien_dict(projekt)
+            li_kommentare_dict.append(dict_k)
+        return li_kommentare_dict
+
+    # DOKUMENT DICT
+    def _dokument_dict(self, projekt):
+        dict_dok = self.__dict__
+        dict_dok['bezeichnung'] = self._bezeichnung(projekt)
+
+class Dokument_Bezeichnung(models.Model):
+    dokument = models.ForeignKey(Dokument, on_delete = models.CASCADE)
+    bezeichnung = models.CharField(max_length = 50)
+    zeitstempel = models.DateTimeField()
+
+class Dokument_Gelöscht(models.Model):
+    dokument = models.ForeignKey(Dokument, on_delete = models.CASCADE)
+    gelöscht = models.BooleanField()
+    zeitstempel = models.DateTimeField()
+
+class Dokument_Freigegeben(models.Model):
+    dokument = models.ForeignKey(Dokument, on_delete = models.CASCADE)
+    freigegeben = models.BooleanField()
+    zeitstempel = models.DateTimeField()
+
+class Dokument_Ordner(models.Model):
+    dokument = models.ForeignKey(Dokument, on_delete = models.CASCADE)
+    ordner = models.ForeignKey(Ordner, on_delete = models.CASCADE)
+    zeitstempel = models.DateTimeField()
+
+class Pfad(models.Model):
+    pfad = models.CharField(max_length = 100)
+    zeitstempel = models.DateTimeField()
+
+class Datei(models.Model):
+# Dateien auch als Anhang für Kommentar etc. einsetzbar ==> Verbindungen über Through-Tabellen zwecks Flexibilität
+    dateiname = models.CharField(max_length = 50)
+    pfad = models.ForeignKey(Pfad, on_delete = models.CASCADE)
+    zeitstempel = models.DateTimeField(null = True) # TODO: Nullable entfernen
+
+class Dokument_Datei(models.Model):
+    dokument = models.ForeignKey(Dokument, on_delete = models.CASCADE)
+    datei = models.ForeignKey(Datei, on_delete = models.CASCADE)
+    zeitstempel = models.DateTimeField()
+
+class Kommentar(models.Model):
+    mitarbeiter = models.ForeignKey(Mitarbeiter, on_delete = models.CASCADE, null = True) # TODO: Nullable entfernen
+    kommentartext = models.CharField(max_length = 250)
+    zeitstempel = models.DateTimeField()
+
+    # KOMMENTAR DATEIEN
+    def _datei_anlegen(self, projekt, daten_datei_neu):
+        pass
+
+    def _liste_dateien(self, projekt):
+        qs_kom_dat = Kommentar_Datei.objects.using(projekt.db_bezeichnung()).filter(kommentar = self)
+        li_dateien = []
+        for kom_dat in qs_kom_dat:
+            li_dateien.append(kom_dat.datei)
+    
+    def _liste_dateien_dict(self, projekt):
+        li_dateien_dict = []
+        for dat in self._liste_dateien(projekt):
+            li_dateien_dict.append(dat.__dict__)
+        return li_dateien_dict
+
+class Kommentar_Datei(models.Model):
+    kommentar = models.ForeignKey(Kommentar, on_delete = models.CASCADE)
+    datei = models.ForeignKey(Datei, on_delete = models.CASCADE)
+    zeitstempel = models.DateTimeField()
+
+class Dokument_Kommentar(models.Model):
+    dokument = models.ForeignKey(Dokument, on_delete = models.CASCADE)
+    kommentar = models.ForeignKey(Kommentar, on_delete = models.CASCADE)
+    zeitstempel = models.DateTimeField()
 
 ###################################################################
 # FUNKTIONEN OHNE KLASSE

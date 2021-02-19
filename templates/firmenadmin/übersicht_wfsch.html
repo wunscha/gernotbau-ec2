@@ -17,96 +17,114 @@
 
     <h1 class="mb-5 text-center">Übersicht Workflowschemata</h1>
 
-    {% for wfsch in liste_wfsch %}
-    <ul class="my-3 list-group">
-        <!-- WF-Schema Bezeichnung -->
-        <li class="list-group-item font-weight-bolder" style="background-color: #f8f9fa;">{{wfsch.bezeichnung}}</li>
+    {% for projekt in liste_wfsch_firma %}
+        
+        {% for wfsch in projekt.liste_wfsch %}
+        <ul class="my-3 list-group">
+            <!-- WF-Schema Bezeichnung -->
+            <li class="list-group-item font-weight-bolder" style="background-color: #f8f9fa;">Projekt: {{projekt.bezeichnung}} - WFSch: {{wfsch.bezeichnung}}</li>
 
-        <!-- Auflistung WFSch-Stufen -->
-        {% for wfsch_st in wfsch.liste_wfsch_stufen %}
-            
-            <!-- Auflistung Prüfer, wenn Userfirma Prüffirma ist -->
-            {% if wfsch_st.userfirma_ist_prüffirma %}
-                <li class="list-group-item">
-                    <p class="font-weight-bolder">Stufe {{forloop.counter}}</p>
+            <!-- Formular MA nach Rollen zuweisen -->
+            <li class="list-group-item">
+                <form action="{% url 'firmenadmin:übersicht_wfsch' firma.id %}" method="POST">
+                    {% csrf_token %}
+                    <input hidden type="text" name="wfsch_id" value="{{wfsch.id}}">
+                    <input hidden type="text" name="projekt_id" value="{{projekt.id}}">
+                    <button class="m-2 btn btn-outline-primary" type="submit" name="ereignis" value="mitarbeiter_nach_rollen_zuweisen">
+                        Mitarbeiter nach Rollen zuweisen
+                    </button>
+                </form>
+            </li>
 
-                    {% for prüffirma in wfsch_st.liste_prüffirmen %}
-                        {% if prüffirma.ist_userfirma %}
-                        <!-- Liste Prüfer als Form, um 'immer erforderlich' zu wählen -->
-                        <input hidden type="text" name="ereignis" value="einstellung_erforderlichkeit_prüfer">
-                        <input hidden type="text" name="projekt_id" value={{wfsch.projekt_id}}>
-                        <ul>
-                            {% for prüfer in prüffirma.liste_prüfer %}
-                            <li class="my-4">
-                                <div class="d-flex flex-row">
-                                    <form class="form-inline" action="{% url 'firmenadmin:übersicht_wfsch' %}" method="POST">
-                                        {% csrf_token %}
-                                        <input hidden type="text" name="ereignis" value="erforderlichkeit_ändern">
-                                        <input hidden type="text" name="projekt_id" value="{{wfsch.projekt_id}}">
-                                        <input hidden type="text" name="wfsch_stufe_id" value="{{wfsch_st.id}}">
-                                        <input hidden type="text" name="prüfer_id" value="{{prüfer.id}}">
-                                        <label for="erforderlichkeit_ändern_button">{{prüfer.first_name}} {{prüfer.last_name}}</label>
-                                        <button type="submit"
-                                                class="mx-2 py-0 btn btn-outline-dark align-middle"
-                                                id="erforderlichkeit_ändern_button"
-                                                style="font-size: small">
-                                                {% if prüfer.immer_erforderlich %}
-                                                    Zustimmung erforderlich
-                                                {% else %}
-                                                    Zustimmung optional
-                                                {% endif %}
-                                        </button>
-                                    </form>
-
-                                    <form class="form-inline" action="{% url 'firmenadmin:übersicht_wfsch' %}" method="POST">
-                                        {% csrf_token %}
-                                        <input hidden type="text" name="ereignis" value="prüfer_lösen">
-                                        <input hidden type="text" name="projekt_id" value="{{wfsch.projekt_id}}">
-                                        <input hidden type="text" name="wfsch_stufe_id" value="{{wfsch_st.id}}">
-                                        <input hidden type="text" name="prüfer_id" value="{{prüfer.id}}">
-                                        <button type="submit"
-                                                class="mx-2 p-0 btn btn-outline-danger align-middle"
-                                                style="font-size: small; width: 20px;">
-                                                -
-                                        </button>
-                                    </form>
+            <!-- Auflistung WFSch-Stufen -->
+            {% for wfsch_stufe in wfsch.liste_wfsch_stufen %}
+                
+                <!-- Auflistung Prüfer, wenn Userfirma Prüffirma ist -->
+                    
+                    {% if wfsch_stufe.firma_ist_prüffirma %}
+                    <li class="list-group-item">
+                        <div class="font-weight-bolder text-center">Stufe {{forloop.counter}}: {{wfsch_stufe.bezeichnung}}</div>
+                        
+                        {% for r in wfsch_stufe.liste_rollen %}
+                            
+                            {% if r.rolle_ist_firmenrolle %}
+                                <div class="mt-2 font-weight-bolder">
+                                    <span class="border-bottom">{{r.bezeichnung}}</span>
                                 </div>
-                            </li>
-                            {% endfor %}
-                        </ul>
 
-                        <!-- Formular 'Prüfer hinzufügen' -->
-                            {% if prüffirma.liste_nicht_prüfer %}
-                            <form class="p-2 form-inline border-top" action="{% url 'firmenadmin:übersicht_wfsch' %}" method="POST">
-                                {% csrf_token %}
-                                <input hidden type="text" name="ereignis" value="prüfer_hinzufügen">
-                                <input hidden type="text" name="projekt_id" value={{wfsch.projekt_id}}>
-                                <label for="dropdown_prüfer">Prüfer hinzufügen</label>
-                                <select class="m-2 form-control" name="prüfer_hinzufügen_id" id="dropdown_prüfer">
-                                    {% for nicht_prüfer in prüffirma.liste_nicht_prüfer %}
-                                        <option value="{{nicht_prüfer.id}}">{{nicht_prüfer.first_name}} {{nicht_prüfer.last_name}}</option>
-                                    {% endfor %}
-                                </select>
-                                <button class="m-2 btn btn-outline-primary" name="wfsch_stufe_id" value="{{wfsch_st.id}}">Hinzufügen</button>
-                            </form>
+                                <!-- Firmenprüfer -->
+                               {% for fa in r.liste_prüffirmen %}
+                                    {% if fa.id == firma.id %}
+                                        
+                                    <!-- Formular Firmenprüfer hinzufügen -->
+                                    {% if fa.liste_nicht_firmenprüfer %}
+                                        <form class="m-0 form-inline" action="{% url 'firmenadmin:übersicht_wfsch' firma.id %}" mehtod="POST">
+                                            {% csrf_token %}
+                                            <input hidden type="text" name="wfsch_stufe_id" value="{{wfsch_stufe.id}}">
+                                            <input hidden type="text" name="projekt_id" value="{{projekt.id}}">
+                                            <input hidden type="text" name="rolle_id" value="{{r.id}}">
+                                            <select class="form-control" name="mitarbeiter_id">
+                                                {% for np in fa.liste_nicht_firmenprüfer %}
+                                                <option value="{{np.id}}">{{np.first_name}} {{np.last_name}}</option>
+                                                {% endfor %}
+                                            </select>
+                                            <button class="m-2 p-0 btn btn-outline-success text-center"
+                                                    type="submit"
+                                                    formmethod="POST"
+                                                    name="ereignis"
+                                                    value="firmenprüfer_hinzufügen"
+                                                    style="height: 30px; width: 30px; font-size: small;">+</button>
+                                        </form>
+                                    {% endif %}
+
+                                    <!-- Auflistung Firmenprüfer mit Löschen Button -->
+                                    {% for p in fa.liste_firmenprüfer %}
+                                        <form action="{% url 'firmenadmin:übersicht_wfsch' firma.id %}" method="POST">
+                                            {% csrf_token %}
+                                            <input hidden type="text" name="wfsch_stufe_id" value="{{wfsch_stufe.id}}">
+                                            <input hidden type="text" name="projekt_id" value="{{projekt.id}}">
+                                            <input hidden type="text" name="rolle_id" value="{{r.id}}">
+                                            <input hidden type="text" name="mitarbeiter_id" value="{{p.id}}">
+                                            <button class="p-0 btn btn-outline-danger text-center"
+                                                    type="submit"
+                                                    name="ereignis"
+                                                    value="firmenprüfer_lösen"
+                                                    id="ereignis_button"
+                                                    style="height: 20px; width: 20px; font-size: small;">-</button>
+                                            <label for="ereignis_button">{{p.first_name}} {{p.last_name}}</label>
+                                        </form>
+                                        {% endfor %}
+                                        
+                                    {% endif %}
+                                {% endfor %}
+
+
+                            <!-- Rolle ausgegraut darstellen wenn nicht Firmenrolle -->
+                            {% else %}
+                                <div class="mt-2 font-weight-bolder">
+                                    <span class="border-bottom" style="color: lightgrey;">{{r.bezeichnung}}</span>
+                                </div>
                             {% endif %}
 
-                        {% endif %}
-                    {% endfor %}
+                        {% endfor %}
+                    </li>
 
-                </li>
+                    {% else %}
 
-            <!-- Ausgegraute Anzeige, wenn Userfirma nicht Prüffirma -->
-            {% else %}
+                    <li class="list-group-item">
+                        <div class="font-weight-bolder text-center" style="color: lightgrey">Stufe {{forloop.counter}}: {{wfsch_stufe.bezeichnung}}</div>
+                    </li>
+            
+                    {% endif %}
 
-                <li class="list-group-item font-weight-bolder" style="color: grey">
-                    Stufe {{forloop.counter}}
-                </li>                 
-
-            {% endif %}
+            {% endfor %}
 
         {% endfor %}
+
     {% endfor %}
 
 </div>
+                    
 {% endblock inhalt %}
+                    
+ 

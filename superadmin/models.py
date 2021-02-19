@@ -51,7 +51,7 @@ class Firma(models.Model):
             zeitstempel = timezone.now()
             )
 
-    def bezeichnung(self):
+    def _bezeichnung(self):
         return Firma_Bezeichnung.objects.using(DB_SUPER).filter(firma = self).latest('zeitstempel').bezeichnung
 
     # FIRMA KURZBEZEICHNUNG
@@ -62,7 +62,7 @@ class Firma(models.Model):
             zeitstempel = timezone.now()
             )
 
-    def kurzbezeichnung(self):
+    def _kurzbezeichnung(self):
         qs_fa_kurzbezeichnung = Firma_Kurzbezeichnung.objects.using(DB_SUPER).filter(firma = self)
         if qs_fa_kurzbezeichnung:
             return qs_fa_kurzbezeichnung.latest('zeitstempel').kurzbezeichnung
@@ -77,7 +77,7 @@ class Firma(models.Model):
             zeitstempel = timezone.now()
             )
     
-    def strasse(self):
+    def _strasse(self):
         qs_fa_strasse = Firma_Strasse.objects.using(DB_SUPER).filter(firma = self)
         if qs_fa_strasse:
             return qs_fa_strasse.latest('zeitstempel').strasse
@@ -92,7 +92,7 @@ class Firma(models.Model):
             zeitstempel = timezone.now()
             )
 
-    def hausnummer(self):
+    def _hausnummer(self):
         qs_fa_hausnummer = Firma_Hausnummer.objects.using(DB_SUPER).filter(firma = self)
         if qs_fa_hausnummer:
             return qs_fa_hausnummer.latest('zeitstempel').hausnummer
@@ -107,7 +107,7 @@ class Firma(models.Model):
             zeitstempel = timezone.now()
             )
 
-    def postleitzahl(self):
+    def _postleitzahl(self):
         qs_fa_postleitzahl = Firma_Postleitzahl.objects.using(DB_SUPER).filter(firma = self)
         if qs_fa_postleitzahl:
             return qs_fa_postleitzahl.latest('zeitstempel').postleitzahl
@@ -122,7 +122,7 @@ class Firma(models.Model):
             zeitstempel = timezone.now()
             )
 
-    def ort(self):
+    def _ort(self):
         qs_fa_ort = Firma_Ort.objects.using(DB_SUPER).filter(firma = self)
         if qs_fa_ort:
             return qs_fa_ort.latest('zeitstempel').ort
@@ -137,7 +137,7 @@ class Firma(models.Model):
             zeitstempel = timezone.now()
             )
     
-    def email(self):
+    def _email(self):
         qs_fa_email = Firma_Email.objects.using(DB_SUPER).filter(firma = self)
         if qs_fa_email:
             return qs_fa_email.latest('zeitstempel').email
@@ -220,13 +220,13 @@ class Firma(models.Model):
     # FIRMA DICT
     def firma_dict(self):
         fa_dict = self.__dict__
-        fa_dict['bezeichnung'] = self.bezeichnung()
-        fa_dict['kurzbezeichnung'] = self.kurzbezeichnung()
-        fa_dict['strasse'] = self.strasse()
-        fa_dict['hausnummer'] = self.hausnummer()
-        fa_dict['postleitzahl'] = self.postleitzahl()
-        fa_dict['ort'] = self.ort()
-        fa_dict['email'] = self.email()
+        fa_dict['bezeichnung'] = self._bezeichnung()
+        fa_dict['kurzbezeichnung'] = self._kurzbezeichnung()
+        fa_dict['strasse'] = self._strasse()
+        fa_dict['hausnummer'] = self._hausnummer()
+        fa_dict['postleitzahl'] = self._postleitzahl()
+        fa_dict['ort'] = self._ort()
+        fa_dict['email'] = self._email()
         
         return fa_dict
 

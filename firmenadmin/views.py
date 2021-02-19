@@ -2,7 +2,7 @@ from gernotbau.settings import DB_SUPER
 from django.shortcuts import render
 from django.contrib.auth import get_user_model
 from superadmin.models import Mitarbeiter, Projekt, Firma
-from projektadmin.models import Rolle, Workflow_Schema, WFSch_Stufe, WFSch_Stufe_Mitarbeiter, firma_liste_wfsch_dict, liste_rollen_firma_dict, liste_rollen_mitarbeiter, liste_rollen_mitarbeiter_dict, liste_projekte_mitarbeiter_dict, firma_liste_mitarbeiter_projekt_dict
+from projektadmin.models import Rolle, Workflow_Schema, WFSch_Stufe, WFSch_Stufe_Rolle, WFSch_Stufe_Firma, WFSch_Stufe_Mitarbeiter, firma_liste_wfsch_dict, liste_rollen_firma_dict, liste_rollen_mitarbeiter, liste_rollen_mitarbeiter_dict, liste_projekte_mitarbeiter_dict, firma_liste_mitarbeiter_projekt_dict
 from django.http import HttpResponse, HttpResponseRedirect
 from .forms import MitarbeiterNeuForm
 from django.urls import reverse
@@ -123,6 +123,32 @@ def übersicht_wfsch_view(request, firma_id):
     # TODO: Kontrolle Firmenadmin
 
     firma = Firma.objects.using(DB_SUPER).get(pk = firma_id)
+    
+    # POST
+    if request.method == 'POST':
+        
+        # OBJEKTE HOLEN
+        pj = Projekt.objects.using(DB_SUPER).get(pk = request.POST['projekt_id'])
+        
+        if request.POST['ereignis'] == 'firmenprüfer_hinzufügen' or request.POST['ereignis'] == 'firmenprüfer_lösen':
+            wfschSt = WFSch_Stufe.objects.using(pj.db_bezeichnung()).get(pk = request.POST['wfsch_stufe_id'])
+            ma = Mitarbeiter.objects.using(DB_SUPER).get(pk = request.POST['mitarbeiter_id'])
+            ro = Rolle.objects.using(pj.db_bezeichnung()).get(pk = request.POST['rolle_id'])
+            wfschSt_ro = WFSch_Stufe_Rolle.objects.using(pj.db_bezeichnung()).get(wfsch_stufe = wfschSt, rolle = ro)
+            wfschSt_fa = WFSch_Stufe_Firma.objects.using(pj.db_bezeichnung()).get(wfsch_stufe_rolle = wfschSt_ro, firma_id = ma.firma.id)
+        
+        # EREIGNIS FIRMENPRÜFER HINZUFÜGEN
+        if request.POST['ereignis'] == 'firmenprüfer_hinzufügen':
+            wfschSt_fa.firmenprüfer_hinzufügen(projekt = pj, firmenprüfer_neu = ma)
+
+        # EREIGNIS FIRMENPRÜFER LÖSEN
+        if request.POST['ereignis'] == 'firmenprüfer_lösen':
+            wfschSt_fa.firmenprüfer_lösen(projekt = pj, firmenprüfer_lö = ma)
+
+        # EREIGNIS MITARBEITER NACH ROLLEN ZUWEISEN
+        if request.POST['ereignis'] == 'mitarbeiter_nach_rollen_zuweisen':
+            wfschSt = Workflow_Schema.objects.using(pj.db_bezeichnung()).get(pk = request.POST['wfsch_id'])
+            wfschSt.firmenprüfer_nach_rollen_zuweisen(pj, firma)
 
     # Packe context und lade Template
     li_wfsch_dict = []
@@ -133,7 +159,7 @@ def übersicht_wfsch_view(request, firma_id):
     
     context = {
         'firma': firma,
-        'liste_wfsch': li_wfsch_dict,
+        'liste_wfsch_firma': li_wfsch_dict,
         }
 
     return render(request, './firmenadmin/übersicht_wfsch.html', context)

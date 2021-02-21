@@ -17,5 +17,15 @@ urlpatterns = [
     # WFSch-Verwaltung
     path('<projekt_id>/übersicht-wfsch/', views.übersicht_wfsch_view, name = 'übersicht_wfsch'),
     
-    
-]
+    #                 #
+    ## --- DOKAB --- ##
+    #                 #
+
+    # Anzeige Ordnerinhalt
+    path('<projekt_id>/ordner-root', views.übersicht_ordnerinhalt_root_view, name = 'übersicht_ordnerinhalt_root'),
+    path('<projekt_id>/ordner/<ordner_id>/', views.übersicht_ordnerinhalt_view, name = 'übersicht_ordnerinhalt'),
+ 
+    # Dokumente
+    path('<projekt_id>/upload-dokument/<ordner_id>/', views.upload_dokument_view, name = 'upload_dokument'),
+    path('<projekt_id>/detailansicht-dokument/<dokument_id>', views.detailansicht_dokument_view, name = 'detailansicht_dokument')
+    ]

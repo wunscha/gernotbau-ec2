@@ -2,7 +2,7 @@ from django.shortcuts import render
 
 import funktionen
 from .funktionen import user_ist_projektadmin, sortierte_stufenliste, suche_letzte_stufe, Ordnerbaum
-from .models import Ordner_WFSch, Projektstruktur, V_Workflow_Schema, WFSch_Stufe_Rolle, Workflow_Schema, WFSch_Stufe, WFSch_Stufe_Firma, Ordner, Ordner_Firma_Freigabe
+from .models import Ordner_WFSch, Projektstruktur, V_Workflow_Schema, WFSch_Stufe_Rolle, Workflow_Schema, WFSch_Stufe, WFSch_Stufe_Firma, Ordner, Ordner_Firma_Freigabe, Dokument
 from .forms import FirmaNeuForm, WFSchWählenForm
 from django.urls import reverse
 from django.http import HttpResponse, HttpResponseRedirect
@@ -10,7 +10,7 @@ from django import forms
 from django.utils import timezone
 
 from superadmin.models import Projekt, Firma
-from projektadmin.models import V_Projektstruktur, Rolle, liste_rollen_dict, liste_rollen, liste_rollen_firma, liste_rollen_firma_dict, liste_ordner_dict, liste_ordner, liste_wfsch_dict, liste_v_pjs_dict, firma_projektrollen_zuweisen
+from projektadmin.models import V_Projektstruktur, Rolle, listendarstellung_ordnerbaum_gesamt, liste_oberste_ordner_dict, liste_rollen_dict, liste_rollen, liste_rollen_firma, liste_rollen_firma_dict, liste_ordner_dict, liste_ordner, liste_wfsch_dict, liste_v_pjs_dict, firma_projektrollen_zuweisen
 from funktionen import hole_objs, hole_dicts, workflows, ordnerfunktionen
 from gernotbau.settings import DB_SUPER
 
@@ -288,3 +288,97 @@ def freigabeverwaltung_ordner_view(request, firma_id, projekt_id):
         }
 
     return render(request, './projektadmin/freigabeverwaltung_ordner.html', context)
+
+
+
+
+
+#                             #
+##                           ##
+### -----    DOKAB    ----- ### 
+### -----             ----- ###
+##                           ##
+#                             #
+
+
+#############################################################
+# Ordner
+
+def übersicht_ordnerinhalt_root_view(request, projekt_id):
+    # TODO: Kontrolle Login
+
+    projekt = Projekt.objects.using(DB_SUPER).get(pk = projekt_id)
+
+    context = {
+        'projekt': projekt,
+        'liste_ordnerbaum': listendarstellung_ordnerbaum_gesamt(projekt, request.user),
+        'liste_unterordner': liste_oberste_ordner_dict(projekt, request.user)
+        }
+    
+    return render(request, './dokab/übersicht_ordnerinhalt.html', context)
+
+def übersicht_ordnerinhalt_view(request, projekt_id, ordner_id):
+    # TODO: Kontrolle Login
+    
+    # Packe context und Lade Übersicht Ordnerinhalt
+    projekt = Projekt.objects.using(DB_SUPER).get(pk = projekt_id)
+    aktueller_ordner = Ordner.objects.using(projekt.db_bezeichnung()).get(pk = ordner_id)
+
+    context = {
+        'projekt': projekt.__dict__,
+        'aktueller_ordner': aktueller_ordner.ordner_dict(projekt, request.user), 
+        'liste_ordnerbaum': listendarstellung_ordnerbaum_gesamt(projekt, request.user),
+        'liste_dokumente_freigegeben': aktueller_ordner._liste_dokumente_freigegeben_dict(projekt),
+        'liste_dokumente_mitarbeiter': aktueller_ordner._liste_dokumente_mitarbeiter_dict(projekt, request.user),
+        'liste_unterordner': aktueller_ordner._liste_unterordner_dict(projekt, request.user),
+        }
+
+    return render(request, './dokab/übersicht_ordnerinhalt.html', context)
+
+def upload_dokument_view(request, projekt_id, ordner_id):
+    projekt = Projekt.objects.using(DB_SUPER).get(pk = projekt_id)
+    ordner = Ordner.objects.using(projekt.db_bezeichnung()).get(pk = ordner_id)
+
+    # POST
+    if request.method == 'POST':
+        ordner._dokument_anlegen(
+            projekt = projekt,
+            mitarbeiter = request.user,
+            formulardaten = request.POST,
+            liste_dateien = request.FILES.getlist('dateien'))
+
+    # Context packen und Formular laden
+    context = {
+        'projekt': projekt.projekt_dict(),
+        'ordner': ordner.ordner_dict(projekt, mitarbeiter = request.user),
+        }
+    return render(request, './dokab/upload_formular.html', context)
+
+def detailansicht_dokument_view(request, projekt_id, dokument_id):
+    # TODO: Kontrolle Login
+
+    projekt = Projekt.objects.using(DB_SUPER).get(pk = projekt_id)
+    dokument = Dokument.objects.using(projekt.db_bezeichnung()).get(pk = dokument_id)
+
+    # POST
+    if request.method == 'POST':
+        
+        # EREIGNIS KOMMENTAR VERFASSEN
+        if request.POST['ereignis'] == 'kommentar_verfassen':
+            dokument._kommentar_anlegen(projekt = projekt, mitarbeiter = request.user, kommentartext_neu = request.POST['kommentartext'])
+
+        # EREIGNIS DOWNLOAD
+        if request.POST['ereignis'] == 'download':
+            dokument._download(projekt, mitarbeiter = request.user)
+
+    # Packe context und lade Template
+    context = {
+        'projekt': projekt,
+        'dokument': dokument._dokument_dict(projekt),
+        'ordner_id': dokument._ordner(projekt).id,
+        'liste_dateien': dokument._liste_dateien_dict(projekt),
+        'liste_dokhist': dokument._liste_dokhist(projekt),
+        }
+
+    return render(request, './dokab/detailansicht_dokument.html', context)
+    

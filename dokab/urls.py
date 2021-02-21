@@ -16,4 +16,5 @@ urlpatterns = [
     
     # Dokumente
     path('<projekt_id>/upload-dokument/<ordner_id>/', views.upload_dokument_view, name = 'upload_dokument'),
+    path('<projekt_id>/detailansicht-dokument/<dokument_id>', views.detailansicht_dokument_view, name = 'detailansicht_dokument')
 ]

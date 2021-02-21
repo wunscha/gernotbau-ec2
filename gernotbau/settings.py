@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.1/ref/settings/
 """
 
+import os
 from pathlib import Path
 from django.urls import reverse
 
@@ -153,3 +154,9 @@ AUTH_USER_MODEL = 'superadmin.Mitarbeiter'
 
 LOGIN_REDIRECT_URL = 'home' #reverse('home')
 LOGOUT_REDIRECT_URL = 'home' #reverse('home')
+
+################################
+# Dateiablage
+
+MEDIA_ROOT = os.path.join(BASE_DIR, '_DATEIABLAGE')
+MEDIA_URL = '/_DATEIABLAGE/'

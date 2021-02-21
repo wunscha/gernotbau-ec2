@@ -61,9 +61,27 @@ def upload_dokument_view(request, projekt_id, ordner_id):
     # Context packen und Formular laden
     context = {
         'projekt': projekt.projekt_dict(),
-        'ordner': ordner.ordner_dict(projekt),
+        'ordner': ordner.ordner_dict(projekt, mitarbeiter = request.user),
         }
     return render(request, './dokab/upload_formular.html', context)
+
+def detailansicht_dokument_view(request, projekt_id, dokument_id):
+    # TODO: Kontrolle Login
+
+    projekt = Projekt.objects.using(DB_SUPER).get(pk = projekt_id)
+    dokument = Dokument.objects.using(projekt.db_bezeichnung()).get(pk = dokument_id)
+
+    # Packe context und lade Template
+    context = {
+        'projekt_id': projekt.id,
+        'dokument': dokument._dokument_dict(projekt),
+        'ordner_id': dokument._ordner(projekt).id,
+        'liste_dateien': dokument._liste_dateien_dict(projekt),
+        'liste_dokhist': dokument._liste_dokhist(projekt),
+        }
+
+    return render(request, './dokab/detailansicht_dokument.html', context)
+    
 
 #############################################################
 # Workflows

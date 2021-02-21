@@ -8,7 +8,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth import get_user_model
 
 from superadmin.models import Mitarbeiter, Projekt, Firma, Projekt_DB
-from gernotbau.settings import DB_SUPER
+from gernotbau.settings import DB_SUPER, MEDIA_ROOT
 ######################################
 # VORLAGEN
 #
@@ -1920,11 +1920,11 @@ class Ordner(models.Model):
     # ORDNER DOKUMENTE
     def _dokument_anlegen(self, projekt, mitarbeiter, formulardaten, liste_dateien):
         neues_dokument = Dokument.objects.using(projekt.db_bezeichnung()).create(
-            mitarbeiter = mitarbeiter,
+            mitarbeiter_id = mitarbeiter.id,
             zeitstempel = timezone.now()
             )
-        neues_dokument.bezeichnung_ändern(projekt, neue_bezeichnung = formulardaten['dokument_bezeichnung'])
-        neues_dokument.entlöschen(projekt)
+        neues_dokument._bezeichnung_ändern(projekt, bezeichnung_neu = formulardaten['dokument_bezeichnung'])
+        neues_dokument._entlöschen(projekt)
 
         # Neue Verbindung Dokument-Ordner anlegen
         Dokument_Ordner.objects.using(projekt.db_bezeichnung()).create(
@@ -1957,7 +1957,7 @@ class Ordner(models.Model):
         qs_dok_ord = Dokument_Ordner.objects.using(projekt.db_bezeichnung()).filter(ordner = self)
         li_dok_frei = []
         for dok_ord in qs_dok_ord:
-            if not dok_ord.dokument.gelöscht(projekt) and dok_ord.dokument.freigegeben(projekt):
+            if not dok_ord.dokument._gelöscht(projekt) and dok_ord.dokument._freigegeben(projekt):
                 li_dok_frei.append(dok_ord.dokument)
         return li_dok_frei
 
@@ -1971,7 +1971,7 @@ class Ordner(models.Model):
         qs_dok_ord = Dokument_Ordner.objects.using(projekt.db_bezeichnung()).filter(ordner = self)
         li_dok_ma = []
         for dok_ord in qs_dok_ord:
-            if not dok_ord.dokument.gelöscht(projekt) and dok_ord.dokument.mitarbeiter == mitarbeiter:
+            if not dok_ord.dokument._gelöscht(projekt) and dok_ord.dokument.mitarbeiter_id == str(mitarbeiter.id):
                 li_dok_ma.append(dok_ord.dokument)
         return li_dok_ma
 
@@ -2068,7 +2068,6 @@ class Ordner_Firma_Freigabe(models.Model):
 ##################################
 # Projektstruktur
 
-
 class Ordner_Rolle(models.Model):
     ordner = models.ForeignKey(Ordner, on_delete = models.CASCADE)
     rolle = models.ForeignKey(Rolle, on_delete = models.CASCADE)
@@ -2152,7 +2151,7 @@ class Projektstruktur(models.Model):
 # DOKUMENTE
 
 class Dokument(models.Model):
-    mitarbeiter = models.ForeignKey(Mitarbeiter, on_delete = models.CASCADE)
+    mitarbeiter_id = models.CharField(max_length = 20, null = True)  # TODO: Nullable entfernen
     zeitstempel = models.DateTimeField()
 
     # DOKUMENT BEZEICHNUNG
@@ -2212,7 +2211,7 @@ class Dokument(models.Model):
 
     # DOKUMENT DATEIEN
     def _datei_anlegen(self, projekt, f):
-        projektpfad = Pfad.objects.using(projekt.db_bezeichnung()).latest('zeitstempel').pfad        
+        projektpfad = Pfad.objects.using(projekt.db_bezeichnung()).latest('zeitstempel')
         neue_datei = Datei(
             dateiname = f.name,
             pfad = projektpfad,
@@ -2244,9 +2243,9 @@ class Dokument(models.Model):
         return li_dateien_dict
 
     # DOKUMENT KOMMENTARE
-    def _kommentar_anlegen(self, projekt, mitarbeiter, kommentartext_neu, liste_dateien):
+    def _kommentar_anlegen(self, projekt, mitarbeiter, kommentartext_neu, liste_dateien = None):
         neues_kommentar = Kommentar.objects.using(projekt.db_bezeichnung()).create(
-            mitarbeiter = mitarbeiter,
+            mitarbeiter_id = mitarbeiter.id,
             kommentartext = kommentartext_neu,
             zeitstempel = timezone.now()
             )
@@ -2274,12 +2273,68 @@ class Dokument(models.Model):
             li_kommentare_dict.append(dict_k)
         return li_kommentare_dict
 
+    # DOKUMENT DOWNLOAD
+    def _download(self, projekt, mitarbeiter):
+        
+        # TODO: Download durchführen
+        
+        # Download in DB anlegen
+        Dokument_Download.objects.using(projekt.db_bezeichnung()).create(
+            dokument = self,
+            mitarbeiter_id = mitarbeiter.id,
+            zeitstempel = timezone.now()
+            )
+
+    # DOKUMENT DOKHIST
+    def _liste_dokhist(self, projekt):
+        li_dokhist = []
+        User = get_user_model()
+        
+        # Ereignis Upload
+        dict_upload = {
+            'ereignis': 'Upload',
+            'zeitstempel': self.zeitstempel,
+            'mitarbeiter': User.objects.using(DB_SUPER).get(pk = self.mitarbeiter_id),
+            'text': 'Dokument hochgeladen'
+            }
+        li_dokhist.append(dict_upload)
+
+        # Ereignisse Kommentar
+        for k in self._liste_kommentare(projekt):
+            dict_kommentar = {
+                'ereignis': 'Kommentar',
+                'zeitstempel': k.zeitstempel,
+                'mitarbeiter': User.objects.using(DB_SUPER).get(pk = k.mitarbeiter_id),
+                'text': k.kommentartext
+                }
+            li_dokhist.append(dict_kommentar)
+
+        # Ereignis Download
+        for d in Dokument_Download.objects.using(projekt.db_bezeichnung()).filter(dokument = self):
+            dict_download = {
+                'ereignis': 'Download',
+                'zeitstempel': d.zeitstempel,
+                'mitarbeiter': User.objects.using(DB_SUPER).get(pk = d.mitarbeiter_id),
+                'text': 'Dokument heruntergeladen'
+                }
+            li_dokhist.append(dict_download)
+
+        # Ereignis Workflow
+
+        
+        # Sortiere Liste zurückgeben (ACHTUNG: Zeitstempel wird zZt als String sortiert)
+        return sorted(li_dokhist, key = lambda i: i['zeitstempel'])
+
     # DOKUMENT DICT
     def _dokument_dict(self, projekt):
         dict_dok = self.__dict__
         dict_dok['bezeichnung'] = self._bezeichnung(projekt)
-        dict_dok['mitarbeiter'] = self.mitarbeiter.mitarbeiter_dict()
+        User = get_user_model()
+        mitarbeiter = User.objects.using(DB_SUPER).get(pk = self.mitarbeiter_id)
+        dict_dok['mitarbeiter'] = mitarbeiter.mitarbeiter_dict()
         dict_dok['status'] = 'FREIGABESTATUS NOCHT IMPLEMENTIEREN'
+
+        return dict_dok
 
 class Dokument_Bezeichnung(models.Model):
     dokument = models.ForeignKey(Dokument, on_delete = models.CASCADE)
@@ -2314,10 +2369,10 @@ class Datei(models.Model):
     # DATEI HOCHLADEN
     def _hochladen(self, projekt, f):
         projektpfad = Pfad.objects.using(projekt.db_bezeichnung()).latest('zeitstempel').pfad
-        dateipfad = projektpfad + self.id
-        ziel = open(dateipfad, 'wb+')
-        for chunk in f.chunks():
-            ziel.write(chunk)
+        dateipfad = str(MEDIA_ROOT) + '/' + projektpfad + '/' + str(self.id) + '_' + f.name
+        with open(dateipfad, 'wb+') as ziel:
+            for chunk in f.chunks():
+                ziel.write(chunk)
         ziel.close()
 
 class Dokument_Datei(models.Model):
@@ -2326,7 +2381,9 @@ class Dokument_Datei(models.Model):
     zeitstempel = models.DateTimeField()
 
 class Kommentar(models.Model):
-    mitarbeiter = models.ForeignKey(Mitarbeiter, on_delete = models.CASCADE, null = True) # TODO: Nullable entfernen
+# Kommentar hat keinen direkten Bezug zu Dokument, damit auch Möglichkeit besteht andere Elemente zu kommentieren
+
+    mitarbeiter_id = models.CharField(max_length = 20, null = True) # TODO: Nullable entfernen
     kommentartext = models.CharField(max_length = 250)
     zeitstempel = models.DateTimeField()
 
@@ -2354,6 +2411,11 @@ class Kommentar_Datei(models.Model):
 class Dokument_Kommentar(models.Model):
     dokument = models.ForeignKey(Dokument, on_delete = models.CASCADE)
     kommentar = models.ForeignKey(Kommentar, on_delete = models.CASCADE)
+    zeitstempel = models.DateTimeField()
+
+class Dokument_Download(models.Model):
+    dokument = models.ForeignKey(Dokument, on_delete = models.CASCADE, null=True) # TODO: Nullable entfernen
+    mitarbeiter_id = models.CharField(max_length = 20)
     zeitstempel = models.DateTimeField()
 
 ###################################################################

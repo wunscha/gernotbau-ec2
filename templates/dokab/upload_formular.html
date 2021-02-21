@@ -11,7 +11,6 @@
     active
 {% endblock ordner_active %}
 
-
 <!-- Seiteninhalt -->
 {% block inhalt %}
 <div class="container">
@@ -19,7 +18,7 @@
     <h1 class="mb-5 text-center">Upload</h1>
 
     <!-- Formular 'Upload' -->
-    <form class="p-2" action="{% url 'dokab:upload' projekt.id ordner.id %}" method="POST" enctype="multipart/form-data" style="border: 1px solid #dee2e6;">
+    <form class="p-2" action="{% url 'dokab:upload_dokument' projekt.id ordner.id %}" method="POST" enctype="multipart/form-data" style="border: 1px solid #dee2e6;">
                
         {% csrf_token %}
 

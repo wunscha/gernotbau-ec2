@@ -33,7 +33,7 @@
                 {% if ordner.freigabe_lesen or ordner.freigabe_upload %}
                 <a href="{% url 'dokab:übersicht_ordnerinhalt' projekt.id ordner.id %}">{{ordner.darstellung}}{{ordner.bezeichnung}}</a>
                 {% else %}
-                {{ordner.darstellung}}{{ordner.bezeichnung}}
+                {{ordner.bezeichnung}}
                 {% endif %}
             </p>
         {% endfor %}
@@ -42,61 +42,95 @@
     <!-- HAUPTFENSTER ORDNERINHALT -->
     <div class="flex-grow-1 bd-highlight">
         
-        <!-- Kontrolle Zugriffsberechtigung -->
-        {% if zugriff_verweigert %}
-            <p style="color: red">Sie haben keine Zugriffsberechtigung auf diesen Ordner</p>
-        {% else %}
-
             <h1 class="mb-5 text-center">Ordnerinhalt {{aktueller_ordner.bezeichnung}}</h1>
-        
-            <table class="table">
-                <!-- Tabellenkopf -->
-                <thead>
-                    <tr>
-                        <th></th>
-                        <th>Bezeichnung</th>
-                        <th>Datum</th>
-                        <th>Erstellt von</th>
-                        <th>Freigegeben</th>
-                    </tr>
-                </thead>
 
-                <tbody>
-                    <!-- Auflistung Unterordner -->
-                    {% for unterordner in liste_unterordner %}
-                    <tr>
-                        <td></td>
-                        <td>
-                            {% if unterordner.freigabe_lesen or unterordner.freigabe_upload %}
-                            <a href="{% url 'dokab:übersicht_ordnerinhalt' projekt.id unterordner.id %}">{{unterordner.bezeichnung}}</a>
-                            {% else %}
-                            {{unterordner.bezeichnung}}
-                            {% endif %}
-                        </td>
-                        <td></td>
-                        <td></td>
-                    </tr>
-                    {% endfor %}
+            <!-- AUFLISTUNG UNTERORDNER (WENN VHD)-->
+            {% if liste_unterordner %}
+                <h2 class="my-2 text-center">Unterordner</h2>
 
-                    <!-- Auflistung Dokumente -->
-                    {% for dokument in liste_dokumente %}
-                    <tr>
-                        <td>
-                            <input type="checkbox" name="dokument_id" value="{{dokument.id}}">
-                        </td>
-                        <td>
-                            {{dokument.bezeichnung}}
-                        </td>
-                        <td>{{dokument.zeitstempel}}</td>
-                        <td>{{dokument.name_mitarbeiter}}</td>
-                        <td>{{dokument.freigegeben}}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
+                <table class="table border-bottom">
+                    <thead>
+                        <tr>
+                            <th>Bezeichnung</th>
+                            <th></th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for unterordner in liste_unterordner %}
+                        <tr>
+                            
+                            <td>
+                                {% if unterordner.freigabe_lesen or unterordner.freigabe_upload %}
+                                <a href="{% url 'dokab:übersicht_ordnerinhalt' projekt.id unterordner.id %}">{{unterordner.bezeichnung}}</a>
+                                {% else %}
+                                {{unterordner.bezeichnung}}
+                                {% endif %}
+                            </td>
+                            <td></td>
+                            <td></td>
 
-            </table>
-        {% endif %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% endif %}
 
+
+            <!-- AUFLISTUNG FREIGEGEBENE DOKUMENTE (WENN VHD) -->
+            {% if liste_dokumente_freigegeben %}
+                <h2 class="my-2 text-center">Freigegebene Dokumente</h2>
+                
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Bezeichnung</th>
+                            <th>Datum</th>
+                            <th>Erstellt von</th>
+                        </tr>
+                    </thead>
+                    
+                    <tbody>
+                        <!-- Auflistung Freigegebene Dokumente -->
+                        {% for dokument_f in liste_dokumente_freigegeben %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'dokab:detailansicht_dokument' projekt.id dokument_f.id %}">{{dokument_f.bezeichnung}}</a>
+                            </td>
+                            <td>{{dokument_f.zeitstempel}}</td>
+                            <td>{{dokument_f.mitarbeiter.first_name}} {{dokument_f.mitarbeiter.last_name</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% endif %}
+
+            <!-- AUFLISTUNG EIGENE DOKUMENTE (WENN VHD) -->
+            {% if liste_dokumente_mitarbeiter %}
+                <h2 class="my-2 text-center">Eigene Dokumente</h2>
+
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Bezeichnung<th>
+                            <th>Datum</th>
+                            <th>Freigabestatus</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for dokument_m in liste_dokumente_mitarbeiter %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'dokab:detailansicht_dokument' projekt.id dokument_m.id %}">{{dokument_m.bezeichnung}}</a>
+                            </td>
+                            <td>{{dokument_m.zeitstempel}}</td>
+                            <td>{{dokument_m.status}}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% endif %}
     </div>
 
 </div>

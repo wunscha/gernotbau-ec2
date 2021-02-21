@@ -271,7 +271,7 @@ def freigabeverwaltung_ordner_view(request, firma_id, projekt_id):
 
     li_ordner_dict = []
     for o in liste_ordner(projekt):
-        dict_o = o.ordner_dict(projekt)
+        dict_o = o.ordner_dict(projekt, request.user)
         dict_o['freigabe_lesen'] = True if o.lesefreigabe_firma(projekt, firma) else False
         dict_o['freigabe_upload'] = True if o.uploadfreigabe_firma(projekt, firma) else False
         dict_o['keine_freigabe'] = True if not dict_o['freigabe_lesen'] and not dict_o['freigabe_upload'] else False

@@ -1849,6 +1849,22 @@ class Ordner(models.Model):
                 li_unterordner.append(verbindung_o_uo.unterordner)
         return li_unterordner
 
+    def _liste_unterordner_dict(self, projekt, mitarbeiter):
+        li_uo_dict = []
+        for uo in self.liste_unterordner(projekt):
+            li_uo_dict.append(uo.ordner_dict(projekt, mitarbeiter))
+        return li_uo_dict
+
+    def _listendarstellung_ordnerbaum_unterhalb(self, projekt, mitarbeiter):
+        li_listendarstellung = []
+        def rekursion_liste_uo(ordner):
+            li_listendarstellung.append(ordner.ordner_dict(projekt, mitarbeiter))
+            for uo in ordner.liste_unterordner(projekt):
+                rekursion_liste_uo(uo)
+        
+        rekursion_liste_uo(self)
+        return li_listendarstellung
+
     # ORDNER ÜBERORDNER
     def überordner(self, projekt):
         qs_verbindungen_üo_o = Ordner_Unterordner.objects.using(projekt.db_bezeichnung()).filter(unterordner = self)
@@ -1907,7 +1923,9 @@ class Ordner(models.Model):
             mitarbeiter = mitarbeiter,
             zeitstempel = timezone.now()
             )
+        neues_dokument.bezeichnung_ändern(projekt, neue_bezeichnung = formulardaten['dokument_bezeichnung'])
         neues_dokument.entlöschen(projekt)
+
         # Neue Verbindung Dokument-Ordner anlegen
         Dokument_Ordner.objects.using(projekt.db_bezeichnung()).create(
             dokument = neues_dokument,
@@ -1915,7 +1933,11 @@ class Ordner(models.Model):
             zeitstempel = timezone.now()
             )
 
-        # TODO: liste_dateien bearbeiten: Hochladen, Dateien anlegen, Verbindungen Dokument-Datei anlegen
+        # Dateien hochladen und anlegen:
+        for datei in liste_dateien:
+            neues_dokument._datei_anlegen(projekt, f = datei)
+
+        # TODO: Workflow initiieren
 
     def _liste_dokumente(self, projekt):
         qs_dok_ord = Dokument_Ordner.objects.using(projekt.db_bezeichnung()).filter(ordner = self)
@@ -1959,22 +1981,20 @@ class Ordner(models.Model):
             li_dok_ma_dict.append(dok._dokument_dict(projekt))
         return li_dok_ma_dict
 
-    def ordner_dict(self, projekt):
+    def ordner_dict(self, projekt, mitarbeiter):
         dict_o = self.__dict__
         dict_o['bezeichnung'] = self.bezeichnung(projekt)
-        wfsch = self.wfsch(projekt)
-        dict_o['wfsch'] = wfsch.wfsch_dict(projekt) if wfsch else None
-        
+        dict_o['freigabe_upload'] = self.uploadfreigabe_firma(projekt, mitarbeiter.firma)
+        dict_o['freigabe_lesen'] = self.lesefreigabe_firma(projekt, mitarbeiter.firma)
+
         # Ordnerebene (oberste Ebene, also die direkt unter ROOT-Ordner, ist Ebene '0')
         ebene = 0
         o = self
         while o.überordner(projekt):
             ebene += 1
             o = o.überordner(projekt)
-
         dict_o['ebene'] = ebene
-        dict_o['vorlage'] = self.vorlage(projekt)
-
+        
         return dict_o
 
 ###################################
@@ -2191,20 +2211,25 @@ class Dokument(models.Model):
         return Dokument_Ordner.objects.using(projekt.db_bezeichnung()).filter(dokument = self).latest('zeitstempel').ordner
 
     # DOKUMENT DATEIEN
-    def _datei_anlegen(self, projekt, dateiname_neu):
-        projektpfad = Pfad.objects.using(projekt.db_bezeichnung()).latest('zeitstempel')        
-        neue_datei = Datei.objects.using(projekt.db_bezeichnung()).create(
-            dateiname = dateiname_neu,
+    def _datei_anlegen(self, projekt, f):
+        projektpfad = Pfad.objects.using(projekt.db_bezeichnung()).latest('zeitstempel').pfad        
+        neue_datei = Datei(
+            dateiname = f.name,
             pfad = projektpfad,
             zeitstempel = timezone.now()
             )
         # Verbindung Dokument-Datei anlegen
-        Dokument_Datei.objects.using(projekt.db_bezeichnung()).create(
+        neue_verbindung_dok_dat = Dokument_Datei(
             dokument = self,
             datei = neue_datei,
             zeitstempel = timezone.now()
             )
-    
+        # Datei hochladen
+        neue_datei._hochladen(projekt, f)
+        # Wenn Datei erfolreich hochgeladen --> Einträge in DB speichern
+        neue_datei.save(using = projekt.db_bezeichnung())
+        neue_verbindung_dok_dat.save(using = projekt.db_bezeichnung())
+
     def _liste_dateien(self, projekt):
         qs_dokument_datei = Dokument_Datei.objects.using(projekt.db_bezeichnung()).filter(dokument = self)
         li_dateien = []
@@ -2253,6 +2278,8 @@ class Dokument(models.Model):
     def _dokument_dict(self, projekt):
         dict_dok = self.__dict__
         dict_dok['bezeichnung'] = self._bezeichnung(projekt)
+        dict_dok['mitarbeiter'] = self.mitarbeiter.mitarbeiter_dict()
+        dict_dok['status'] = 'FREIGABESTATUS NOCHT IMPLEMENTIEREN'
 
 class Dokument_Bezeichnung(models.Model):
     dokument = models.ForeignKey(Dokument, on_delete = models.CASCADE)
@@ -2283,6 +2310,15 @@ class Datei(models.Model):
     dateiname = models.CharField(max_length = 50)
     pfad = models.ForeignKey(Pfad, on_delete = models.CASCADE)
     zeitstempel = models.DateTimeField(null = True) # TODO: Nullable entfernen
+
+    # DATEI HOCHLADEN
+    def _hochladen(self, projekt, f):
+        projektpfad = Pfad.objects.using(projekt.db_bezeichnung()).latest('zeitstempel').pfad
+        dateipfad = projektpfad + self.id
+        ziel = open(dateipfad, 'wb+')
+        for chunk in f.chunks():
+            ziel.write(chunk)
+        ziel.close()
 
 class Dokument_Datei(models.Model):
     dokument = models.ForeignKey(Dokument, on_delete = models.CASCADE)
@@ -2457,6 +2493,12 @@ def liste_oberste_ordner(projekt):
             li_oberste_o.append(o)
     return li_oberste_o
 
+def liste_oberste_ordner_dict(projekt, mitarbeiter):
+    li_ober_o_dict = []
+    for ober_o in liste_oberste_ordner(projekt):
+        li_ober_o_dict.append(ober_o.ordner_dict(projekt, mitarbeiter))
+    return li_ober_o_dict
+
 def liste_oberste_v_ordner(projekt):
     li_oberste_v_o = []
     for v_o in V_Ordner.objects.using(projekt.db_bezeichnung()).all():
@@ -2483,6 +2525,13 @@ def liste_ordner_dict(projekt):
     for o in liste_ordner(projekt):
         li_ordner_dict.append(o.ordner_dict(projekt))
     return li_ordner_dict
+
+def listendarstellung_ordnerbaum_gesamt(projekt, mitarbeiter):
+    li_listendarstellung_gesamt = []
+    for ober_o in liste_oberste_ordner(projekt):
+        for dict_o in ober_o._listendarstellung_ordnerbaum_unterhalb(projekt, mitarbeiter):
+            li_listendarstellung_gesamt.append(dict_o)
+    return li_listendarstellung_gesamt
 
 # WFSCH
 def liste_wfsch(projekt):
@@ -2511,6 +2560,9 @@ def liste_v_pjs_dict():
     for v_pjs in liste_v_pjs():
         li_v_pjs_dict.append(v_pjs.v_pjs_dict())
     return li_v_pjs_dict
+
+# DATEIEN
+
 
 #
 ###################################################################

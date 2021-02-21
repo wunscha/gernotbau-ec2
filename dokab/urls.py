@@ -15,5 +15,5 @@ urlpatterns = [
     path('<projekt_id>/übersicht_wf_zur_bearbeitung/', views.übersicht_wf_zur_bearbeitung_view, name = 'übersicht_wf_zur_bearbeitung'),
     
     # Dokumente
-    path('<projekt_id>/upload/<ordner_id>/', views.upload, name = 'upload'),
+    path('<projekt_id>/upload-dokument/<ordner_id>/', views.upload_dokument_view, name = 'upload_dokument'),
 ]

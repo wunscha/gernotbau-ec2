@@ -4,9 +4,9 @@ from django.http import HttpResponse, HttpResponseRedirect
 from django.utils import timezone
 import datetime
 
-from gernotbau.settings import BASE_DIR
+from gernotbau.settings import BASE_DIR, DB_SUPER
 from projektadmin.funktionen import Ordnerbaum, sortierte_stufenliste
-from projektadmin.models import Ordner_Firma_Freigabe, Ordner, Workflow_Schema, WFSch_Stufe, WFSch_Stufe_Mitarbeiter
+from projektadmin.models import Ordner_Firma_Freigabe, Ordner, Workflow_Schema, WFSch_Stufe, WFSch_Stufe_Mitarbeiter, liste_oberste_ordner_dict, listendarstellung_ordnerbaum_gesamt
 from superadmin.models import Firma, Projekt
 from .models import Dokument, MA_Stufe_Status_Update_Status, Status, Workflow, Workflow_Stufe, Mitarbeiter_Stufe_Status, Datei, Statuskommentar
 from .funktionen import user_hat_ordnerzugriff, speichere_datei_chunks, workflow_stufe_ist_aktuell, liste_prüffirmen, aktuelle_workflow_stufe
@@ -16,123 +16,54 @@ from funktionen import dateifunktionen, hole_objs, ordnerfunktionen, hole_dicts,
 # Ordner
 
 def übersicht_ordnerinhalt_root_view(request, projekt_id):
-# Leite weiter zur Übersicht Ordnerinhalt Root-Ordner
-    rootordner = Ordner.objects.using(projekt_id).get(ist_root_ordner = True)
-    return HttpResponseRedirect(reverse('dokab:übersicht_ordnerinhalt', args=(projekt_id, rootordner.id)))
+    # TODO: Kontrolle Login
+
+    projekt = Projekt.objects.using(DB_SUPER).get(pk = projekt_id)
+
+    context = {
+        'projekt': projekt,
+        'liste_ordnerbaum': listendarstellung_ordnerbaum_gesamt(projekt, request.user),
+        'liste_unterordner': liste_oberste_ordner_dict(projekt, request.user)
+        }
+    
+    return render(request, './dokab/übersicht_ordnerinhalt.html', context)
 
 def übersicht_ordnerinhalt_view(request, projekt_id, ordner_id):
-    # Kontrolle Login
-    if not request.user.is_authenticated:
-        return HttpResponseRedirect('login')
+    # TODO: Kontrolle Login
+    
+    # Packe context und Lade Übersicht Ordnerinhalt
+    projekt = Projekt.objects.using(DB_SUPER).get(pk = projekt_id)
+    aktueller_ordner = Ordner.objects.using(projekt.db_bezeichnung()).get(pk = ordner_id)
 
-    else:
-        # Packe context und Lade Übersicht Ordnerinhalt
-        projekt = Projekt.objects.using('default').get(pk = projekt_id)
-        aktueller_ordner = Ordner.objects.using(projekt_id).get(pk = ordner_id)
+    context = {
+        'projekt': projekt.__dict__,
+        'aktueller_ordner': aktueller_ordner.ordner_dict(projekt, request.user), 
+        'liste_ordnerbaum': listendarstellung_ordnerbaum_gesamt(projekt, request.user),
+        'liste_dokumente_freigegeben': aktueller_ordner._liste_dokumente_freigegeben_dict(projekt),
+        'liste_dokumente_mitarbeiter': aktueller_ordner._liste_dokumente_mitarbeiter_dict(projekt, request.user),
+        'liste_unterordner': aktueller_ordner._liste_unterordner_dict(projekt, request.user),
+        }
 
-        # Kontrolle Ordnerzugriff (Weiterverwendung 'zugriff_verweigert' im context):
-        if not ordnerfunktionen.userfirma_hat_ordnerzugriff(request.user, ordner_id, projekt_id):
-            zugriff_verweigert = True
-            # TODO: Anzeige Fehlermeldung beim Laden von 'übersicht_ordnerinhalt.html"
-            context = {
-                'projekt':projekt.__dict__,
-                'ordner':aktueller_ordner.__dict__,
-                'zugriff_verweigert': zugriff_verweigert
-                }
-            return render(request, './dokab/übersicht_ordnerinhalt.html', context)
+    return render(request, './dokab/übersicht_ordnerinhalt.html', context)
 
-        else:
-            zugriff_verweigert = False
-            
-            # POST: Download oder ähnliches
-            if request.method == 'POST':
-                pass
+def upload_dokument_view(request, projekt_id, ordner_id):
+    projekt = Projekt.objects.using(DB_SUPER).get(pk = projekt_id)
+    ordner = Ordner.objects.using(projekt.db_bezeichnung()).get(pk = ordner_id)
 
-            dict_aktueller_ordner = hole_dicts.ordner_mit_freigaben(
-                projekt = projekt, 
-                firma = request.user.firma,
-                ordner = aktueller_ordner
-                )
-            
-            liste_ordnerbaum = ordnerfunktionen.erzeuge_darstellung_ordnerbaum(
-                projekt = projekt, 
-                root_ordner = Ordner.objects.using(projekt_id).get(ist_root_ordner = True),
-                firma = request.user.firma
-            )
-            
-            liste_dokumente = hole_dicts.liste_dokumente_ordner(
-                projekt = projekt, 
-                ordner = aktueller_ordner
-                )
-            
-            liste_uo = hole_dicts.liste_unterordner(
-                projekt = projekt,
-                firma = request.user.firma,
-                ordner = aktueller_ordner
-            )
+    # POST
+    if request.method == 'POST':
+        ordner._dokument_anlegen(
+            projekt = projekt,
+            mitarbeiter = request.user,
+            formulardaten = request.POST,
+            liste_dateien = request.FILES.getlist('dateien'))
 
-            context = {
-                'projekt': projekt.__dict__,
-                'aktueller_ordner': dict_aktueller_ordner, 
-                'liste_ordnerbaum': liste_ordnerbaum,
-                'liste_dokumente': liste_dokumente,
-                'liste_unterordner': liste_uo,
-                'zugriff_verweigert': zugriff_verweigert,
-            }
-
-            return render(request, './dokab/übersicht_ordnerinhalt.html', context)
-
-def upload(request, projekt_id, ordner_id):
-    # Kontrolle Login
-    if not request.user.is_authenticated:
-        return HttpResponseRedirect('login')
-
-    else:
-        # Kontrolle Uploadfreigabe (Weiterverwendung 'zugriff_verweigert' im context):
-        if not ordnerfunktionen.userfirma_hat_uploadfreigabe(request.user, ordner_id, projekt_id):
-            zugriff_verweigert = True
-            # TODO: Anzeige Fehlermeldung beim Laden von 'übersicht_ordnerinhalt.html"
-        
-        else:
-            projekt = Projekt.objects.using('default').get(pk = projekt_id)
-            ordner = Ordner.objects.using(projekt_id).get(pk = ordner_id)
-            
-            # POST Upload durchführen und Workflow initiieren
-            if request.method == 'POST':
-                
-                # Lege Paket und Dokument in DB an
-                dokument_bezeichnung = request.POST['dokument_bezeichnung']
-                zielpfad = str(BASE_DIR) + '/_DATEIABLAGE/' #TODO: Verwaltung Ablagepfad anpassen
-
-                neues_dokument = Dokument(
-                    bezeichnung = dokument_bezeichnung,
-                    pfad = zielpfad,
-                    zeitstempel = timezone.now(),
-                    mitarbeiter_id = request.user.id,
-                    ordner = Ordner.objects.using(projekt_id).get(pk = ordner_id)
-                    )
-                neues_dokument.save(using = projekt_id)
-
-                # Dateien in DB anlegen und hochladen
-                for datei in request.FILES:
-                    neue_datei = Datei(
-                        dateiname = datei,
-                        dokument = neues_dokument,
-                        pfad = neues_dokument.pfad + datei
-                    )
-                    neue_datei.save(using = projekt_id)
-
-                    dateifunktionen.speichere_datei_chunks(request.FILES.get(datei), zielpfad)
-
-                # Workflow anlegen
-                workflows.neuer_workflow(projekt = projekt, dokument = neues_dokument)
-
-            # Context packen und Formular laden
-            context = {
-                'projekt': projekt.__dict__,
-                'ordner': ordner.__dict__,
-            }
-            return render(request, './dokab/upload_formular.html', context)
+    # Context packen und Formular laden
+    context = {
+        'projekt': projekt.projekt_dict(),
+        'ordner': ordner.ordner_dict(projekt),
+        }
+    return render(request, './dokab/upload_formular.html', context)
 
 #############################################################
 # Workflows

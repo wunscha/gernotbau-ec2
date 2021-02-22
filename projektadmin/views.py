@@ -1,8 +1,9 @@
+from django.http.response import FileResponse
 from django.shortcuts import render
 
 import funktionen
 from .funktionen import user_ist_projektadmin, sortierte_stufenliste, suche_letzte_stufe, Ordnerbaum
-from .models import Ordner_WFSch, Projektstruktur, V_Workflow_Schema, WFSch_Stufe_Rolle, Workflow_Schema, WFSch_Stufe, WFSch_Stufe_Firma, Ordner, Ordner_Firma_Freigabe, Dokument
+from .models import Ordner_WFSch, Projektstruktur, V_Workflow_Schema, WFSch_Stufe_Rolle, Workflow_Schema, WFSch_Stufe, WFSch_Stufe_Firma, Ordner, Ordner_Firma_Freigabe, Dokument, liste_wf_zur_bearbeitung_dict
 from .forms import FirmaNeuForm, WFSchWählenForm
 from django.urls import reverse
 from django.http import HttpResponse, HttpResponseRedirect
@@ -10,7 +11,7 @@ from django import forms
 from django.utils import timezone
 
 from superadmin.models import Projekt, Firma
-from projektadmin.models import V_Projektstruktur, Rolle, listendarstellung_ordnerbaum_gesamt, liste_oberste_ordner_dict, liste_rollen_dict, liste_rollen, liste_rollen_firma, liste_rollen_firma_dict, liste_ordner_dict, liste_ordner, liste_wfsch_dict, liste_v_pjs_dict, firma_projektrollen_zuweisen
+from projektadmin.models import V_Projektstruktur, Rolle, Dokument_Download, Workflow, listendarstellung_ordnerbaum_gesamt, liste_oberste_ordner_dict, liste_rollen_dict, liste_rollen, liste_rollen_firma, liste_rollen_firma_dict, liste_ordner_dict, liste_ordner, liste_wfsch_dict, liste_v_pjs_dict, firma_projektrollen_zuweisen
 from funktionen import hole_objs, hole_dicts, workflows, ordnerfunktionen
 from gernotbau.settings import DB_SUPER
 
@@ -341,11 +342,14 @@ def upload_dokument_view(request, projekt_id, ordner_id):
 
     # POST
     if request.method == 'POST':
-        ordner._dokument_anlegen(
+        neues_dok = ordner._dokument_anlegen(
             projekt = projekt,
             mitarbeiter = request.user,
             formulardaten = request.POST,
             liste_dateien = request.FILES.getlist('dateien'))
+
+        # Workflow anlegen
+        ordner._wfsch(projekt)._workflow_anlegen(projekt, neues_dok)
 
     # Context packen und Formular laden
     context = {
@@ -369,7 +373,15 @@ def detailansicht_dokument_view(request, projekt_id, dokument_id):
 
         # EREIGNIS DOWNLOAD
         if request.POST['ereignis'] == 'download':
-            dokument._download(projekt, mitarbeiter = request.user)
+            Dokument_Download.objects.using(projekt.db_bezeichnung()).create(
+                dokument = dokument, 
+                mitarbeiter_id = request.user.id, 
+                zeitstempel = timezone.now())
+
+            response = HttpResponse(dokument._zip_dateien(projekt), content_type='application/octet-stream')
+            response['Content-Disposition'] = f'attachment; filename={dokument._bezeichnung(projekt)}.zip'
+
+            return response
 
     # Packe context und lade Template
     context = {
@@ -382,3 +394,14 @@ def detailansicht_dokument_view(request, projekt_id, dokument_id):
 
     return render(request, './dokab/detailansicht_dokument.html', context)
     
+def wf_zur_bearbeitung_view(request, projekt_id):
+    # TODO: Kontrolle Login
+
+    projekt = Projekt.objects.using(DB_SUPER).get(pk = projekt_id)
+
+    context = {
+        'projekt': projekt,
+        'liste_workflows': liste_wf_zur_bearbeitung_dict(projekt, request.user)
+    }
+
+    return render(request, './dokab/übersicht_wf_zur_bearbeitung_test.html', context)

@@ -3,6 +3,7 @@ from django.utils import timezone
 from superadmin.models import Mitarbeiter
 from projektadmin.models import Ordner, Workflow_Schema
 
+'''
 class Dokument(models.Model):
     bezeichnung = models.CharField(max_length = 50)
     pfad = models.CharField(max_length = 100)
@@ -85,3 +86,4 @@ class Anhang(models.Model):
 
     def __str__(self):
         return self.bezeichnung
+'''

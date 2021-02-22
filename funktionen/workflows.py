@@ -1,7 +1,6 @@
 from funktionen import hole_objs
 from projektadmin.models import WFSch_Stufe_Firma, WFSch_Stufe_Mitarbeiter, WFSch_Stufe
 from superadmin.models import Firma
-from dokab.models import Mitarbeiter_Stufe_Status, MA_Stufe_Status_Update_Status, WF_Update_Abgeschlossen, Workflow_Stufe, WF_Stufe_Update_Aktuell, Workflow, Status
 from django.utils import timezone
 from django.core.exceptions import ObjectDoesNotExist
 

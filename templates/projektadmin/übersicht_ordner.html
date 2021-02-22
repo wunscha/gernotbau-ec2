@@ -80,15 +80,16 @@
                 <td><!-- Ordner Bezeichnung -->    
                     {{ordner.bezeichnung}}</td>
                 <td><!-- WFSch Bezeichnung -->
-                    {% if ordner.wfsch %}{{ordner.wfsch.bezeichnung}}{% else %}<span style="color: lightgrey;">Kein WFSch</span>{% endif %}</td>
+                    {% if ordner.wfsch %}{{ordner.wfsch}}{% else %}<span style="color: lightgrey;">Kein WFSch</span>{% endif %}</td>
                 <td><!-- Formular WFSch ändern -->
                     <form class="form-inline" action="{% url 'projektadmin:übersicht_ordner' projekt_id %}" method="POST">
                         {% csrf_token %}
                         <input hidden type="text" name="ordner_id" value="{{ordner.id}}">
                         <select class="form-control" name="wfsch_id">
+                            <!-- Nur "Nicht-WFSch" als-->
                             <option>Kein WFSch</option>
                             {% for wfsch in liste_wfsch %}
-                            {% if not wfsch.bezeichnung == ordner.wfsch.bezeichnung %}<option value="{{wfsch.id}}">{{wfsch.bezeichnung}}</option>{% endif %}
+                            {% if not wfsch.bezeichnung == ordner.wfsch %}<option value="{{wfsch.id}}">{{wfsch.bezeichnung}}</option>{% endif %}
                             {% endfor %}
                         </select>
                         <button class="mx-2 btn btn-outline-primary" name="ereignis" value="wfsch_ändern">WFSch ändern</button>

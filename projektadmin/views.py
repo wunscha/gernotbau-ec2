@@ -1,9 +1,10 @@
 from django.http.response import FileResponse
 from django.shortcuts import render
+from django.core.files import File
 
 import funktionen
 from .funktionen import user_ist_projektadmin, sortierte_stufenliste, suche_letzte_stufe, Ordnerbaum
-from .models import Ordner_WFSch, Projektstruktur, V_Workflow_Schema, WFSch_Stufe_Rolle, Workflow_Schema, WFSch_Stufe, WFSch_Stufe_Firma, Ordner, Ordner_Firma_Freigabe, Dokument, liste_wf_zur_bearbeitung_dict
+from .models import Ordner_WFSch, Projektstruktur, V_Workflow_Schema, WFSch_Stufe_Rolle, WF_Prüferstatus, WF_Stufe_Mitarbeiter, Workflow_Schema, WFSch_Stufe, WFSch_Stufe_Firma, Ordner, Ordner_Firma_Freigabe, Dokument, Status, Datei, Datei_Download, Pfad, liste_wf_zur_bearbeitung_dict
 from .forms import FirmaNeuForm, WFSchWählenForm
 from django.urls import reverse
 from django.http import HttpResponse, HttpResponseRedirect
@@ -13,7 +14,7 @@ from django.utils import timezone
 from superadmin.models import Projekt, Firma
 from projektadmin.models import V_Projektstruktur, Rolle, Dokument_Download, Workflow, listendarstellung_ordnerbaum_gesamt, liste_oberste_ordner_dict, liste_rollen_dict, liste_rollen, liste_rollen_firma, liste_rollen_firma_dict, liste_ordner_dict, liste_ordner, liste_wfsch_dict, liste_v_pjs_dict, firma_projektrollen_zuweisen
 from funktionen import hole_objs, hole_dicts, workflows, ordnerfunktionen
-from gernotbau.settings import DB_SUPER
+from gernotbau.settings import DB_SUPER, MEDIA_ROOT
 
 def zugriff_verweigert_projektadmin(request, projekt_id):
     if not user_ist_projektadmin(request.user, projekt_id):
@@ -29,21 +30,18 @@ def firma_anlegen_view(request, projekt_id):
     # TODO: Kontrolle Projektadmin
     
     projekt = Projekt.objects.using('default').get(pk = projekt_id)
-    erfolgsmeldung = ''
-
+    
     # POST
     if request.method == 'POST':
         neue_firma = projekt.firma_anlegen(formulardaten = request.POST, ist_projektadmin = False)
         firma_projektrollen_zuweisen(projekt, firma = neue_firma, formulardaten = request.POST)
-        erfolgsmeldung = 'Firma "' + neue_firma.bezeichnung() + '" wurde angelegt.'
-
+        
         return HttpResponseRedirect(reverse('projektadmin:übersicht_firmen', args = [projekt_id]))
 
     # Packe Context und Lade Template
     context = {
         'liste_rollen': liste_rollen_dict(projekt),
         'projekt_id': projekt_id,
-        'erfolgsmeldung': erfolgsmeldung
         }
     return render(request, './projektadmin/firma_anlegen.html', context)
 
@@ -162,7 +160,7 @@ def übersicht_wfsch_view(request, projekt_id):
             
             wfsch = Workflow_Schema.objects.using(db_projekt).get(pk = request.POST['wfsch_id'])
             for s in wfsch.liste_stufen(projekt):
-                for r in s.liste_rollen(projekt):
+                for r in s._liste_rollen(projekt):
                     for f in projekt.liste_projektfirmen():
                         if r in liste_rollen_firma(projekt, f):
                             kontrolle += 1
@@ -316,7 +314,7 @@ def übersicht_ordnerinhalt_root_view(request, projekt_id):
         'liste_unterordner': liste_oberste_ordner_dict(projekt, request.user)
         }
     
-    return render(request, './dokab/übersicht_ordnerinhalt.html', context)
+    return render(request, './projektadmin/übersicht_ordnerinhalt.html', context)
 
 def übersicht_ordnerinhalt_view(request, projekt_id, ordner_id):
     # TODO: Kontrolle Login
@@ -334,7 +332,7 @@ def übersicht_ordnerinhalt_view(request, projekt_id, ordner_id):
         'liste_unterordner': aktueller_ordner._liste_unterordner_dict(projekt, request.user),
         }
 
-    return render(request, './dokab/übersicht_ordnerinhalt.html', context)
+    return render(request, './projektadmin/übersicht_ordnerinhalt.html', context)
 
 def upload_dokument_view(request, projekt_id, ordner_id):
     projekt = Projekt.objects.using(DB_SUPER).get(pk = projekt_id)
@@ -349,14 +347,15 @@ def upload_dokument_view(request, projekt_id, ordner_id):
             liste_dateien = request.FILES.getlist('dateien'))
 
         # Workflow anlegen
-        ordner._wfsch(projekt)._workflow_anlegen(projekt, neues_dok)
-
+        if ordner._wfsch(projekt):
+            ordner._wfsch(projekt)._workflow_anlegen(projekt, neues_dok)
+        
     # Context packen und Formular laden
     context = {
         'projekt': projekt.projekt_dict(),
         'ordner': ordner.ordner_dict(projekt, mitarbeiter = request.user),
         }
-    return render(request, './dokab/upload_formular.html', context)
+    return render(request, './projektadmin/upload_formular.html', context)
 
 def detailansicht_dokument_view(request, projekt_id, dokument_id):
     # TODO: Kontrolle Login
@@ -371,8 +370,8 @@ def detailansicht_dokument_view(request, projekt_id, dokument_id):
         if request.POST['ereignis'] == 'kommentar_verfassen':
             dokument._kommentar_anlegen(projekt = projekt, mitarbeiter = request.user, kommentartext_neu = request.POST['kommentartext'])
 
-        # EREIGNIS DOWNLOAD
-        if request.POST['ereignis'] == 'download':
+        # EREIGNIS DOWNLOAD GESAMT
+        if request.POST['ereignis'] == 'download_gesamt':
             Dokument_Download.objects.using(projekt.db_bezeichnung()).create(
                 dokument = dokument, 
                 mitarbeiter_id = request.user.id, 
@@ -383,25 +382,92 @@ def detailansicht_dokument_view(request, projekt_id, dokument_id):
 
             return response
 
+        # EREIGNIS DOWNLOAD DATEI
+        if request.POST['ereignis'] == 'download_datei':
+            datei = Datei.objects.using(projekt.db_bezeichnung()).get(pk = request.POST['datei_id'])
+            Datei_Download.objects.using(projekt.db_bezeichnung()).create(
+                datei = datei,
+                mitarbeiter_id = request.user.id,
+                zeitstempel = timezone.now()
+                )
+
+            projektpfad = Pfad.objects.using(projekt.db_bezeichnung()).latest('zeitstempel').pfad
+            quellpfad = str(MEDIA_ROOT) + '/' + projektpfad + '/' + str(datei.id) + '_' + str(datei.dateiname)
+            
+            return FileResponse(open(quellpfad, 'rb'), as_attachment = True)
+
     # Packe context und lade Template
+    dict_ordner = dokument._ordner(projekt).__dict__
+    dict_ordner['bezeichnung'] = dokument._ordner(projekt).bezeichnung(projekt)
+    
     context = {
         'projekt': projekt,
         'dokument': dokument._dokument_dict(projekt),
-        'ordner_id': dokument._ordner(projekt).id,
+        'ordner': dict_ordner,
         'liste_dateien': dokument._liste_dateien_dict(projekt),
         'liste_dokhist': dokument._liste_dokhist(projekt),
         }
 
-    return render(request, './dokab/detailansicht_dokument.html', context)
-    
+    return render(request, './projektadmin/detailansicht_dokument.html', context)
+
+def detailansicht_wf_view(request, projekt_id, wf_id):
+    # TODO: Kontrolle Login
+    projekt = Projekt.objects.using(DB_SUPER).get(pk = projekt_id)
+    workflow = Workflow.objects.using(projekt.db_bezeichnung()).get(pk = wf_id)
+    ordner = workflow.dokument._ordner(projekt)
+    dict_ordner = ordner.__dict__
+    dict_ordner['bezeichnung'] = ordner.bezeichnung(projekt)
+
+    context = {
+        'workflow': workflow._workflow_dict(projekt, mitarbeiter = request.user),
+        'projekt': projekt.__dict__,
+        'ordner': dict_ordner
+        }
+
+    return render(request, './projektadmin/detailansicht_wf.html', context)
+
 def wf_zur_bearbeitung_view(request, projekt_id):
     # TODO: Kontrolle Login
 
     projekt = Projekt.objects.using(DB_SUPER).get(pk = projekt_id)
 
+    # POST
+    if request.method == 'POST':
+        status_fg = Status.objects.using(projekt.db_bezeichnung()).get_or_create(bezeichnung = 'Freigegeben')[0]
+        status_ab = Status.objects.using(projekt.db_bezeichnung()).get_or_create(bezeichnung = 'Abgelehnt')[0]
+        status_rf = Status.objects.using(projekt.db_bezeichnung()).get_or_create(bezeichnung = 'Rückfrage')[0]
+        wf_st_ma = WF_Stufe_Mitarbeiter.objects.using(projekt.db_bezeichnung()).get(pk = request.POST['verbindung_wf_st_ma_id'])
+        workflow = Workflow.objects.using(projekt.db_bezeichnung()).get(pk = request.POST['wf_id'])
+
+        # EREIGNIS FREIGEGEBEN:
+        if request.POST['ereignis'] == 'freigegeben':
+            WF_Prüferstatus.objects.using(projekt.db_bezeichnung()).create(
+                wf_stufe_mitarbeiter = wf_st_ma,
+                status = status_fg,
+                zeitstempel = timezone.now()
+                )
+            workflow._auswerten(projekt)
+
+        if request.POST['ereignis'] == 'abgelehnt':
+            WF_Prüferstatus.objects.using(projekt.db_bezeichnung()).create(
+                wf_stufe_mitarbeiter = wf_st_ma,
+                status = status_ab,
+                zeitstempel = timezone.now()
+                )
+            workflow._auswerten(projekt)
+            # TODO: Kommentar angeben
+            
+        if request.POST['ereignis'] == 'rückfrage':
+            WF_Prüferstatus.objects.using(projekt.db_bezeichnung()).create(
+                wf_stufe_mitarbeiter = wf_st_ma,
+                status = status_rf,
+                zeitstempel = timezone.now()
+                )
+            # TODO: Rückfrage angeben
+
     context = {
         'projekt': projekt,
         'liste_workflows': liste_wf_zur_bearbeitung_dict(projekt, request.user)
-    }
+        }
 
-    return render(request, './dokab/übersicht_wf_zur_bearbeitung_test.html', context)
+    return render(request, './projektadmin/wf_zur_bearbeitung.html', context)

@@ -1404,7 +1404,7 @@ class WFSch_Stufe(models.Model):
                                     )
                                 # Prüferstatus
                                 WF_Prüferstatus.objects.using(projekt.db_bezeichnung()).create(
-                                    wf_stufe_ma = wfSt_ma_neu,
+                                    wf_stufe_mitarbeiter = wfSt_ma_neu,
                                     status = prüferstatus,
                                     zeitstempel = timezone.now(),
                                     )
@@ -1498,8 +1498,8 @@ class WFSch_Stufe_Rolle(models.Model):
         for fa in self.liste_firmen(projekt):
             dict_fa = fa.firma_dict()
             verbindung_wfschSt_fa = WFSch_Stufe_Firma.objects.using(projekt.db_bezeichnung()).get(wfsch_stufe_rolle = self, firma_id = fa.id)
-            dict_fa['liste_firmenprüfer'] = verbindung_wfschSt_fa._liste_firmenprüfer(projekt)
-            dict_fa['liste_nicht_firmenprüfer'] = verbindung_wfschSt_fa._liste_nicht_firmenprüfer(projekt)
+            dict_fa['liste_firmenprüfer'] = verbindung_wfschSt_fa._liste_firmenprüfer_dict(projekt)
+            dict_fa['liste_nicht_firmenprüfer'] = verbindung_wfschSt_fa._liste_nicht_firmenprüfer_dict(projekt)
             li_firmen_dict.append(dict_fa)
         return li_firmen_dict
 
@@ -1552,7 +1552,8 @@ class WFSch_Stufe_Firma(models.Model):
         li_wfschSt_ma_dict = []
         for ma in self._liste_firmenprüfer(projekt):
             dict_ma = ma.mitarbeiter_dict()
-            verbindung_wfschSt_ma = WFSch_Stufe_Mitarbeiter.objects.using(projekt.db_bezeichnung()).get(wfsch_stufe_firma = self)
+            verbindung_wfschSt_ma = WFSch_Stufe_Mitarbeiter.objects.using(projekt.db_bezeichnung()).get(wfsch_stufe_firma = self, mitarbeiter_id = ma.id)
+            dict_ma['wfsch_st_ma_id'] = verbindung_wfschSt_ma.id
             dict_ma['immer_erforderlich'] = verbindung_wfschSt_ma.immer_erforderlich(projekt)
             li_wfschSt_ma_dict.append(dict_ma)
         return li_wfschSt_ma_dict
@@ -1567,7 +1568,7 @@ class WFSch_Stufe_Firma(models.Model):
 
     def _liste_nicht_firmenprüfer_dict(self, projekt):
         li_nicht_fp_dict = []
-        for fp in self._liste_nicht_firmenprüfer(self, projekt):
+        for fp in self._liste_nicht_firmenprüfer(projekt):
             li_nicht_fp_dict.append(fp.mitarbeiter_dict())
         return li_nicht_fp_dict
 
@@ -1620,10 +1621,10 @@ class WFSch_Stufe_Mitarbeiter(models.Model):
             return False
 
     # WFSCH_STUFE_MITARBEITER IMMER ERFORDERLICH
-    def immer_erforderlich_ändern(self, projekt, immer_erforderlich_neu):
+    def _immer_erforderlich_ändern(self, projekt, immer_erforderlich_neu):
         WFSch_Stufe_Mitarbeiter_Immer_Erforderlich.objects.using(projekt.db_bezeichnung()).create(
             wfsch_stufe_mitarbeiter = self,
-            immer_erforderlicht = immer_erforderlich_neu,
+            immer_erforderlich = immer_erforderlich_neu,
             zeitstempel = timezone.now()
             )
     
@@ -1715,7 +1716,7 @@ class Ordner(models.Model):
             rolle = rolle,
             defaults = {'zeitstempel': timezone.now()}
             )[0]
-        Freigabe_Lesen_Rolle.objects.using(projekt).create(
+        Freigabe_Lesen_Rolle.objects.using(projekt.db_bezeichnung()).create(
             ordner_rolle = o_ro,
             freigabe_lesen = True,
             zeitstempel = timezone.now()
@@ -1777,9 +1778,9 @@ class Ordner(models.Model):
         for v_r in v_ordner.liste_rollen():
             # Rolle wenn nötig in DB anlegen
             try:
-                rolle = Rolle_Vorlage.objects.using(db_bezeichnung_ziel).get(v_rolle_id = v_r.id).rolle
+                rolle = Rolle_Vorlage.objects.using(projekt.db_bezeichnung()).get(v_rolle_id = v_r.id).rolle
             except ObjectDoesNotExist:
-                rolle = v_r.in_db_anlegen(db_bezeichnung_quelle, db_bezeichnung_ziel)
+                rolle = v_r.in_db_anlegen(projekt)
             # Verbindung Ordner Rolle herstellen
             ordner_rolle = Ordner_Rolle.objects.using(projekt.db_bezeichnung()).get_or_create(
                 ordner = self,
@@ -2009,7 +2010,6 @@ class Ordner(models.Model):
 
         return neues_dokument
 
-
     def _liste_dokumente(self, projekt):
         qs_dok_ord = Dokument_Ordner.objects.using(projekt.db_bezeichnung()).filter(ordner = self)
         li_dok = []
@@ -2064,6 +2064,7 @@ class Ordner(models.Model):
             dict_o['freigabe_upload'] = self.uploadfreigabe_firma(projekt, mitarbeiter.firma)
             dict_o['freigabe_lesen'] = self.lesefreigabe_firma(projekt, mitarbeiter.firma)
 
+        
         # Ordnerebene (oberste Ebene, also die direkt unter ROOT-Ordner, ist Ebene '0')
         ebene = 0
         o = self
@@ -2072,6 +2073,7 @@ class Ordner(models.Model):
             o = o.überordner(projekt)
         dict_o['ebene'] = ebene
         
+
         return dict_o
 
 class Ordner_Bezeichnung(models.Model):
@@ -2333,7 +2335,7 @@ class Dokument(models.Model):
         zip_datei = io.BytesIO()
         with ZipFile(zip_datei, 'w') as zf:
             for d in self._liste_dateien(projekt):
-                zf.write(str(quellpfad + str(d.id) + '_' + d.dateiname))
+                zf.write(quellpfad + str(str(d.id) + '_' + d.dateiname), str(str(d.id) + '_' + d.dateiname))
 
         return zip_datei.getvalue()
 
@@ -2417,6 +2419,13 @@ class Dokument(models.Model):
         # Sortiere Liste zurückgeben (ACHTUNG: Zeitstempel wird zZt als String sortiert)
         return sorted(li_dokhist, key = lambda i: i['zeitstempel'])
 
+    # DOKUMENT WORKFLOW
+    def _workflow(self, projekt):
+        try:
+            return Workflow.objects.using(projekt.db_bezeichnung()).get(dokument = self)
+        except ObjectDoesNotExist:
+            return None
+
     # DOKUMENT DICT
     def _dokument_dict(self, projekt):
         dict_dok = self.__dict__
@@ -2424,7 +2433,11 @@ class Dokument(models.Model):
         User = get_user_model()
         mitarbeiter = User.objects.using(DB_SUPER).get(pk = self.mitarbeiter_id)
         dict_dok['mitarbeiter'] = mitarbeiter.mitarbeiter_dict()
-        dict_dok['status'] = 'FREIGABESTATUS NOCHT IMPLEMENTIEREN'
+        dict_dok['ordner'] = self._ordner(projekt).ordner_dict(projekt)
+
+        if self._workflow(projekt):
+            dict_dok['wf_id'] = self._workflow(projekt).id
+            dict_dok['status'] = self._workflow(projekt)._wf_status(projekt).bezeichnung
 
         return dict_dok
 
@@ -2515,6 +2528,10 @@ class Dokument_Download(models.Model):
     mitarbeiter_id = models.CharField(max_length = 20)
     zeitstempel = models.DateTimeField()
 
+class Datei_Download(models.Model):
+    datei = models.ForeignKey(Datei, on_delete = models.CASCADE)
+    mitarbeiter_id = models.CharField(max_length = 20)
+    zeitstempel = models.DateTimeField()
 
 ###################################
 # Workflows
@@ -2559,19 +2576,40 @@ class Workflow(models.Model):
     def _auswerten(self, projekt):
         status_ab = Status.objects.using(projekt.db_bezeichnung()).get_or_create(bezeichnung = 'Abgelehnt')[0]
         status_fg = Status.objects.using(projekt.db_bezeichnung()).get_or_create(bezeichnung = 'Freigegeben')[0]
-        
+        status_wav = Status.objects.using(projekt.db_bezeichnung()).get_or_create(bezeichnung = 'Warten auf Vorstufe')[0]
+
         freigegeben = True
-        for s in self._liste_stufen(projekt):
+        s = self._anfangsstufe(projekt)
+        while s:
             if s._stufenstatus(projekt).id == status_ab.id:
                 self.dokument._ablehnen(projekt)
                 return
             # Wenn Stufenfreigabe fehlt wird Dok nicht freigegeben
-            if s._stufenstatus(projekt).id != status_fg.id:
+            if s._stufenstatus(projekt).id == status_fg.id:
+                if s._folgestufe(projekt) and s._folgestufe(projekt)._stufenstatus(projekt).id == status_wav.id:
+                    s._folgestufe(projekt)._stufenstatus_initialisieren(projekt)
+            else:
                 freigegeben = False
+            s = s._folgestufe(projekt)
 
         # Wenn alle Stufen Freigegeben: Freigabe erteilen
         if freigegeben:
-            self.dokumen._freigabe_erteilen(projekt)
+            self.dokument._freigabe_erteilen(projekt)
+
+    def _wf_status(self, projekt):
+        status_fg = Status.objects.using(projekt.db_bezeichnung()).get_or_create(bezeichnung = 'Freigegeben')[0]
+        status_ab = Status.objects.using(projekt.db_bezeichnung()).get_or_create(bezeichnung = 'Abgelehnt')[0]
+        status_ib = Status.objects.using(projekt.db_bezeichnung()).get_or_create(bezeichnung = 'In Bearbeitung')[0]
+        status_rf = Status.objects.using(projekt.db_bezeichnung()).get_or_create(bezeichnung = 'Rückfrage')[0]
+        status_wav = Status.objects.using(projekt.db_bezeichnung()).get_or_create(bezeichnung = 'Warten auf Vorstufe')[0]
+
+        # WF-Status entspricht dem der aktuellen Stufe(das ist die vor der Stufe mit status_wav bzw. die letzte Stufe)
+        s = self._anfangsstufe(projekt)
+        while s:
+            status_folgestufe = s._folgestufe(projekt)._stufenstatus(projekt) if s._folgestufe(projekt) else None
+            if not status_folgestufe or status_folgestufe.id == status_wav.id:
+                return s._stufenstatus(projekt)
+            s = s._folgestufe(projekt)
 
 class WF_Stufe(models.Model):
     bezeichnung = models.CharField(max_length = 50, default = 'Default') # TODO: Default entfernen
@@ -2596,16 +2634,18 @@ class WF_Stufe(models.Model):
         
         return WF_Anfangsstufe.objects.using(projekt.db_bezeichnung()).get(anfangsstufe = stufe).workflow
 
-    def _rolle_ist_mitarbeiterrolle(self, projekt, rolle, mitarbeiter):
+    def _rolle_ist_mitarbeiterrolle(self, projekt, wf_stufe_rolle, mitarbeiter):
         # Verbindungen zurückverfolgen und True zurückgeben, wenn irgendwo mitarbeiter dabei
-        qs_wf_stufe_rolle = WF_Stufe_Rolle.objects.using(projekt.db_bezeichnung()).filter(wf_stufe = self, rolle = rolle)
-        for wf_st_ro in qs_wf_stufe_rolle:
-            qs_wf_stufe_firma = WF_Stufe_Firma.objects.using(projekt.db_bezeichnung()).filter(wf_stufe_rolle = wf_st_ro)
-            for wf_st_fa in qs_wf_stufe_firma:
-                qs_wf_stufe_mitarbeiter = WF_Stufe_Mitarbeiter.objects.using(projekt.db_bezeichnung()).filter(wf_stufe_firma = wf_st_fa)
-                for wf_st_ma in qs_wf_stufe_mitarbeiter:
-                    if wf_st_ma.mitarbeiter_id == mitarbeiter.id:
-                        return True
+        try:
+            wf_st_fa = WF_Stufe_Firma.objects.using(projekt.db_bezeichnung()).get(wf_stufe_rolle = wf_stufe_rolle, firma_id = mitarbeiter.firma.id)
+            qs_wf_st_ma = WF_Stufe_Mitarbeiter.objects.using(projekt.db_bezeichnung()).filter(wf_stufe_firma = wf_st_fa)
+            for wf_st_ma in qs_wf_st_ma:
+                if str(wf_st_ma.mitarbeiter_id) == str(mitarbeiter.id):
+                    return True
+        
+        # Wenn keine Verbingund zu mitarbeiter.firma -> False zurückgeben
+        except ObjectDoesNotExist:
+            return False
         
         # Wenn mitarbeiter nirgends gefunden -> False zurückgeben
         return False
@@ -2620,7 +2660,7 @@ class WF_Stufe(models.Model):
         qs_wf_st_ma = WF_Stufe_Mitarbeiter.objects.using(projekt.db_bezeichnung()).filter(wf_stufe_firma = wf_stufe_firma)
         li_prüferstati = []
         for wf_st_ma in qs_wf_st_ma:
-            prüferstatus = WF_Prüferstatus.objects.using(projekt.db_bezeichnung()).get(wf_stufe_ma = wf_st_ma)
+            prüferstatus = WF_Prüferstatus.objects.using(projekt.db_bezeichnung()).filter(wf_stufe_mitarbeiter = wf_st_ma).latest('zeitstempel')
             li_prüferstati.append(prüferstatus)
 
         # Prüfen ob Abgelehnt
@@ -2640,7 +2680,7 @@ class WF_Stufe(models.Model):
 
         # Prüfen ob erforderliche Freigabe fehlt
         for ps in li_prüferstati:
-            if ps.wf_stufe_ma.immer_erforderlich and not ps.status.id == status_fg.id:
+            if ps.wf_stufe_mitarbeiter.immer_erforderlich and not ps.status.id == status_fg.id:
                 return status_ib
         
         # Prüfen ob Freigabe vorhanden
@@ -2721,13 +2761,29 @@ class WF_Stufe(models.Model):
         # Wenn keiner der obigen Fälle --> Freigegeben
         return status_fg
 
+    def _stufenstatus_initialisieren(self, projekt):
+    # Setzt den Status aller Prüfer auf 'In Bearbeitung')    
+        qs_wfStufe_ro = WF_Stufe_Rolle.objects.using(projekt.db_bezeichnung()).filter(wf_stufe = self)
+        for wfStufe_ro in qs_wfStufe_ro:
+            qs_wfStufe_fa = WF_Stufe_Firma.objects.using(projekt.db_bezeichnung()).filter(wf_stufe_rolle = wfStufe_ro)
+            for wfStufe_fa in qs_wfStufe_fa:
+                qs_wfStufe_ma = WF_Stufe_Mitarbeiter.objects.using(projekt.db_bezeichnung()).filter(wf_stufe_firma = wfStufe_fa)
+                for wfStufe_ma in qs_wfStufe_ma:
+                    WF_Prüferstatus.objects.using(projekt.db_bezeichnung()).create(
+                        wf_stufe_mitarbeiter = wfStufe_ma,
+                        status = Status.objects.using(projekt.db_bezeichnung()).get_or_create(bezeichnung = 'In Bearbeitung')[0],
+                        zeitstempel = timezone.now()
+                        )
+
     def _liste_prüfer_dict(self, projekt, wf_stufe_firma):
         li_p_dict = []
         qs_wfStufe_ma = WF_Stufe_Mitarbeiter.objects.using(projekt.db_bezeichnung()).filter(wf_stufe_firma = wf_stufe_firma)
         for wfStufe_ma in qs_wfStufe_ma:
             mitarbeiter_akt = Mitarbeiter.objects.using(DB_SUPER).get(pk = wfStufe_ma.mitarbeiter_id)
             dict_ma = mitarbeiter_akt.__dict__
-            dict_ma['prüferstatus'] = WF_Prüferstatus.objects.using(projekt.db_bezeichnung()).filter(wf_stufe_ma = wfStufe_ma).latest('zeitstempel').status.bezeichnung
+            dict_ma['prüferstatus'] = WF_Prüferstatus.objects.using(projekt.db_bezeichnung()).filter(wf_stufe_mitarbeiter = wfStufe_ma).latest('zeitstempel').status.bezeichnung
+            dict_ma['verbindung_wf_st_ma_id'] = wfStufe_ma.id # Wird für Formular Statusvergabe gebraucht
+            dict_ma['immer_erforderlich'] = wfStufe_ma.immer_erforderlich
             li_p_dict.append(dict_ma)
 
         return li_p_dict
@@ -2754,16 +2810,25 @@ class WF_Stufe(models.Model):
             rolle_akt = wfStufe_ro.rolle
             dict_ro = rolle_akt.__dict__
             dict_ro['bezeichnung'] = rolle_akt.bezeichnung(projekt)
-            dict_ro['rollenstatus'] = self._status_rolle(projekt, wfStufe_ro).bezeichnung # TODO: def _rollenstatus implementieren
+            dict_ro['rollenstatus'] = self._status_rolle(projekt, wfStufe_ro).bezeichnung
             dict_ro['liste_prüffirmen'] = self._liste_prüffirmen_dict(projekt, wfStufe_ro, mitarbeiter)
-            dict_ro['ist_userrolle'] = self._rolle_ist_mitarbeiterrolle(projekt, rolle_akt, mitarbeiter)
+            dict_ro['ist_userrolle'] = self._rolle_ist_mitarbeiterrolle(projekt, wfStufe_ro, mitarbeiter)
             li_ro_dict.append(dict_ro)
         
         return li_ro_dict
 
+    def _ist_mitarbeiterstufe(self, projekt, mitarbeiter):
+        for wf_st_ro in WF_Stufe_Rolle.objects.using(projekt.db_bezeichnung()).filter(wf_stufe = self):
+            if self._rolle_ist_mitarbeiterrolle(projekt, wf_st_ro, mitarbeiter):
+                return True
+        # Wenn keine Rolle Mitarbeiterrolle ist: -> False zurückgeben
+        return False
+
     def _dict_wf_stufe(self, projekt, mitarbeiter):
         dict_wfStufe = self.__dict__
         dict_wfStufe['liste_rollen'] = self._liste_rollen_dict(projekt, mitarbeiter)
+        dict_wfStufe['ist_userstufe'] = self._ist_mitarbeiterstufe(projekt, mitarbeiter)
+        dict_wfStufe['stufenstatus'] = self._stufenstatus(projekt).bezeichnung
 
         return dict_wfStufe
 
@@ -2790,7 +2855,7 @@ class WF_Stufe_Mitarbeiter(models.Model):
     immer_erforderlich = models.BooleanField(default = False) # statisch ==> Auslagerung in eigene Tabelle nicht nötig
 
 class WF_Prüferstatus(models.Model):
-    wf_stufe_ma = models.ForeignKey(WF_Stufe_Mitarbeiter, on_delete = models.CASCADE)
+    wf_stufe_mitarbeiter = models.ForeignKey(WF_Stufe_Mitarbeiter, on_delete = models.CASCADE)
     status = models.ForeignKey(Status, on_delete = models.CASCADE)
     zeitstempel = models.DateTimeField()
 
@@ -2937,10 +3002,10 @@ def liste_oberste_ordner_dict(projekt, mitarbeiter):
         li_ober_o_dict.append(ober_o.ordner_dict(projekt, mitarbeiter))
     return li_ober_o_dict
 
-def liste_oberste_v_ordner(projekt):
+def liste_oberste_v_ordner():
     li_oberste_v_o = []
-    for v_o in V_Ordner.objects.using(projekt.db_bezeichnung()).all():
-        if v_o.ebene(projekt) == 0 and not v_o.gelöscht(projekt):
+    for v_o in V_Ordner.objects.using(DB_SUPER).all():
+        if v_o.ebene() == 0 and not v_o.gelöscht():
             li_oberste_v_o.append(v_o)
     return li_oberste_v_o
 
@@ -3010,7 +3075,7 @@ def liste_wf_zur_bearbeitung(projekt, mitarbeiter):
     li_wf_zb = []
     for wfStufe_ma in qs_wfStufe_ma:
         # WF nur auflisten wenn eigener Status ib, wav oder rf
-        ps = WF_Prüferstatus.objects.using(projekt.db_bezeichnung()).get(wf_stufe_ma = wfStufe_ma).status
+        ps = WF_Prüferstatus.objects.using(projekt.db_bezeichnung()).filter(wf_stufe_mitarbeiter = wfStufe_ma).latest('zeitstempel').status
         if ps.id == status_ib.id or ps.id == status_wav.id or ps.id == status_rf.id:
             wf = wfStufe_ma.wf_stufe_firma.wf_stufe_rolle.wf_stufe._workflow(projekt)
             if not wf.dokument._abgelehnt(projekt) and not wf.dokument._gelöscht(projekt):

@@ -65,7 +65,7 @@
                                             <input hidden type="text" name="rolle_id" value="{{r.id}}">
                                             <select class="form-control" name="mitarbeiter_id">
                                                 {% for np in fa.liste_nicht_firmenprüfer %}
-                                                <option value="{{np.id}}">{{np.first_name}} {{np.last_name}}</option>
+                                                <option value="{{np.id}}">{{np.first_name}} {{np.last_name}}     </option>
                                                 {% endfor %}
                                             </select>
                                             <button class="m-2 p-0 btn btn-outline-success text-center"
@@ -92,6 +92,16 @@
                                                     id="ereignis_button"
                                                     style="height: 20px; width: 20px; font-size: small;">-</button>
                                             <label for="ereignis_button">{{p.first_name}} {{p.last_name}}</label>
+                                            
+                                            <!-- Auswahl 'immer erforderlich' -->
+                                            <input hidden type="text" name="wfsch_st_ma_id" value="{{p.wfsch_st_ma_id}}">
+                                            <input type="checkbox" class="ml-2" name="immer_erforderlich" value="True" id="immer_erforderlich" {% if p.immer_erforderlich %}checked{% endif %}>
+                                            immer erforderlich
+                                            <button class="p-0 btn btn-outline-primary text-center"
+                                                    type="submit"
+                                                    name="ereignis"
+                                                    value="immer_erforderlich_ändern"
+                                                    style="height: 20px; width: 30px; font-size: small;">OK</button>
                                         </form>
                                         {% endfor %}
                                         

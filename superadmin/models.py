@@ -449,6 +449,13 @@ class Projekt(models.Model):
             return None
 
     # PROJEKT DB_BEZEICHNUNG
+    def db_bezeichnung_ändern(self, neue_db_bezeichnung):
+        Projekt_DB.objects.using(DB_SUPER).create(
+            projekt = self,
+            db_bezeichnung = neue_db_bezeichnung,
+            zeitstempel = timezone.now()
+            )
+    
     def db_bezeichnung(self):
         return Projekt_DB.objects.using(DB_SUPER).filter(projekt = self).latest('zeitstempel').db_bezeichnung
 

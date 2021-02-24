@@ -139,6 +139,7 @@ def übersicht_wfsch_view(request, firma_id):
         
         # EREIGNIS FIRMENPRÜFER HINZUFÜGEN
         if request.POST['ereignis'] == 'firmenprüfer_hinzufügen':
+            immer_erf = True if 'immer_erforderlich' in request.POST else False
             wfschSt_fa.firmenprüfer_hinzufügen(projekt = pj, firmenprüfer_neu = ma)
 
         # EREIGNIS FIRMENPRÜFER LÖSEN
@@ -149,6 +150,12 @@ def übersicht_wfsch_view(request, firma_id):
         if request.POST['ereignis'] == 'mitarbeiter_nach_rollen_zuweisen':
             wfschSt = Workflow_Schema.objects.using(pj.db_bezeichnung()).get(pk = request.POST['wfsch_id'])
             wfschSt.firmenprüfer_nach_rollen_zuweisen(pj, firma)
+
+        # EREIGNIS IMMER ERFORDERLICH ÄNDERN
+        if request.POST['ereignis'] == 'immer_erforderlich_ändern':
+            wfschSt_ma = WFSch_Stufe_Mitarbeiter.objects.using(pj.db_bezeichnung()).get(pk = request.POST['wfsch_st_ma_id'])
+            immer_erf_neu = True if 'immer_erforderlich' in request.POST else False
+            wfschSt_ma._immer_erforderlich_ändern(pj, immer_erf_neu)
 
     # Packe context und lade Template
     li_wfsch_dict = []

@@ -1,5 +1,5 @@
-from psycopg2 import connect
 import sys
+from psycopg2 import connect
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
 def lege_datenbank_an(db_bezeichnung, user = 'postgres', password = 'postgres', host = 'db'):
@@ -8,9 +8,10 @@ def lege_datenbank_an(db_bezeichnung, user = 'postgres', password = 'postgres', 
     con = connect(user = user, password = password, host = host)
     con.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
     cur = con.cursor()
-    cur.execute(f'CREATE DATABASE f{db_bezeichnung};')
+    cur.execute(f'CREATE DATABASE {db_bezeichnung};')
     cur.close()
     con.close()
+
 
 def dict_databases():
     return {
@@ -33,6 +34,14 @@ def dict_databases():
         'pj_19': {
             'ENGINE': 'django.db.backends.postgresql',
             'NAME': 'projekt_19',
+            'USER': 'postgres',
+            'PASSWORD': 'postgres',
+            'HOST': 'db',
+            'PORT': 5432
+            },
+        'pj_35': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': 'pj_35',
             'USER': 'postgres',
             'PASSWORD': 'postgres',
             'HOST': 'db',

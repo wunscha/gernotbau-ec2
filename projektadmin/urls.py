@@ -30,5 +30,6 @@ urlpatterns = [
     path('<projekt_id>/detailansicht-dokument/<dokument_id>', views.detailansicht_dokument_view, name = 'detailansicht_dokument'),
 
     # Workflows
-    path('<projekt_id>/wf-zur-bearbeitung/', views.wf_zur_bearbeitung_view, name = 'wf_zur_bearbeitung')
+    path('<projekt_id>/wf-zur-bearbeitung/', views.wf_zur_bearbeitung_view, name = 'wf_zur_bearbeitung'),
+    path('<projekt_id>/detailansicht-wf/<wf_id>', views.detailansicht_wf_view, name = 'detailansicht_wf'),
     ]

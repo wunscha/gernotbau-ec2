@@ -1,0 +1,69 @@
+<!-- Vererbung -->
+{% extends './_base_dokab.html' %}
+
+<!-- Titel -->
+{% block titel %}
+    Übersicht Workflows zur Bearbeitung
+{% endblock titel %}
+
+<!-- nav-tab aktiv -->
+{% block wf_zur_bearbeitung_active %}
+    active
+{% endblock wf_zur_bearbeitung_active %}
+
+<!-- Seiteninhalt -->
+{% block inhalt %}
+<a class="m-2 btn btn-outline-primary" href="{% url 'projektadmin:übersicht_ordnerinhalt' projekt.id ordner.id %}">Zurück zum Ordner "{{ordner.bezeichnung}}"</a>
+
+<div class="container">
+
+    <!-- Seitenüberschrift -->
+    <h1 class="mb-5 text-center">Detailansicht Workflow {{workflow.dokument.bezeichnung}}</h1>
+
+    <!-- Auflistung Workflows Eigene Dokumente -->
+    <ul class="mb-5 list-group">
+    
+            <li class="list-group-item" style="background-color: #f8f9fa;">
+            <div class="border-bottom">
+                <a href="{% url 'projektadmin:detailansicht_dokument' projekt.id workflow.dokument.id %}">Dokument: <strong>{{workflow.dokument.bezeichnung}}</strong></a>
+            </div>
+            Ordner: {{workflow.dokument.ordner.bezeichnung}}<br>
+            WF-Schema: {{workflow.dokument.ordner.wfsch}}
+        </li>
+
+        {% for wf_stufe in workflow.liste_stufen %}
+        <li class="list-group-item">
+            
+                <div class="p-2 text-center font-weight-bolder">Stufenbezeichnung: {{wf_stufe.bezeichnung}} / Userstufe: {{wf_stufe.ist_userstufe}} / ID: {{wf_stufe.id}} / Status: {{wf_stufe.stufenstatus}}</div>
+                
+                
+                {% for rolle in wf_stufe.liste_rollen %}
+                <span class="font-weight-bolder border-bottom">{{rolle.bezeichnung}} - {{rolle.rollenstatus}} / Userrolle: {{rolle.ist_userrolle}} / Status: {{rolle.rollenstatus}}</span>
+                <ul>
+                    {% for prüffirma in rolle.liste_prüffirmen %}
+                        <span class="font-weight-bolder">{{prüffirma.bezeichnung}} - {{prüffirma.firmenstatus}} / Userfirma: {{prüffirma.ist_userfirma}} / ID: {{prüffirma.id}} / {{prüffirma.firmenstatus}}</span>
+                        <ul>
+                            {% for prüfer in prüffirma.liste_prüfer %}
+                            <li>{{prüfer.first_name}} {{prüfer.last_name}} - {{prüfer.prüferstatus}} /  immer erforderlich: {{prüfer.immer_erforderlich}} / ID: {{prüfer.id}}
+                                <form class="form-inline" action="{% url 'projektadmin:wf_zur_bearbeitung' projekt.id %}" method="POST">
+                                {% csrf_token %}
+                                    <input hidden name="verbindung_wf_st_ma_id" value="{{prüfer.verbindung_wf_st_ma_id}}">
+                                    <input hidden name="wf_id" value="{{workflow.id}}">
+                                    <button class="m-2 btn btn-outline-success" name="ereignis" value="freigegeben">Freigeben</button>
+                                    <button class="m-2 btn btn-outline-danger" name="ereignis" value="abgelehnt">Ablehnen</button>
+                                    <button class="m-2 btn btn-outline-primary" name="ereignis" value="rückfrage">Rückfrage</button>
+                                </form>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    {% endfor %}
+                </ul>
+                {% endfor %}
+                
+        </li>
+        {% endfor %}
+
+    </ul>
+
+</div>
+{% endblock inhalt %}

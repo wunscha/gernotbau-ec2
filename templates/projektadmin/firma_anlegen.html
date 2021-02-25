@@ -1,0 +1,108 @@
+<!-- Vererbung -->
+{% extends './_base_projektadmin.html' %}
+
+<!-- Titel -->
+{% block titel %}
+    Übersicht Projektfirmen
+{% endblock titel %}
+
+<!-- nav-tab aktiv -->
+{% block übersicht_firmen_active %}
+    active
+{% endblock übersicht_firmen_active %}
+
+<!-- Seiteninhalt -->
+{% block inhalt %}
+
+<div class="container">
+
+    <!-- Seitenüberschrift -->
+    <h1 class="mb-5 text-center">Neue Firma</h1>
+
+    <!-- Formular Neue Firma -->
+    <form class="p-2" action="{% url 'projektadmin:firma_anlegen' projekt_id %}" method="POST" autocomplete="off" style="border: 1px solid #dee2e6;">
+        
+        <!-- CSRF Token -->
+        {% csrf_token %}
+
+        <!-- Textfeld Firmenbezeichnung -->
+        <div class="form-group">
+            <label for="bezeichnung">Firmenbezeichnung</label>
+            <input type="text" class="form-control" name="bezeichnung" id="bezeichnung" required> 
+        </div>
+
+        <!-- Textfeld Kurzbezeichnung -->
+        <div class="form-group">
+            <label for="kurzbezeichnung">Kurzebezeichnung</label>
+            <input type="text" class="form-control" name="kurzbezeichnung" id="kurzbezeichnung" required>
+        </div>
+
+        <!-- Textfelder Straße/HNr -->
+        <div class="form-row">
+            <!-- Straße -->
+            <div class="form-group col-9">
+                <label for="strasse">Adresse</label>
+                <input type="text" class="form-control" name="strasse" id="strasse">
+            </div>
+
+            <!-- HNr -->
+            <div class="form-group col-3">
+                <label for="hausnummer">Hausnummer</label>
+                <input type="text" class="form-control" name="hausnummer" id="hausnummer">
+            </div>
+        </div>
+
+        <!-- Textfelder PLZ/Ort -->
+        <div class="form-row">
+            
+            <!-- PLZ -->
+            <div class="form-group col-3">
+                <label for="postleitzahl">PLZ</label>
+                <input type="text" class="form-control" name="postleitzahl" text="postleitzahl">
+            </div>
+
+            <!-- Ort -->
+            <div class="form-group col-9">
+                <label for="ort">Ort</label>
+                <input type="text" class="form-control" name="ort" id="ort">
+            </div>
+
+        </div>
+
+        <!-- Textfeld Office-Mail -->
+        <div class="form-group">
+            <label for="email_office">Office E-Mail Adresse</label>
+            <input type="email" class="form-control" name="email" id="email" autocomplete="none" required>
+        </div>
+
+        <!-- Block Rollen für Vererbung Projektamin -->
+        {% if liste_rollen %}
+            <p>Rollen</p>
+            <div class="form-group">
+                <input hidden type="text" name="projekt_id" value="{{projekt.id}}">
+                {% for rolle in liste_rollen %}
+                <span class="col-1"></span>
+                <input type="checkbox" id="{{rolle.id}}" name="{{rolle.id}}">
+                <label for="{{rolle.id}}">{{rolle.bezeichnung}}</label><br>
+                {% endfor %}
+            </div>
+        {% endif %}
+        
+        <!-- Eingabefeld Passwort -->
+        <div class="form-group border-top">
+            <label for="passwort">Passwort Firmenadmin</label>
+            <input type="password" class="form-control" name="passwort" id="passwort" autocomplete="none" required>
+        </div>
+
+        <!-- Submit Button -->
+        <button type="submit" class="btn btn-primary" name="ereignis" value="firma_neu">Firma anlegen</button>
+
+    </form>
+    
+    <p style="color: green;">
+        {{erfolgsmeldung}}
+    </p>
+
+</div>
+
+{% endblock inhalt %}

@@ -1,0 +1,54 @@
+<!-- Vererbung -->
+{% extends './_base_firmenadmin.html' %}
+
+<!-- Titel -->
+{% block titel %}
+    Mitarbeiter Neu
+{% endblock titel %}
+
+<!-- kein nav-tab aktiv -->
+{% block mitarbeiter_active %}
+    active
+{% endblock mitarbeiter_active %}
+
+<!-- Seiteninhalt -->
+{% block inhalt %}
+<div class="container">
+
+    <h1 class="mb-5 text-center">Mitarbeiter anlegen</h1>
+
+    <!-- Formular "Mitarbeiter Neu" -->
+    <form class="p-2" action="{% url 'firmenadmin:mitarbeiter_anlegen' firma.id %}" style="border: #f8f9fa" method="POST">
+    {% csrf_token %}
+
+        <!-- Vorname -->
+        <div class="form-group">
+            <label for="vorname">Vorname</label>
+            <input type="text" class="form-control" name="vorname" id="vorname">
+        </div>
+        
+        <!-- Nachname -->
+        <div class="form-group">
+            <label for="nachname">Nachname</label>
+            <input type="text" class="form-control" name="nachname" id="nachname">
+        </div>
+
+        <!-- E-Mail -->
+        <div class="form-group">
+            <label for="email">E-Mail</label>
+            <input type="email" class="form-control" name="email" id="email">
+        </div>
+
+        <!-- Passwort -->
+        <div class="form-group border-top">
+            <label for="passwort">Passwort</label>
+            <input type="password" class="form-control" name="passwort" id="passwort">
+        </div>
+
+        <!-- Submit-Button -->
+        <button type="submit" class="btn btn-primary" name="ereignis" value="mitarbeiter_anlegen">Mitarbeiter anlegen</button>
+
+    </form>
+
+</div>
+{% endblock inhalt %}

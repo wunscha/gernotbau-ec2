@@ -1,0 +1,50 @@
+<!-- Vererbung -->
+{% extends './_base_kommunikation.html' %}
+
+<!-- Titel -->
+{% block titel %}
+    Nachrichten Gesendet
+{% endblock titel %}
+
+<!-- nav-tab aktiv -->
+{% block gesendet_active %}
+    active
+{% endblock gesendet_active %}
+
+<!-- Seiteninhalt -->
+{% block inhalt %}
+<div class="container">
+
+    <!-- Seitenüberschrift -->
+    <h1 class="mb-5 text-center">Nachrichten Gesendet</h1>
+
+    <!-- Auflistung Neue Nachrichten -->
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Empfänger</th>
+                <th>Datum</th>
+                <th>Betreff</th>
+            </tr>
+        </thead>
+        
+        <tbody>
+            {% for nachricht in liste_nachrichten %}
+            <tr>
+                <td>
+                    {% for empfänger in nachricht.liste_empfänger %}
+                    {{empfänger.first_name}} {{empfänger.last_name}} {% if empfänger.gelesen %}(gelesen){% endif %}<br>
+                    {% endfor %}
+                </td>
+                <td>{{nachricht.zeitstempel}}</td>
+                <td>
+                    <a href="{% url 'kommunikation:detailansicht_nachricht' nachricht.id %}">{{nachricht.betreff}}</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+
+    </table>
+
+</div>
+{% endblock inhalt %}

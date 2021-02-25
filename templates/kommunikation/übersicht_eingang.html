@@ -1,0 +1,80 @@
+<!-- Vererbung -->
+{% extends './_base_kommunikation.html' %}
+
+<!-- Titel -->
+{% block titel %}
+    Nachrichten Eingang
+{% endblock titel %}
+
+<!-- nav-tab aktiv -->
+{% block eingang_active %}
+    active
+{% endblock eingang_active %}
+
+<!-- Seiteninhalt -->
+{% block inhalt %}
+<div class="container">
+
+    <!-- Seitenüberschrift -->
+    <h1 class="mb-5 text-center">Nachrichten Eingang</h1>
+
+    <!-- Auflistung Neue Nachrichten -->
+    <h2 class="mt-5 mb-2 text-center">Neue Nachrichten</h2>
+    
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Von</th>
+                <th>Datum</th>
+                <th>Betreff</th>
+            </tr>
+        </thead>
+        
+        <tbody>
+            {% for nachricht_neu in liste_nachrichten_neu %}
+            <tr>
+                <td>
+                    <a href="{% url 'kommunikation:nachricht_verfassen' nachricht_neu.verfasser.id %}">
+                    {{nachricht_neu.verfasser.first_name}} {{nachricht_neu.verfasser.last_name}}
+                    </a>
+                </td>
+                <td>{{nachricht_neu.zeitstempel}}</td>
+                <td>
+                    <a href="{% url 'kommunikation:detailansicht_nachricht' nachricht_neu.id %}">{{nachricht_neu.betreff}}</a>
+                </td>
+            </tr>
+             {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Auflistung Gelesene Nachrichten -->
+    <h2 class="mt-5 mb-2 text-center">Gelesene Nachrichten</h2>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Von</th>
+                <th>Datum</th>
+                <th>Betreff</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for nachricht_gel in liste_nachrichten_gelesen %}
+            <tr>
+                <td>
+                    <a href="{% url 'kommunikation:nachricht_verfassen' nachricht_gel.verfasser.id %}">
+                        {{nachricht_gel.verfasser.first_name}} {{nachricht_gel.verfasser.last_name}}
+                    </a>
+                </td>
+                <td>{{nachricht_gel.zeitstempel}}</td>
+                <td>
+                    <a href="{% url 'kommunikation:detailansicht_nachricht' nachricht_gel.id %}">{{nachricht_gel.betreff}}</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+</div>
+{% endblock inhalt %}

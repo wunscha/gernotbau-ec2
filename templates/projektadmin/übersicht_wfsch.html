@@ -1,0 +1,188 @@
+<!-- Vererbung -->
+{% extends './_base_projektadmin.html' %}
+
+<!-- Titel -->
+{% block titel %}
+    Übersicht Workflowschemata
+{% endblock titel %}
+
+<!-- nav-tab aktiv -->
+{% block übersicht_wfsch_active %}
+    active
+{% endblock übersicht_wfsch_active %}
+
+<!-- Seiteninhalt -->
+{% block inhalt %}
+<div class="container">
+
+    <!-- Seitenüberschrift -->
+    <h1 class="mb-5 text-center">Übersicht Workflowschemata</h1>
+
+    <!-- Formular "Neues Workflowschema anlegen" -->
+    <!--
+    <ul class="my-3 list-group">
+
+        <li class="list-group-item font-weight-bolder" style="background-color: #f8f9fa;">
+            Neues Workflowschema anlegen
+        </li>
+        
+        <li class="list-group-item">
+            <form class="form-inline" action="{% url 'projektadmin:übersicht_wfsch' projekt_id %}" method="POST">
+                {% csrf_token %}
+                <label class="mx-1" for="wfsch_neu_bezeichnung">Bezeichnung Workflowschema</label>
+                <input class="mx-1 form-control" type="text" name="wfsch_neu_bezeichnung" id="wfsch_neu_bezeichnung">
+                <button class="mx-1 btn btn-outline-success" type="submit">Erstellen</button>
+            </form>
+        </li>
+
+    </ul>
+    -->
+
+    <ul class="my-3 list-group">
+        <li class="list-group-item">
+            <form class="form-inline" action="{% url 'projektadmin:übersicht_wfsch' projekt_id %}" method="POST">
+                {% csrf_token %}
+                <label for="v_wfsch_id">Workflowschema nach Vorlage anlegen: </label>
+                <select class="m-2 form-control" id="v_wfsch_id" name="v_wfsch_id">
+                    {% for v_wfsch in liste_v_wfsch %}
+                    <option value="{{v_wfsch.id}}">{{v_wfsch.bezeichnung}}</option>
+                    {% endfor %}
+                </select>
+                <button class="m-2 btn btn-outline-success" type="submit" name="ereignis" value="wfsch_vorlage_anlegen">OK</button>
+            </form>
+        </li>
+    </ul>
+
+    <!-- Auflistung Workflowschemata -->
+    {% for wfsch in liste_wfsch %}
+    <ul class="my-3 list-group">
+
+        <!-- WFSch Bezeichnung -->
+        <li class="list-group-item font-weight-bolder" style="background-color: #f8f9fa;">
+            <div class="d-flex flex-row">
+                <div class="p-2 flex-grow-1">
+                    Workflowschema "{{wfsch.bezeichnung}}"
+                </div>
+                
+                <!-- Button 'WFSch Entfernen' -->
+                <div class="p-2 justify-content-end">
+                    <form class="form-inline" action="{% url 'projektadmin:übersicht_wfsch' projekt_id %}" method="POST">
+                    {% csrf_token %}
+                    <input hidden type="text" name="wfsch_id" value="{{wfsch.id}}">
+                    <button type="submit" 
+                            class="btn btn-outline-danger align-middle p-0" 
+                            style="width: 25px; font-size: small" 
+                            name="ereignis" 
+                            value="wfsch_löschen">-</button>
+                    </form>
+                </div>
+                
+            </div>
+        </li>
+        
+        <!-- Formular Firmen nach Rollen zuweisen -->
+        <li class="list-group-item">
+            <form action="{% url 'projektadmin:übersicht_wfsch' projekt_id %}" method="POST">
+                {% csrf_token %}
+                <input hidden type="text" name="wfsch_id" value="{{wfsch.id}}">
+                <button class="m-2 btn btn-outline-primary" type="submit" name="ereignis" value="firmen_nach_rollen_zuweisen">
+                    Firmen nach Rollen zuweisen
+                </button>
+            </form>
+        </li>
+
+        <!-- WFSch Stufe -->
+        {% for wfsch_stufe in wfsch.liste_wfsch_stufen %}
+        <li class="list-group-item">
+
+            
+            <div class="d-flex flex-row">
+                <div class="p-2 flex-grow-1 font-weight-bolder text-center">Stufe {{forloop.counter}} "{{wfsch_stufe.bezeichnung}}"</div>
+                <div class="p-2 justify-content-end">
+                    
+                    <!-- Button 'WFSch Stufe Entfernen' -->
+                    <!--
+                    <form class="form-inline" action="{% url 'projektadmin:übersicht_wfsch' projekt_id %}" method="POST">
+                        {% csrf_token %}
+                        <button type="submit" 
+                                class="btn btn-outline-danger align-middle p-0" 
+                                name="wfsch_stufe_löschen_id"
+                                style="height: 20px; width: 20px; font-size: small"
+                                value="{{wfsch_stufe.id}}">-</button>
+                    </form>
+                    -->
+                </div>
+            </div>
+            
+
+            {% for rolle in wfsch_stufe.liste_rollen %}
+
+                <p><span class="border-bottom font-weight-bolder">{{rolle.bezeichnung}}</span></p>
+                
+                <!-- Auflistung Prüffirmen -->
+                <ul class="mb-2">
+                    
+                    <!-- Formular Prüffirma Hinzufügen -->
+                    {% if wfsch_stufe.liste_nicht_prüffirmen %}
+                        <form class="m-0 form-inline" action="{% url 'projektadmin:übersicht_wfsch' projekt_id %}" method="POST">
+                            {% csrf_token %}
+                            <select class="m-0 form-control" name="prüffirma_id">
+                                {% for nicht_prüffirma in wfsch_stufe.liste_nicht_prüffirmen %}
+                                    <option value="{{nicht_prüffirma.id}}">{{nicht_prüffirma.bezeichnung}}</option>
+                                {% endfor %}
+                            </select>
+                            <input hidden name="wfsch_stufe_id" value="{{wfsch_stufe.id}}">
+                            <input hidden name="rolle_id" value="{{rolle.id}}">
+                            <button type="submit" 
+                                    class="m-2 p-0 btn btn-outline-success align-middle" 
+                                    style="height: 30px; width: 30px; font-size: small;" 
+                                    name="ereignis" 
+                                    value="prüffirma_hinzufügen">+</button>
+                        </form>
+                    {% endif %}
+                    
+                    {% for prüffirma in rolle.liste_prüffirmen %}
+                    <li>
+                        <form class="form-inline" action="{% url 'projektadmin:übersicht_wfsch' projekt_id %}" method="POST">
+                            {% csrf_token %}
+                            <label for="button_prüffirma_lösen">{{prüffirma.bezeichnung}}</label>
+                            <input hidden name="wfsch_stufe_id" value="{{wfsch_stufe.id}}">
+                            <input hidden name="rolle_id" value="{{rolle.id}}">
+                            <input hidden name="prüffirma_id" value="{{prüffirma.id}}">
+                            
+                            <button type="submit" 
+                                    class="btn btn-outline-danger align-middle p-0 m-2" 
+                                    id="button_prüffirma_lösen" 
+                                    style="height: 20px; width: 20px; font-size: small"
+                                    name="ereignis"
+                                    value="prüffirma_lösen">-</button>
+                        </form>
+                    </li>
+                    {% endfor %}
+                </ul>
+
+            {% endfor %}
+
+        </li>
+        {% endfor %}
+
+        <!-- Button "Stufe hinzufügen" -->
+        <!-- 
+        <li class="list-group-item">
+            <form class="form-inline" action="{% url 'projektadmin:übersicht_wfsch' projekt_id %}" method="POST">
+                {% csrf_token %}
+                <input hidden type="text" name="wfsch_id" value="{{wfsch.id}}">
+                <input type="text" class="form-control" name="wfsch_stufe_bezeichnung">
+                <button class="mx-2 btn btn-outline-primary" 
+                        type="submit" 
+                        name="ereignis"
+                        value="wfsch_stufe_hinzufügen">Stufe hinzufügen</button>
+            </form>
+        </li>
+        -->
+
+    </ul>
+    {% endfor %}
+
+</div>
+{% endblock inhalt %}

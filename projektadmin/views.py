@@ -399,10 +399,12 @@ def detailansicht_dokument_view(request, projekt_id, dokument_id):
     # Packe context und lade Template
     dict_ordner = dokument._ordner(projekt).__dict__
     dict_ordner['bezeichnung'] = dokument._ordner(projekt).bezeichnung(projekt)
-    
+    dict_dokument = dokument._dokument_dict(projekt)
+    dict_dokument['wfsch'] = dokument._workflow(projekt).wfsch._bezeichnung(projekt)
+
     context = {
         'projekt': projekt,
-        'dokument': dokument._dokument_dict(projekt),
+        'dokument': dict_dokument,
         'ordner': dict_ordner,
         'liste_dateien': dokument._liste_dateien_dict(projekt),
         'liste_dokhist': dokument._liste_dokhist(projekt),

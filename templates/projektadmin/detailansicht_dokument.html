@@ -1,0 +1,99 @@
+<!-- Vererbung -->
+{% extends './_base_dokab.html' %}
+
+<!-- Titel -->
+{% block titel %}
+    Detailansicht Dokument
+{% endblock titel %}
+
+<!-- nav-tab aktiv -->
+{% block ordner_active %}
+    active
+{% endblock ordner_active %}
+
+<!-- Seiteninhalt -->
+{% block inhalt %}
+
+<!-- BUTTONLEISTE DOKAB INHALTSANSICHT -->
+<nav class="navbar border-bottom">
+    <a class="btn btn-outline-primary" href="{% url 'projektadmin:übersicht_ordnerinhalt' projekt.id ordner.id %}">Zurück zum Ordner "{{ordner.bezeichnung}}"</a>
+    <div class="ml-auto mr-0">
+        <form action="{% url 'projektadmin:detailansicht_dokument' projekt.id dokument.id %}" method="POST">
+            {% csrf_token %}
+            <button class="btn btn-outline-primary" name="ereignis" value="download_gesamt">Download Gesamt</button>
+        </form>
+    </div>
+</nav>
+
+<div class="container">
+
+    <h1 class="text-center">Detailansicht "{{dokument.bezeichnung}}"</h1>
+    <p class="mb-5 text-center">Workflowschema "{{dokument.wfsch}}"</p>
+
+    <!-- AUFLISTUNG DATEIEN -->
+    <h2 class="mt-5 mb-2 text-center">Dateien</h2>
+
+    <table class="table border-bottom">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Datum</th>
+                <th></th>
+            </tr>
+        </thead>
+        
+        <tbody>
+            {% for datei in liste_dateien %}
+            <tr>
+                <td>{{datei.dateiname}}</td>
+                <td>{{datei.zeitstempel}}</td>
+                <td>
+                    <form action="{% url 'projektadmin:detailansicht_dokument' projekt.id dokument.id %}" method="POST">
+                        {% csrf_token %}
+                        <input hidden type="text" name="datei_id" value="{{datei.id}}">
+                        <button type="submit" 
+                            class="btn btn-outline-primary"
+                            name="ereignis"
+                            value="download_datei">Download</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- AUFLISTUNG DOKUMENTENHISTORIE -->
+    <h2 class="mt-5 mb-2 text-center">Dokumentenhistorie</h2>
+
+    <table class="table border-bottom">
+        <thead>
+            <tr>
+                <th>Ereignis</th>
+                <th>Datum</th>
+                <th>Von</th>
+                <th>Text/Inhalt</th>
+            </tr>
+        </thead>
+    
+        <tbody>
+            {% for eintrag in liste_dokhist %}
+            <tr>
+                <td>{{eintrag.ereignis}}</td>
+                <td>{{eintrag.zeitstempel}}</td>
+                <td>{{eintrag.mitarbeiter}}</td>
+                <td>{{eintrag.text}}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- FORMULAR KOMMENTAR VERFASSEN -->
+    <form class="p-2 border" action="{% url 'projektadmin:detailansicht_dokument' projekt.id dokument.id %}" method="POST">
+        {% csrf_token %}
+        <textarea class="form-control" name="kommentartext" rows="3"></textarea>
+        <button type="submit" class="m-2 btn btn-outline-primary" name="ereignis" value="kommentar_verfassen">Kommentar Verfassen</button>
+    </form>
+
+</div>
+
+{% endblock inhalt %}

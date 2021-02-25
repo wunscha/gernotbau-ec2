@@ -2403,18 +2403,62 @@ class Dokument(models.Model):
                 }
             li_dokhist.append(dict_kommentar)
 
-        # Ereignis Download
-        for d in Dokument_Download.objects.using(projekt.db_bezeichnung()).filter(dokument = self):
-            dict_download = {
-                'ereignis': 'Download',
-                'zeitstempel': d.zeitstempel,
-                'mitarbeiter': User.objects.using(DB_SUPER).get(pk = d.mitarbeiter_id),
+        # Ereignis Dokument Download
+        for dok_down in Dokument_Download.objects.using(projekt.db_bezeichnung()).filter(dokument = self):
+            ma = User.objects.using(DB_SUPER).get(pk = dok_down.mitarbeiter_id)
+            dict_dok_down = {
+                'ereignis': 'Download Gesamt',
+                'zeitstempel': dok_down.zeitstempel,
+                'mitarbeiter': str(ma.first_name + ma.last_name),
                 'text': 'Dokument heruntergeladen'
                 }
-            li_dokhist.append(dict_download)
+            li_dokhist.append(dict_dok_down)
 
-        # Ereignis Workflow
+        # Ereignis Datei Download
+        qs_dok_dat = Dokument_Datei.objects.using(projekt.db_bezeichnung()).filter(dokument = self)
+        # Dateien iterieren
+        for dok_dat in qs_dok_dat:
+            # Datei_Downloads iterieren
+            dat = dok_dat.datei
+            qs_dat_down = Datei_Download.objects.using(projekt.db_bezeichnung()).filter(datei = dat)
+            for dat_down in qs_dat_down:
+                ma = User.objects.using(DB_SUPER).get(pk = dat_down.mitarbeiter_id)
+                dict_dat_down = {
+                    'ereignis': 'Download Datei',
+                    'zeitstempel': dat_down.zeitstempel,
+                    'mitarbeiter': str(ma.first_name + ma.last_name),
+                    'text': 'Datei ' + str(dat.dateiname) + ' heruntergeladen'
+                    }
+                li_dokhist.append(dict_dat_down)
 
+        # Ereignis Workflow Status
+        if self._workflow(projekt):
+            wf = self._workflow(projekt)
+            # Iteriere Stufen
+            wf_st = wf._anfangsstufe(projekt)
+            while wf_st:
+                # Iteriere Rollen
+                qs_wf_st_ro = WF_Stufe_Rolle.objects.using(projekt.db_bezeichnung()).filter(wf_stufe = wf_st)
+                for wf_st_ro in qs_wf_st_ro:
+                    # Iteriere Firmen
+                    qs_wf_st_fa = WF_Stufe_Firma.objects.using(projekt.db_bezeichnung()).filter(wf_stufe_rolle = wf_st_ro)
+                    for wf_st_fa in qs_wf_st_fa:
+                        # Iteriere Prüfer
+                        qs_wf_st_ma = WF_Stufe_Mitarbeiter.objects.using(projekt.db_bezeichnung()).filter(wf_stufe_firma = wf_st_fa)
+                        for wf_st_ma in qs_wf_st_ma:
+                            # Iteriere Stati
+                            qs_prüferstati = WF_Prüferstatus.objects.using(projekt.db_bezeichnung()).filter(wf_stufe_mitarbeiter = wf_st_ma)
+                            for prüferstatus in qs_prüferstati:
+                                ma = User.objects.using(DB_SUPER).get(pk = wf_st_ma.mitarbeiter_id)
+                                dict_prüferstatus = {
+                                    'ereignis': 'Workflow Status',
+                                    'zeitstempel': prüferstatus.zeitstempel,
+                                    'mitarbeiter': str(ma.first_name + ' ' + ma.last_name),
+                                    'text': 'Stufe "' + wf_st.bezeichnung + '" Statusänderung auf "' + prüferstatus.status.bezeichnung + '"',
+                                    }
+                                li_dokhist.append(dict_prüferstatus)
+                
+                wf_st = wf_st._folgestufe(projekt)
         
         # Sortiere Liste zurückgeben (ACHTUNG: Zeitstempel wird zZt als String sortiert)
         return sorted(li_dokhist, key = lambda i: i['zeitstempel'])

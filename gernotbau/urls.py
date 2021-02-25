@@ -36,6 +36,9 @@ urlpatterns = [
     # Weiterleitung zu DokAb
     path('dokab/', include('dokab.urls')),
 
+    # Weiterleigung zu Kommunikation
+    path('kommunikation/', include('kommunikation.urls')),
+
     # Weiterleitung zu Test MultiDB
     path('test_multidb/', include('test_multidb.urls')),
 

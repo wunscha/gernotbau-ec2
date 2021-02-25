@@ -43,7 +43,8 @@ def login_view(request):
             login(request, user)
         
             # Weiterleitung zu Home:
-            return HttpResponseRedirect(reverse('home'))
+            return HttpResponseRedirect(reverse('kommunikation:übersicht_eingang'))
+            # return HttpResponseRedirect(reverse('home'))
 
         # Wenn user nicht vorhanden: Formular neu laden
         else:

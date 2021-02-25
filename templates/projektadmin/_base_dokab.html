@@ -1,0 +1,33 @@
+<!-- Vererbung -->
+{% extends '../_base_.html' %}
+
+<!-- Link App-Titel -->
+{% block href_titel_app %}
+    {% url 'home' %}
+{% endblock href_titel_app %}
+
+<!-- App-Titel -->
+{% block titel_app %}
+    {{projekt.kurzbezeichnung}} | Dokumentenablage
+{% endblock titel_app %}
+
+<!-- Navgationsleiste -->
+{% block navigationsleiste %}
+
+    <ul class="nav nav-tabs">
+
+        <li class="nav-item">
+            <a href="{% url 'projektadmin:übersicht_ordnerinhalt_root' projekt.id %}" class="nav-link {% block ordner_active %}{% endblock ordner_active %}">Ordner</a>
+        </li>
+
+        <li class="nav-item">
+            <a href="{% url 'dokab:übersicht_wf_eigene_dok' projekt.id %}" class="nav-link {% block wf_eigene_dok_active %}{% endblock wf_eigene_dok_active %}">Workflows Eigene Dokumente</a>
+        </li>
+
+        <li class="nav-item">
+            <a href="{% url 'projektadmin:wf_zur_bearbeitung' projekt.id %}" class="nav-link {% block wf_zur_bearbeitung_active %}{% endblock wf_zur_bearbeitung_active %}">Workflows Zur Bearbeitung</a>
+        </li>
+
+    </ul>
+
+{% endblock navigationsleiste %}

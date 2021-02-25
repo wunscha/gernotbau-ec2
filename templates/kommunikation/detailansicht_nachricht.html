@@ -1,0 +1,46 @@
+<!-- Vererbung -->
+{% extends './_base_kommunikation.html' %}
+
+<!-- Titel -->
+{% block titel %}
+    Detailansicht Nachricht
+{% endblock titel %}
+
+<!-- nav-tab aktiv -->
+{% block eingang_active %}
+    active
+{% endblock eingang_active %}
+
+<!-- Seiteninhalt -->
+{% block inhalt %}
+<div class="container">
+
+    <!-- Seitenüberschrift -->
+    <h1 class="mb-5 text-center">Detailansicht Nachricht</h1>
+
+    <!-- Nachricht -->
+    <ul class="list-group">
+        <li class="list-group-item" style="background-color: #f8f9fa;">
+            <div class="d-flex">
+                <div class="flex-grow-1"><strong>Betreff:</strong> {{nachricht.betreff}}</div>
+                <div class="mr-0"><strong>Von:</strong> {{nachricht.verfasser.first_name}} {{nachricht.verfasser.last_name}}</div>
+            </div>
+        </li>
+
+        <li class="list-group-item" style="background-color: #f8f9fa;">
+            <strong>Empfänger:</strong>
+            {% for empfänger in nachricht.liste_empfänger %}
+                {% if forloop.counter > 1 %}, {% endif %} <!-- Trennzeichen zwischen Empfängern-->
+                {{empfänger.first_name}} {{empfänger.last_name}}
+                {% if empfänger.gelesen %}(gelesen){% endif %}
+            {% endfor %}
+        </li>
+
+        <li class="list-group-item">
+            {{nachricht.text}}
+        </li>
+
+    </ul>
+
+</div>
+{% endblock inhalt %}

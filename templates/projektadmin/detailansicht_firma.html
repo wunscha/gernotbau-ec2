@@ -1,0 +1,112 @@
+<!-- Vererbung -->
+{% extends './_base_projektadmin.html' %}
+
+<!-- Titel -->
+{% block titel %}
+    Übersicht Projektfirmen
+{% endblock titel %}
+
+<!-- nav-tab aktiv -->
+{% block übersicht_firmen_active %}
+    active
+{% endblock übersicht_firmen_active %}
+
+<!-- Seiteninhalt -->
+{% block inhalt %}
+
+<div class="container">
+
+    <!-- Seitenüberschrift -->
+    <h1 class="mb-5 text-center">Detailansicht {{firma.bezeichnung}}</h1>
+
+    <!-- Bezeichnung -->
+    <p>
+        <span class="font-weight-bolder">Bezeichnung: </span>
+        <span>{{firma.bezeichnung}}</span>
+    </p>
+
+    <!-- Kurzbezeichnung -->
+    <p>
+        <span class="font-weight-bolder">Kurzbezeichnung: </span>
+        <span>{{firma.kurzbezeichnung}}</span>
+    </p>
+
+    <!-- Strasse -->
+    <p>
+        <span class="font-weight-bolder">Straße: </span>
+        <span>{{firma.strasse}}</span>
+    </p>
+
+    <!-- Hausnummer -->
+    <p>
+        <span class="font-weight-bolder">Hausnummer: </span>
+        <span>{{firma.hausnummer}}</span>
+    </p>
+
+    <!-- Postleitzahl -->
+    <p>
+        <span class="font-weight-bolder">Postleitzahl: </span>
+        <span>{{firma.postleitzahl}}</span>
+    </p>
+
+    <!-- Ort -->
+    <p>
+        <span class="font-weight-bolder">Ort: </span>
+        <span>{{firma.ort}}</span>
+    </p>
+
+    <!-- EMail -->
+    <p>
+        <span class="font-weight-bolder">E-Mail: </span>
+        <span>{{firma.email}}</span>
+    </p>
+
+</div>
+
+<!-- Rollen für Firma wählen -->
+{% if liste_rollen %}
+    <div class="container border-top">
+        <form action="{% url 'projektadmin:detailansicht_firma' projekt_id firma.id %}" method="POST">
+            {% csrf_token %}
+            <p>
+                <br>
+                <span class="font-weight-bolder">Rollen: </span>
+            </p>
+
+            <div class="form-group">
+                {% for rolle in liste_rollen %}
+                <span class="col-1"></span>
+                <input type="checkbox" id="{{rolle.id}}" name="{{rolle.id}}" {% if rolle.ist_firmenrolle %}checked{% endif %}>
+                <label for="{{rolle.id}}">{{rolle.bezeichnung}}</label><br>
+                {% endfor %}
+            </div>
+
+            <button class="my-3 btn btn-outline-primary" type="submit" name="ereignis" value="rollen_aktualisieren">Rollen aktualisieren</button>
+        </form>
+    </div>
+{% endif %}
+
+
+<!-- Firma als Projektadmin -->
+<div class="container border-top">
+
+    <form action="{% url 'projektadmin:detailansicht_firma' projekt_id firma.id %}" method="POST">
+        {% csrf_token %}
+        <p>
+            <br>
+            <span class="font-weight-bolder">Firma als Projektadmin</span>
+        </p>
+
+        <div class="form-group">
+            <span class="col-1"></span>
+            <input type="checkbox" id="ist_projektadmin" name="ist_projektadmin" {% if firma_ist_projektadmin %}checked{% endif %}>
+            <label for="ist_firmenadmin">Projektadmin</label>
+        </div>
+
+        <button class="my-3 btn btn-outline-primary" type="submit" name="ereignis" value="ist_projektadmin_aktualisieren">Aktualisieren</button>
+        
+    </form>
+
+</div>
+
+{% endblock inhalt %}

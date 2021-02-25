@@ -293,8 +293,11 @@ class Mitarbeiter(AbstractUser):
             )
 
     def gelöscht(self):
-        return Mitarbeiter_Gelöscht.objects.using(DB_SUPER).filter(mitarbeiter = self).latest('zeitstempel').gelöscht
-
+        try:
+            return Mitarbeiter_Gelöscht.objects.using(DB_SUPER).filter(mitarbeiter = self).latest('zeitstempel').gelöscht
+        except ObjectDoesNotExist:
+            return False
+            
     # MITARBEITER FIRMENADMIN
     def ist_firmenadmin_ändern(self, ist_firmenadmin):
         Mitarbeiter_Ist_Firmenadmin.objects.using(DB_SUPER).create(

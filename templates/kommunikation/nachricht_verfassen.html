@@ -1,0 +1,60 @@
+<!-- Vererbung -->
+{% extends './_base_kommunikation.html' %}
+
+<!-- Titel -->
+{% block titel %}
+    Nachricht Verfassen
+{% endblock titel %}
+
+<!-- Seiteninhalt -->
+{% block inhalt %}
+<div class="container">
+
+    <!-- Seitenüberschrift -->
+    <h1 class="mb-5 text-center">Nachricht Verfassen</h1>
+
+    <!-- Formular Nachricht Verfassen -->
+    <form class="p-0" action="{% url 'kommunikation:nachricht_verfassen' 'keine_vorauswahl' %}" method="POST">
+        {% csrf_token %}
+
+        <ul class="list-group">
+            <li class="list-group-item">
+                <label for="betreff">Betreff:</label>
+                <input class="form-control" type="text" name="betreff" id="betreff">
+            </li>
+
+            <!-- Empfänger vorausgefüllt, wenn über Link aufgerufen, sonst Auswahl aus Liste -->
+            
+            
+            <li class="list-group-item">
+                <div class="form-group">
+                    <label for="empfänger">Empfänger</label>
+                    
+                    {% if empfänger_vorauswahl %}
+                        <input readonly type="text" value="{{empfänger_vorauswahl.first_name}} {{empfänger_vorauswahl.last_name}}">
+                        <input hidden type="text" name="empfänger_id" value="{{empfänger_vorauswahl.id}}">
+                    {% endif %}
+                    
+                    <select multiple class="form-control" name="empfänger_id" id="empfänger">
+                        {% for empfänger in liste_mitarbeiter %}
+                        <option value="{{empfänger.id}}">{{empfänger.first_name}} {{empfänger.last_name}} ({{empfänger.bezeichnung_firma}})</option>
+                        {% endfor %}
+                </div>
+                </select>
+            </li>
+
+            <li class="list-group-item">
+                <textarea class="form-control" name="text"></textarea>
+            </li>
+        </ul>
+
+        <button class="m-2 btn btn-outline-primary" 
+                type="submit"        
+                name="ereignis" 
+                value="nachricht_senden" 
+                style="float: right;">Senden</button>
+
+    </form>
+
+</div>
+{% endblock inhalt %}

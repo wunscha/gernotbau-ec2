@@ -46,7 +46,8 @@ INSTALLED_APPS = [
     'firmenadmin',
     'dokab',
     'test_multidb',
-    'vorlagen'
+    'vorlagen',
+    'kommunikation'
 ]
 
 MIDDLEWARE = [

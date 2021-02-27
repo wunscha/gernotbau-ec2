@@ -39,6 +39,9 @@ urlpatterns = [
     # Weiterleigung zu Kommunikation
     path('kommunikation/', include('kommunikation.urls')),
 
+    # Weiterleigung zu Mängel
+    path('mängel/', include('mängel.urls')),
+
     # Weiterleitung zu Test MultiDB
     path('test_multidb/', include('test_multidb.urls')),
 

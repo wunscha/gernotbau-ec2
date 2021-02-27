@@ -2514,6 +2514,10 @@ class Pfad(models.Model):
     pfad = models.CharField(max_length = 100)
     zeitstempel = models.DateTimeField()
 
+class Pfad_Projekt(models.Model):
+    pfad = models.CharField(max_length = 100)
+    zeitstempel = models.DateTimeField()
+
 class Datei(models.Model):
 # Dateien auch als Anhang für Kommentar etc. einsetzbar ==> Verbindungen über Through-Tabellen zwecks Flexibilität
     dateiname = models.CharField(max_length = 50)
@@ -2536,6 +2540,7 @@ class Dokument_Datei(models.Model):
 
 class Kommentar(models.Model):
 # Kommentar hat keinen direkten Bezug zu Dokument, damit auch Möglichkeit besteht andere Elemente zu kommentieren
+# TODO: Kommentar doch auf direkten Dokumentenbezug umbauen (ermöglicht mehr Flexibiltät, wenn Kommentare bei unterschiedlichen Elementen unterschiedlich sein sollen)
 
     mitarbeiter_id = models.CharField(max_length = 20, null = True) # TODO: Nullable entfernen
     kommentartext = models.CharField(max_length = 250)
@@ -3134,5 +3139,21 @@ def liste_wf_zur_bearbeitung_dict(projekt, mitarbeiter):
     
     return li_wf_zb_dict
 
+# STATI
+
+# Stati Allg
+def DICT_STATI(pj):
+    dict_stati = {}
+    dict_stati['in_bearbeitung'] = Status.objects.using(pj.db_bezeichnung()).get_or_create(bezeichnung = 'In Bearbeitung')[0]
+    dict_stati['status_rückfrage'] = Status.objects.using(pj.db_bezeichnung()).get_or_create(bezeichnung = 'Rückfrage')[0]
+    # Stati Aussteller
+    dict_stati['freigegeben'] = Status.objects.using(pj.db_bezeichnung()).get_or_create(bezeichnung = 'Freigegeben')[0]
+    dict_stati['abgelehnt'] = Status.objects.using(pj.db_bezeichnung()).get_or_create(bezeichnung = 'Abgelehnt')[0]
+    dict_stati['warten_auf_rückmeldung'] = Status.objects.using(pj.db_bezeichnung()).get_or_create(bezeichnung = 'Warten auf Rückmeldung')[0]
+    # Stati Empfängerfirma
+    dict_stati['behoben'] = Status.objects.using(pj.db_bezeichnung()).get_or_create(bezeichnung = 'Behoben')[0]
+    dict_stati['zurückgewiesen'] = Status.objects.using(pj.db_bzeichnung()).get_or_create(bezeichnung = 'Zurückgewiesen')[0]
+
+    return dict_stati
 #
 ###################################################################

@@ -47,7 +47,8 @@ INSTALLED_APPS = [
     'dokab',
     'test_multidb',
     'vorlagen',
-    'kommunikation'
+    'kommunikation',
+    'mängel',
 ]
 
 MIDDLEWARE = [

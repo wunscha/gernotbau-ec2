@@ -1,0 +1,59 @@
+<!-- Vererbung -->
+{% extends './_base_mängel.html' %}
+
+<!-- Titel -->
+{% block titel %}
+    Übersicht Tickets
+{% endblock titel %}
+
+<!-- nav-tab aktiv -->
+{% block tickets_active %}
+    active
+{% endblock tickets_active %}
+
+<!-- Seiteninhalt -->
+{% block inhalt %}
+
+<!-- BUTTONLEISTE DOKAB INHALTSANSICHT -->
+<nav class="navbar border-bottom">
+    <div class="ml-auto mr-0">
+        <a class="btn btn-outline-success" role="button" href="{% url 'mängel:ticket_ausstellen' projekt.id %}">Ticket Ausstellen</a>
+    </div>
+</nav>
+
+<div class="container">
+    
+    <h1 class="mb-5 text-center">Übersicht Tickets</h1>
+
+    
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Bezeichnung</th>
+                <th>Aussteller</th>
+                <th>Status</th>
+                <th>Empfänger</th>
+                <th>Status</th>
+                <th>Gelesen</th>
+                <th>Fälligkeit</th>
+                <th>Plan</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ticket in liste_tickets %}
+                <tr>
+                    <td>{{ticket.bezeichnung}}</td>
+                    <td>{{ticket.aussteller}}</td>
+                    <td>{{ticket.ausstellerstatus}}</td>
+                    <td>{{ticket.empfänger}}</td>
+                    <td>{{ticket.empfängerstatus}}</td>
+                    <td>{{ticker.gelesen}}</td>
+                    <td>{{ticket.fälligkeitsdatum}}</td>
+                    <td>{{ticket.plan}}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+</div>
+{% endblock inhalt %}

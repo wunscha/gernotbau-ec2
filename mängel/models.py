@@ -1,10 +1,12 @@
+from datetime import time
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from django.db.models.fields import CharField, DateTimeField
 from django.utils import timezone
 
 from projektadmin.models import Status, Datei
-from superadmin.models import Firma
+from superadmin.models import Firma, Mitarbeiter
 from gernotbau.settings import DB_SUPER
 
 class Ticket(models.Model):
@@ -22,7 +24,7 @@ class Ticket(models.Model):
     def _entlöschen(self, pj):
         Ticket_Gelöscht.objects.using(pj.db_bezeichnung()).create(
             ticket = self, 
-            gelöscht = True,
+            gelöscht = False,
             zeitstempel = timezone.now()
             )
 
@@ -42,6 +44,11 @@ class Ticket(models.Model):
     
     def _bezeichnung(self, pj):
         return Ticket_Bezeichnung.objects.using(pj.db_bezeichnung()).filter(ticket = self).latest('zeitstempel').bezeichnung
+
+    # TICKET STATUS AUSSTELLER
+    def _ausstellerstatus(self, pj):
+        ticket_ausstellerstatus = Ticket_Ausstellerstatus.objects.using(pj.db_bezeichnung()).filter(ticket = self).latest('zeitstempel')
+        return ticket_ausstellerstatus.status
 
     # TICKET X-KOORDINATE
     def _x_koordinate_ändern(self, pj, plan, x_koordinate_neu):
@@ -70,44 +77,57 @@ class Ticket(models.Model):
         return Ticket_Plan_Y.objects.using(pj.db_bezeichnung()).filter(ticket_plan = ti_pl).latest('zeitstempel').y_koordinate
 
     # TICKET EMPFÄNGERGIRMA
-    def _empfängerfirma_hinzufügen(self, pj, empfängerfirma_id):
+    def _empfängerfirma_ändern(self, pj, empfängerfirma_neu_id):
         ti_empf = Ticket_Empfängerfirma.objects.using(pj.db_bezeichnung()).create(
             ticket = self,
-            firma_id = empfängerfirma_id,
+            firma_id = empfängerfirma_neu_id,
             zeitstempel = timezone.now()
             )
         return ti_empf
 
-    def _liste_empfängerfirmen(self, pj):
-        li_empf = []
-        qs_ti_empf = Ticket_Empfängerfirma.objects.using(pj.db_bezeichnung()).filter(ticket = self)
-        for ti_empf in qs_ti_empf:
-            empf = Firma.objects.using(DB_SUPER).get(pk = ti_empf.firma_id)
-            if ti_empf.aktuell(pj) and not empf.gelöscht():
-                li_empf.append(empf)
-        return li_empf
+    def _empfängerfirma(self, pj):
+        ti_empf_id = Ticket_Empfängerfirma.objects.using(pj.db_bezeichnung()).filter(ticket = self).latest('zeitstempel').firma_id
+        return Firma.objects.using(DB_SUPER).get(pk = ti_empf_id)
+
+    def _empfängerfirma_gelesen(self, pj):
+        ticket_empfängerfirma = Ticket_Empfängerfirma.objects.using(pj.db_bezeichnung()).filter(ticket = self).latest('zeitstempel')
+        return ticket_empfängerfirma._gelesen(pj)
+        
+    def _empfängerstatus(self, pj):
+        ticket_empfängerfirma = Ticket_Empfängerfirma.objects.using(pj.db_bezeichnung()).filter(ticket = self).latest('zeitstempel')
+        return ticket_empfängerfirma._status(pj)
+
+    # TICKET FÄLLIGKEITSDATUM
+    def _fälligkeitsdatum_ändern(self, pj, fälligkeitsdatum_neu):
+        Ticket_Fälligkeitsdatum.objects.using(pj.db_bezeichnung()).create(
+            ticket = self,
+            zeitstempel = timezone.now(),
+            fälligkeitsdatum = fälligkeitsdatum_neu
+            )
+
+    def _fälligkeitsdatum(self, pj):
+        qs_ticket_fälligkeitsdatum = Ticket_Fälligkeitsdatum.objects.using(pj.db_bezeichnung()).filter(ticket = self)
+        return qs_ticket_fälligkeitsdatum.latest('zeitstempel').fälligkeitsdatum
+
+    # TICKET PLAN
+    def _plan(self, pj):
+        qs_ti_pl = Ticket_Plan.objects.using(pj.db_bezeichnung()).filter(ticket = self)
+        return qs_ti_pl.latest('zeitstempel').plan
 
     # TICKET DICT
     def _dict_für_übersicht(self, pj):
         dict_ticket = self.__dict__
-        dict_ticket['bezeichnung'] = None
-        dict_ticket['fälligkeit'] = None
-        dict_ticket['status_aussteller'] = None
-        dict_ticket['plan']
+        dict_ticket['bezeichnung'] = self._bezeichnung(pj)
+        User = get_user_model()
+        ma = User.objects.using(DB_SUPER).get(pk = self.aussteller_id)
+        dict_ticket['aussteller'] = ma.first_name + ' ' + ma.last_name
+        dict_ticket['ausstellerstatus'] = self._ausstellerstatus(pj).bezeichnung
+        dict_ticket['empfänger'] = self._empfängerfirma(pj)._bezeichnung()
+        dict_ticket['empfängerstatus'] = self._empfängerstatus(pj).bezeichnung
+        dict_ticket['gelesen'] = self._empfängerfirma_gelesen(pj)
+        dict_ticket['fälligkeitsdatum'] = self._fälligkeitsdatum(pj)
+        dict_ticket['plan'] = self._plan(pj)._bezeichnung(pj)
         
-        # Liste Empfänger
-        li_empf = []
-        for ti_empf in Ticket_Empfängerfirma.objects.using(pj.db_bezeichnung()).filter(ticket = self):
-            if ti_empf.aktuell(pj):
-                empf = Firma.objects.using(DB_SUPER).get(pk = ti_empf.firma_id)
-                dict_empf = empf.__dict__
-                dict_empf['bezeichnung'] = empf._bezeichnung()
-                dict_empf['status'] = ti_empf._status(pj)
-                dict_empf['gelesen'] = ti_empf._gelesen(pj)
-                li_empf.append(dict_empf)
-
-        dict_ticket['liste_empfänger'] = None # Status, Gelesen
-
         return dict_ticket
 
 class Ticket_Gelöscht(models.Model):
@@ -167,7 +187,7 @@ class Ticket_Empfängerfirma(models.Model):
     # TICKET_EMPFÄNGERFIRMA STATUS
     def _status(self, pj):
         ti_empf = Ticket_Empfängerfirma_Status.objects.using(pj.db_bezeichnung()).filter(ticket_empfängerfirma = self).latest('zeitstempel')
-        return ti_empf.status.bezeichnung
+        return ti_empf.status
 
 class Ticket_Empfängerfirma_Aktuell(models.Model):
     ticket_empfängerfirma = models.ForeignKey(Ticket_Empfängerfirma, on_delete = models.CASCADE)
@@ -190,10 +210,53 @@ class Ticket_Kommentar(models.Model):
     zeitstempel = models.DateTimeField()
 
 class Plan(models.Model):
-    ticket = models.ForeignKey(Ticket, on_delete = models.CASCADE)
     breite = models.FloatField()
     hoehe = models.FloatField()
     datei = models.ForeignKey(Datei, on_delete = models.CASCADE)
+
+    # PLAN BEZEICHNUNG
+    def _bezeichnung_ändern(self, pj, neue_bezeichnung):
+        Plan_Bezeichnung.objects.using(pj.db_bezeichnung()).create(
+            plan = self,
+            bezeichnung = neue_bezeichnung,
+            zeitstempel = timezone.now()
+            )
+
+    def _bezeichnung(self, pj):
+        qs_plan_bez = Plan_Bezeichnung.objects.using(pj.db_bezeichnung()).filter(plan = self)
+        return qs_plan_bez.latest('zeitstempel').bezeichnung
+
+    # PLAN GELÖSCHT
+    def _löschen(self, pj):
+        Plan_Gelöscht.objects.using(pj.db_bezeichnung()).create(
+            plan = self,
+            gelöscht = True,
+            zeitstempel = timezone.now()
+            )
+    
+    def _entlöschen(self, pj):
+        Plan_Gelöscht.objects.using(pj.db_bezeichnung()).create(
+            plan = self,
+            gelöscht = False,
+            zeitstempel = timezone.now()
+            )
+
+    def _gelöscht(self, pj):
+        try:
+            qs_plan_gelöscht = Plan_Gelöscht.objects.using(pj.db_bezeichnung()).filter(plan = self)
+            return qs_plan_gelöscht.latest('zeitstempel').gelöscht
+        except ObjectDoesNotExist:
+            return False
+
+class Plan_Bezeichnung(models.Model):
+    plan = models.ForeignKey(Plan, on_delete = models.CASCADE)
+    bezeichnung = models.CharField(max_length = 25)
+    zeitstempel = models.DateTimeField()
+
+class Plan_Gelöscht(models.Model):
+    plan = models.ForeignKey(Plan, on_delete = models.CASCADE)
+    gelöscht = models.BooleanField()
+    zeitstempel = models.DateTimeField()
 
 class Ticket_Plan(models.Model):
     ticket = models.ForeignKey(Ticket, on_delete = models.CASCADE)

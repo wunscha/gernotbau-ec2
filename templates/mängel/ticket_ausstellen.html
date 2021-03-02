@@ -1,0 +1,79 @@
+<!-- Vererbung -->
+{% extends './_base_mängel.html' %}
+
+<!-- Titel -->
+{% block titel %}
+    Übersicht Tickets
+{% endblock titel %}
+
+<!-- nav-tab aktiv -->
+{% block tickets_active %}
+    active
+{% endblock tickets_active %}
+
+<!-- Seiteninhalt -->
+{% block inhalt %}
+
+<div class="container">
+
+    <!-- Seitenüberschrift -->
+    <h1 class="mb-5 text-center">Ticket ausstellen</h1>
+
+    <!-- Formular Neue Firma -->
+    <form class="p-2" action="{% url 'mängel:ticket_ausstellen' projekt.id %}" method="POST" autocomplete="off" style="border: 1px solid #dee2e6;">
+        
+        <!-- CSRF Token -->
+        {% csrf_token %}
+
+        <!-- Textfeld Ticket-Bezeichnung -->
+        <div class="form-group">
+            <label for="bezeichnung">Bezeichnung</label>
+            <input type="text" class="form-control" name="bezeichnung" id="bezeichnung" required> 
+        </div>
+
+        <!-- Auswahl Plan -->
+        <div class="form-group">
+            <label for="plan_id">Plan</label>
+            <select class="form-control" name="plan_id" id="plan_id">
+                {% for plan in liste_pläne %}
+                <option value="{{plan.id}}">{{plan.bezeichnung}}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Textfeld X-Koordinate -->
+        <div class="form-group">
+            <label for="x_koordinate">X-Koordinate</label>
+            <input type="number" step="0.01" class="form-control" name="x_koordinate" id="x_koordinate" required>
+        </div>
+
+        <!-- Textfeld Y-Koordinate -->
+        <div class="form-group">
+            <label for="y_koordinate">Y-Koordinate</label>
+            <input type="number" step="0.01" class="form-control" name="y_koordinate" id="y_koordinate" required>
+        </div>
+
+        <!-- Auswahl Fälligkeitsdatum -->
+        <div class="form-group">
+            <label for="fälligkeitsdatum">Fälligkeitsdatum</label>
+            <input type="date" class="form-control" name="fälligkeitsdatum" id="fälligkeitsdatum" required>
+        </div>
+
+        <!-- Auswahl Empfängerfirma -->
+        <div class="form-group">
+            <label for="empfängerfirma_id">Empfängerfirma</label>
+            <select class="form-control" name="empfängerfirma_id">
+                {% for firma in liste_projektfirmen %}
+                <option value="{{firma.id}}">{{firma.bezeichnung}}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Submit Button -->
+        <button type="submit" class="btn btn-primary" name="ereignis" value="ticket_ausstellen">Ticket Ausstellen</button>
+
+    </form>
+    
+</div>
+
+{% endblock inhalt %}

@@ -2521,7 +2521,6 @@ class Pfad_Projekt(models.Model):
 class Datei(models.Model):
 # Dateien auch als Anhang für Kommentar etc. einsetzbar ==> Verbindungen über Through-Tabellen zwecks Flexibilität
     dateiname = models.CharField(max_length = 50)
-    pfad = models.ForeignKey(Pfad, on_delete = models.CASCADE)
     zeitstempel = models.DateTimeField(null = True) # TODO: Nullable entfernen
 
     # DATEI HOCHLADEN

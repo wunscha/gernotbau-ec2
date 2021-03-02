@@ -1,0 +1,44 @@
+<!-- Vererbung -->
+{% extends './_base_mängel.html' %}
+
+<!-- Titel -->
+{% block titel %}
+    Übersicht Pläne
+{% endblock titel %}
+
+<!-- nav-tab aktiv -->
+{% block pläne_active %}
+    active
+{% endblock pläne_active %}
+
+<!-- Seiteninhalt -->
+{% block inhalt %}
+
+<!-- BUTTONLEISTE DOKAB INHALTSANSICHT -->
+<nav class="navbar border-bottom">
+    <div class="ml-auto mr-0">
+        <a class="btn btn-outline-success" role="button" href="{% url 'mängel:plan_anlegen' projekt.id %}">Plan Anlegen</a>
+    </div>
+</nav>
+
+<div class="container">
+    
+    <h1 class="mb-5 text-center">Übersicht Pläne</h1>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Bezeichnung</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for plan in liste_pläne %}
+                <tr>
+                    <td>{{plan.bezeichnung}}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+</div>
+{% endblock inhalt %}

@@ -1,0 +1,47 @@
+<!-- Vererbung -->
+{% extends './_base_mängel.html' %}
+
+<!-- Titel -->
+{% block titel %}
+    Plan Anlegen
+{% endblock titel %}
+
+<!-- nav-tab aktiv -->
+{% block pläne_active %}
+    active
+{% endblock pläne_active %}
+
+<!-- Seiteninhalt -->
+{% block inhalt %}
+
+<div class="container">
+
+    <!-- Seitenüberschrift -->
+    <h1 class="mb-5 text-center">Plan anlegen</h1>
+
+    <!-- Formular Neue Firma -->
+    <form class="p-2" action="{% url 'mängel:plan_anlegen' projekt.id %}" method="POST" autocomplete="off" enctype="multipart/form-data" style="border: 1px solid #dee2e6;">
+        
+        <!-- CSRF Token -->
+        {% csrf_token %}
+
+        <!-- Textfeld Ticket-Bezeichnung -->
+        <div class="form-group">
+            <label for="bezeichnung">Bezeichnung</label>
+            <input type="text" class="form-control" name="bezeichnung" id="bezeichnung" required> 
+        </div>
+
+        <!-- Textfeld Ticket-Bezeichnung -->
+        <div class="form-group">
+            <label for="datei">Datei</label>
+            <input type="file" class="form-control" name="datei" id="datei" required> 
+        </div>
+
+        <!-- Submit Button -->
+        <button type="submit" class="btn btn-primary" name="ereignis" value="plan_anlegen">Plan anlegen</button>
+
+    </form>
+    
+</div>
+
+{% endblock inhalt %}

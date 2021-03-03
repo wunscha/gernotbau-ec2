@@ -42,7 +42,9 @@
         <tbody>
             {% for ticket in liste_tickets %}
                 <tr>
-                    <td>{{ticket.bezeichnung}}</td>
+                    <td>
+                        <a href="{% url 'mängel:detailansicht_ticket' projekt.id ticket.id %}">{{ticket.bezeichnung}}</a>
+                    </td>
                     <td>{{ticket.aussteller}}</td>
                     <td>{{ticket.ausstellerstatus}}</td>
                     <td>{{ticket.empfänger}}</td>

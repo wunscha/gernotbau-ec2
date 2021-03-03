@@ -72,7 +72,7 @@ class Ticket(models.Model):
             zeitstempel = timezone.now()
             )
     
-    def _y_koordinate(self, plan, pj):
+    def _y_koordinate(self, pj, plan):
         ti_pl = Ticket_Plan.objects.using(pj.db_bezeichnung()).get(ticket = self, plan = plan)
         return Ticket_Plan_Y.objects.using(pj.db_bezeichnung()).filter(ticket_plan = ti_pl).latest('zeitstempel').y_koordinate
 
@@ -88,6 +88,13 @@ class Ticket(models.Model):
     def _empfängerfirma(self, pj):
         ti_empf_id = Ticket_Empfängerfirma.objects.using(pj.db_bezeichnung()).filter(ticket = self).latest('zeitstempel').firma_id
         return Firma.objects.using(DB_SUPER).get(pk = ti_empf_id)
+
+    def _empfängerfirma_gelesen_markieren(self, pj):
+        ti_empf = Ticket_Empfängerfirma.objects.using(pj.db_bezeichnung()).filter(ticket = self).latest('zeitstempel')
+        Ticket_Empfängerfirma_Gelesen.objects.using(pj.db_bezeichnung()).create(
+            ticket_empfängerfirma = ti_empf,
+            zeitstempel = timezone.now()
+            )
 
     def _empfängerfirma_gelesen(self, pj):
         ticket_empfängerfirma = Ticket_Empfängerfirma.objects.using(pj.db_bezeichnung()).filter(ticket = self).latest('zeitstempel')
@@ -114,6 +121,58 @@ class Ticket(models.Model):
         qs_ti_pl = Ticket_Plan.objects.using(pj.db_bezeichnung()).filter(ticket = self)
         return qs_ti_pl.latest('zeitstempel').plan
 
+    # TICKET HISTORIE
+    def _historie(self, pj):
+        
+        User = get_user_model()
+        li_historie = []
+        
+        # Erstellt
+        dict_eintrag_erstellt = {}
+        dict_eintrag_erstellt['ereignis'] = 'Ticket erstellt'
+        ma = User.objects.using(DB_SUPER).get(pk = self.aussteller_id)
+        dict_eintrag_erstellt['mitarbeiter_firma'] = f'{ma.first_name} {ma.last_name}'
+        dict_eintrag_erstellt['zeitstempel'] = self.zeitstempel
+        dict_eintrag_erstellt['text'] = 'Ticket erstellt'
+
+        li_historie.append(dict_eintrag_erstellt)
+
+        # Kommentare
+        for k in Ticket_Kommentar.objects.using(pj.db_bezeichnung()).filter(ticket = self):
+            dict_eintrag_kommentar = {}
+            dict_eintrag_kommentar['ereignis'] = 'Kommentar'
+            ma = User.objects.using(DB_SUPER).get(pk = k.mitarbeiter_id)
+            dict_eintrag_kommentar['mitarbeiter_firma'] = f'{ma.first_name} {ma.last_name}'
+            dict_eintrag_kommentar['zeitstempel'] = k.zeitstempel
+            dict_eintrag_kommentar['text'] = k.text
+
+            li_historie.append(dict_eintrag_kommentar)
+
+        # Ausstellerstati
+        for ast in Ticket_Ausstellerstatus.objects.using(pj.db_bezeichnung()).filter(ticket = self):
+            dict_eintrag_ausstellerstatus = {}
+            dict_eintrag_ausstellerstatus['ereignis'] = 'Status Aussteller'
+            ma = User.objects.using(DB_SUPER).get(pk = self.aussteller_id)
+            dict_eintrag_ausstellerstatus['mitarbeiter_firma'] = f'{ma.first_name} {ma.last_name}'
+            dict_eintrag_ausstellerstatus['zeitstempel'] = ast.zeitstempel
+            dict_eintrag_ausstellerstatus['text'] = f'Ausstellerstatus geändert auf: {ast.status.bezeichnung}'
+
+            li_historie.append(dict_eintrag_ausstellerstatus)
+
+        # Empfängerstatus
+        ti_empf = Ticket_Empfängerfirma.objects.using(pj.db_bezeichnung()).filter(ticket = self).latest('zeitstempel')
+        for es in Ticket_Empfängerfirma_Status.objects.using(pj.db_bezeichnung()).filter(ticket_empfängerfirma = ti_empf):
+            dict_eintrag_empfängerstatus = {}
+            dict_eintrag_empfängerstatus['ereignis'] = 'Status Empfängerfirma'
+            fa = Firma.objects.using(DB_SUPER).get(pk = ti_empf.firma_id)
+            dict_eintrag_empfängerstatus['mitarbeiter_firma'] = fa._bezeichnung()
+            dict_eintrag_empfängerstatus['zeitstempel'] = es.zeitstempel
+            dict_eintrag_empfängerstatus['text'] = f'Empfängerstatus geändert auf: {es.status.bezeichnung}'
+
+            li_historie.append(dict_eintrag_empfängerstatus)
+
+        return sorted(li_historie, key = lambda i: i['zeitstempel'])
+
     # TICKET DICT
     def _dict_für_übersicht(self, pj):
         dict_ticket = self.__dict__
@@ -122,12 +181,15 @@ class Ticket(models.Model):
         ma = User.objects.using(DB_SUPER).get(pk = self.aussteller_id)
         dict_ticket['aussteller'] = ma.first_name + ' ' + ma.last_name
         dict_ticket['ausstellerstatus'] = self._ausstellerstatus(pj).bezeichnung
-        dict_ticket['empfänger'] = self._empfängerfirma(pj)._bezeichnung()
+        # Empfängerfirma
+        dict_empfängerfirma = self._empfängerfirma(pj).__dict__
+        dict_empfängerfirma['bezeichnung'] = self._empfängerfirma(pj)._bezeichnung()
+        dict_ticket['empfängerfirma'] = dict_empfängerfirma
         dict_ticket['empfängerstatus'] = self._empfängerstatus(pj).bezeichnung
         dict_ticket['gelesen'] = self._empfängerfirma_gelesen(pj)
         dict_ticket['fälligkeitsdatum'] = self._fälligkeitsdatum(pj)
         dict_ticket['plan'] = self._plan(pj)._bezeichnung(pj)
-        
+
         return dict_ticket
 
 class Ticket_Gelöscht(models.Model):
@@ -207,6 +269,11 @@ class Ticket_Kommentar(models.Model):
     ticket = models.ForeignKey(Ticket, on_delete = models.CASCADE)
     mitarbeiter_id = models.CharField(max_length = 20)
     text = models.CharField(max_length = 250)
+    zeitstempel = models.DateTimeField()
+
+class Ticket_Kommentar_Anhang(models.Model):
+    ticket_kommentar = models.ForeignKey(Ticket_Kommentar, on_delete = models.CASCADE)
+    datei = models.ForeignKey(Datei, on_delete = models.CASCADE)
     zeitstempel = models.DateTimeField()
 
 class Plan(models.Model):

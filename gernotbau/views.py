@@ -43,9 +43,7 @@ def login_view(request):
             login(request, user)
         
             # Weiterleitung zu Home:
-            return HttpResponseRedirect(reverse('mängel:übersicht_eingang'))
-            # TODO: Weiterleitung wieder zu Home einrichten (und Home-Seite einrichten)
-            # return HttpResponseRedirect(reverse('home'))
+            return HttpResponseRedirect(reverse('home'))
 
         # Wenn user nicht vorhanden: Formular neu laden
         else:

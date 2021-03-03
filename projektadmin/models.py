@@ -2518,6 +2518,10 @@ class Pfad_Projekt(models.Model):
     pfad = models.CharField(max_length = 100)
     zeitstempel = models.DateTimeField()
 
+class Pfad_Anhaenge(models.Model):
+    pfad = models.CharField(max_length = 100)
+    zeitstempel = models.DateTimeField()
+
 class Datei(models.Model):
 # Dateien auch als Anhang für Kommentar etc. einsetzbar ==> Verbindungen über Through-Tabellen zwecks Flexibilität
     dateiname = models.CharField(max_length = 50)

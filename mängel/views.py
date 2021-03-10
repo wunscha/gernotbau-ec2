@@ -4,13 +4,13 @@ from os import path
 from projektadmin.models import V_PJS_Bezeichnung
 from django.shortcuts import render
 from django.utils import timezone
-from gernotbau.settings import MEDIA_ROOT, MEDIA_URL
+from gernotbau.settings import MEDIA_ROOT, MEDIA_URL, STATIC_URL
 from django.contrib.auth import get_user_model
 
 from .models import Pfad_Plaene, Ticket, Plan, Ticket_Ausstellerstatus, Ticket_Empfängerfirma, Ticket_Empfängerfirma_Status, Ticket_Plan, Ticket_Kommentar, Ticket_Kommentar_Anhang
 from superadmin.models import Projekt, Firma
 from projektadmin.models import Status, Pfad_Projekt, Pfad_Anhaenge, Datei, DICT_STATI
-from gernotbau.settings import DB_SUPER
+from gernotbau.settings import DB_SUPER, STATICFILES_DIRS
 
 # Create your views here.
 def ticket_ausstellen_view(request, projekt_id):
@@ -96,6 +96,38 @@ def übersicht_tickets_view(request, projekt_id):
         }
 
     return render(request, './mängel/übersicht_tickets.html', context)
+
+def übersicht_tickets_plan_view(request, projekt_id, plan_id):
+    pj = Projekt.objects.using(DB_SUPER).get(pk = projekt_id)
+    plan = Plan.objects.using(pj.db_bezeichnung()).get(pk = plan_id)
+
+    # Hole alle ungelöschten Ticket für plan
+    qs_ti_plan = Ticket_Plan.objects.using(pj.db_bezeichnung()).filter(plan = plan)
+    li_tickets_dict = []
+    for ti_plan in qs_ti_plan:
+        ticket = ti_plan.ticket
+        if not ticket._gelöscht(pj):
+            ticket_dict = ticket._dict_für_übersicht(pj)
+            ticket_dict['x_koordinate'] = float(ticket._x_koordinate(pj, plan))
+            ticket_dict['y_koordinate'] = float(ticket._y_koordinate(pj, plan))
+            ticket_dict['historie'] = ticket._historie(pj)
+            li_tickets_dict.append(ticket_dict)
+
+    # Plan
+    plan_dict = plan.__dict__
+    plan_dict['bezeichnung'] = plan._bezeichnung(pj)
+    pfad_projekt = Pfad_Projekt.objects.using(pj.db_bezeichnung()).latest('zeitstempel').pfad
+    pfad_plaene = Pfad_Plaene.objects.using(pj.db_bezeichnung()).latest('zeitstempel').pfad
+    plan_dict['pfad'] = str(path.join(STATIC_URL, pfad_projekt, pfad_plaene, plan.datei.dateiname))
+
+    # Packe Context und lade Template
+    context = {
+        'projekt': pj,
+        'plan': plan_dict,
+        'liste_tickets': li_tickets_dict
+        }
+
+    return render(request, './mängel/übersicht_tickets_plan.html', context)
 
 def detailansicht_ticket_view(request, projekt_id, ticket_id):
     # TODO: Kontrolle Login
@@ -196,7 +228,7 @@ def detailansicht_ticket_view(request, projekt_id, ticket_id):
             # Anhänge hochladen
             pfad_projekt = Pfad_Projekt.objects.using(pj.db_bezeichnung()).latest('zeitstempel')
             pfad_anhänge = Pfad_Anhaenge.objects.using(pj.db_bezeichnung()).latest('zeitstempel')
-            zielordner = path.join(MEDIA_ROOT, pfad_projekt.pfad, pfad_anhänge.pfad)
+            zielordner = path.join(STATICFILES_DIRS, pfad_projekt.pfad, pfad_anhänge.pfad) # TODO: Pfad anpassen ('STATIFILES_DIRS' nur für Produktion)
             for f in request.FILES.getlist('anhänge'):
                 # Datein in DB anlegen
                 neue_datei = Datei.objects.using(pj.db_bezeichnung()).create(
@@ -259,9 +291,9 @@ def detailansicht_ticket_view(request, projekt_id, ticket_id):
         for a in Ticket_Kommentar_Anhang.objects.using(pj.db_bezeichnung()).filter(ticket_kommentar = k):
             dict_a = a.__dict__
             dict_a['dateiname'] = a.datei.dateiname
-            pfad_projekt = Pfad_Projekt.objects.using(pj.db_bezeichnung()).latest('zeitstempel')
-            pfad_anhänge = Pfad_Anhaenge.objects.using(pj.db_bezeichnung()).latest('zeitstempel')
-            dict_a['dateipfad'] = path.join(MEDIA_URL, f'{a.datei.id}_{a.datei.dateiname}')# , pfad_projekt.pfad, pfad_anhänge.pfad, f'{a.datei.id}_{a.datei.dateiname}')
+            pfad_projekt = Pfad_Projekt.objects.using(pj.db_bezeichnung()).latest('zeitstempel').pfad
+            pfad_anhänge = Pfad_Anhaenge.objects.using(pj.db_bezeichnung()).latest('zeitstempel').pfad
+            dict_a['dateipfad'] = path.join(pfad_projekt, pfad_anhänge, f'{a.datei.id}_{a.datei.dateiname}') # TODO: Pfad für Produktion ggf anpassen
             li_anhänge.append(dict_a)
         dict_k['liste_anhänge'] = li_anhänge
         
@@ -324,7 +356,7 @@ def plan_anlegen_view(request, projekt_id):
         if request.POST['ereignis'] == 'plan_anlegen':
             # Datei hochladen
             upload_datei = request.FILES['datei']
-            zielpfad = path.join(str(MEDIA_ROOT), pfad_projekt, pfad_pläne, upload_datei.name)
+            zielpfad = path.join(STATICFILES_DIRS[0], pfad_projekt, pfad_pläne, upload_datei.name)  # TODO: Pfad anpassen ('STATIFILES_DIRS' nur für Produktion)
             with open(zielpfad, 'wb+') as ziel:
                 for chunk in request.FILES['datei'].chunks():
                     ziel.write(chunk)

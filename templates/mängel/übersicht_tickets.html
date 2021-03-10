@@ -11,6 +11,13 @@
     active
 {% endblock tickets_active %}
 
+<!-- leaflet für Plan einbinden-->
+{% load static %}
+
+{% block css_leaflet %}
+<link rel="stylesheet" href="{% static '/leaflet/leaflet.css' %}"/>
+{% endblock css_leaflet %}
+
 <!-- Seiteninhalt -->
 {% block inhalt %}
 
@@ -25,7 +32,8 @@
     
     <h1 class="mb-5 text-center">Übersicht Tickets</h1>
 
-    
+    <div id="karte"></div>
+
     <table class="table">
         <thead>
             <tr>
@@ -59,3 +67,21 @@
 
 </div>
 {% endblock inhalt %}
+
+<!-- leaflet Javascript einbinden -->
+{% block js_leaflet %}
+<script src="{% static '/leaflet/leaflet.js' %}"></script>
+<script>
+    var map = L.map('karte',{
+        crs: L.CRS.Simple
+    });
+    var bounds = [[0, 0], [100, 100]];
+    var image = L.imageOverlay('{% static '/leaflet/PLAN.png' %}', bounds).addTo(map);
+    map.fitBounds(bounds);
+    var m = L.latLng([50, 50])
+    var marker = L.marker(m)
+    marker.addTo(map)
+    marker.bindPopup('<form action="https://www.google.at" method="POST"><button type="submit" class="btn btn-outline-success">OK</button></form> ')
+</script>
+
+{% endblock js_leaflet %}

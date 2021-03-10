@@ -34,7 +34,9 @@
         <tbody>
             {% for plan in liste_pläne %}
                 <tr>
-                    <td>{{plan.bezeichnung}}</td>
+                    <td>
+                        <a href="{% url 'mängel:übersicht_tickets_plan' projekt.id plan.id %}">{{plan.bezeichnung}}</a>
+                    </td>
                 </tr>
             {% endfor %}
         </tbody>

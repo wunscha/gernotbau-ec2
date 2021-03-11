@@ -5,7 +5,9 @@ from django.db import models
 from django.db.models.fields import CharField, DateTimeField
 from django.utils import timezone
 
-from projektadmin.models import Status, Datei
+from os import path
+
+from projektadmin.models import Pfad_Anhaenge, Pfad_Fotos, Pfad_Projekt, Status, Datei
 from superadmin.models import Firma, Mitarbeiter
 from gernotbau.settings import DB_SUPER
 
@@ -146,6 +148,27 @@ class Ticket(models.Model):
             dict_eintrag_kommentar['zeitstempel'] = k.zeitstempel
             dict_eintrag_kommentar['text'] = k.text
 
+            # Kommentar-Anhänge
+            pfad_projekt = Pfad_Projekt.objects.using(pj.db_bezeichnung()).latest('zeitstempel').pfad
+            pfad_anhänge = Pfad_Anhaenge.objects.using(pj.db_bezeichnung()).latest('zeitstempel').pfad
+            li_anhänge = []
+            for a in Ticket_Kommentar_Anhang.objects.using(pj.db_bezeichnung()).filter(ticket_kommentar = k):
+                dict_a = a.__dict__
+                dict_a['dateiname'] = a.datei.dateiname
+                dict_a['dateipfad'] = path.join(pfad_projekt, pfad_anhänge, f'{a.datei.id}_{a.datei.dateiname}')
+                li_anhänge.append(dict_a)
+            dict_eintrag_kommentar['liste_anhänge'] = li_anhänge
+
+            # Kommentar-Fotos
+            pfad_fotos = Pfad_Fotos.objects.using(pj.db_bezeichnung()).latest('zeitstempel').pfad
+            li_fotos = []
+            for fo in Ticket_Kommentar_Foto.objects.using(pj.db_bezeichnung()).filter(ticket_kommentar = k):
+                dict_fo = fo.__dict__
+                dict_fo['dateiname'] = fo.foto.dateiname
+                dict_fo['dateipfad'] = path.join(pfad_projekt, pfad_fotos, f'{fo.foto.id}_{fo.foto.dateiname}')
+                li_fotos.append(dict_fo)
+            dict_eintrag_kommentar['liste_fotos'] = li_fotos
+
             li_historie.append(dict_eintrag_kommentar)
 
         # Ausstellerstati
@@ -274,6 +297,13 @@ class Ticket_Kommentar(models.Model):
 class Ticket_Kommentar_Anhang(models.Model):
     ticket_kommentar = models.ForeignKey(Ticket_Kommentar, on_delete = models.CASCADE)
     datei = models.ForeignKey(Datei, on_delete = models.CASCADE)
+    zeitstempel = models.DateTimeField()
+
+class Ticket_Kommentar_Foto(models.Model):
+    ticket_kommentar = models.ForeignKey(Ticket_Kommentar, on_delete = models.CASCADE)
+    foto = models.ForeignKey(Datei, on_delete = models.CASCADE)
+    breite_px = models.IntegerField(null = True) # TODO: Nullable entfernen
+    hoehe_px = models.IntegerField(null = True) # TODO: Nullable entfernen
     zeitstempel = models.DateTimeField()
 
 class Plan(models.Model):

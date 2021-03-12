@@ -1,3 +1,4 @@
+from datetime import time
 import io
 from os import path
 
@@ -7,7 +8,7 @@ from django.utils import timezone
 from gernotbau.settings import MEDIA_ROOT, MEDIA_URL, STATIC_URL
 from django.contrib.auth import get_user_model
 
-from .models import Pfad_Plaene, Ticket, Plan, Ticket_Ausstellerstatus, Ticket_Empfängerfirma, Ticket_Empfängerfirma_Status, Ticket_Plan, Ticket_Kommentar, Ticket_Kommentar_Anhang, Ticket_Kommentar_Foto
+from .models import Pfad_Plaene, Plan_Bezeichnung, Ticket, Plan, Ticket_Ausstellerstatus, Ticket_Empfängerfirma, Ticket_Empfängerfirma_Status, Ticket_Plan, Ticket_Kommentar, Ticket_Kommentar_Anhang, Ticket_Kommentar_Foto
 from superadmin.models import Projekt, Firma
 from projektadmin.models import Status, Pfad_Projekt, Pfad_Anhaenge, Pfad_Fotos, Datei, DICT_STATI
 from gernotbau.settings import DB_SUPER, STATICFILES_DIRS
@@ -100,10 +101,12 @@ def übersicht_tickets_view(request, projekt_id):
 def übersicht_tickets_plan_view(request, projekt_id, plan_id):
     pj = Projekt.objects.using(DB_SUPER).get(pk = projekt_id)
     plan = Plan.objects.using(pj.db_bezeichnung()).get(pk = plan_id)
-    
+    aktuelles_ticket_id = None
+
     # POST
     if request.method == 'POST':
-        ti_akt = Ticket.objects.using(pj.db_bezeichnung()).get(pk = request.POST['ticket_id'])
+        ti_akt = Ticket.objects.using(pj.db_bezeichnung()).get(pk = request.POST['ticket_id']) if 'ticket_id' in request.POST else None
+        aktuelles_ticket_id = ti_akt.id if ti_akt else None
         # AUSSTELLERSTATI
         if request.POST['ereignis'] == 'ausstellerstatus_freigegeben':
             status_fg = Status.objects.using(pj.db_bezeichnung()).get_or_create(bezeichnung = 'Freigegeben')[0]
@@ -149,6 +152,105 @@ def übersicht_tickets_plan_view(request, projekt_id, plan_id):
                 zeitstempel = timezone.now()
                 )
 
+        # EMPFÄNGERSTATI
+        if request.POST['ereignis'] == 'empfängerstatus_behoben':
+            # Empfängerstatus
+            status_beh = Status.objects.using(pj.db_bezeichnung()).get_or_create(bezeichnung = 'Behoben')[0]
+            ti_empf = Ticket_Empfängerfirma.objects.using(pj.db_bezeichnung()).filter(ticket = ti_akt).latest('zeitstempel')
+            Ticket_Empfängerfirma_Status.objects.using(pj.db_bezeichnung()).create(
+                ticket_empfängerfirma = ti_empf,
+                status = status_beh,
+                zeitstempel = timezone.now()
+                )
+            # TODO: Popup --> Möglichkeit Kommentar/Fotos anzuhängen
+            status_ib = Status.objects.using(pj.db_bezeichnung()).get_or_create(bezeichnung = 'In Bearbeitung')[0]
+            Ticket_Ausstellerstatus.objects.using(pj.db_bezeichnung()).create(
+                ticket = ti_akt,
+                status = status_ib,
+                zeitstempel = timezone.now()
+                )
+
+        if request.POST['ereignis'] == 'empfängerstatus_zurückgewiesen':
+            # Empfängerstatus --> Zurückgewiesen
+            status_zgw = Status.objects.using(pj.db_bezeichnung()).get_or_create(bezeichnung = 'Zurückgewiesen')[0]
+            ti_empf = Ticket_Empfängerfirma.objects.using(pj.db_bezeichnung()).filter(ticket = ti_akt).latest('zeitstempel')
+            Ticket_Empfängerfirma_Status.objects.using(pj.db_bezeichnung()).create(
+                ticket_empfängerfirma = ti_empf,
+                status = status_zgw,
+                zeitstempel = timezone.now()
+                )
+            # TODO: Popup --> Eingabe Zurückweisungsgrund (Speicherung als Kommentar + Nachricht)
+
+        # KOMMENTAR
+        if request.POST['ereignis'] == 'kommentar':
+            # Kommentar anlegen
+            neues_kommentar = Ticket_Kommentar.objects.using(pj.db_bezeichnung()).create(
+                ticket = ti_akt,
+                mitarbeiter_id = request.user.id,
+                text = request.POST['text'],
+                zeitstempel = timezone.now()
+                )
+            
+            # Fotos hochladen
+            pfad_projekt = Pfad_Projekt.objects.using(pj.db_bezeichnung()).latest('zeitstempel').pfad
+            pfad_fotos = Pfad_Fotos.objects.using(pj.db_bezeichnung()).latest('zeitstempel').pfad
+            zielordner_fotos = path.join(STATICFILES_DIRS[0], pfad_projekt, pfad_fotos)
+            neues_foto = Datei.objects.using(pj.db_bezeichnung()).create(dateiname = request.FILES['fotos'], zeitstempel = timezone.now())
+            for fo in request.FILES.getlist('fotos'):
+                # Fotodateien in DB anlegen
+                neues_foto = Datei.objects.using(pj.db_bezeichnung()).create(
+                    dateiname = fo.name,
+                    zeitstempel = timezone.now()
+                    )
+                # Fotos hochladen
+                zielpfad = path.join(zielordner_fotos, f'{neues_foto.id}_{neues_foto.dateiname}')
+                with open(zielpfad, 'wb+') as ziel:
+                    for chunk in fo.chunks():
+                        ziel.write(chunk)
+                    ziel.close()
+                # Verbindung Ticket-Kommentar-Foto
+                Ticket_Kommentar_Foto.objects.using(pj.db_bezeichnung()).create(
+                    ticket_kommentar = neues_kommentar,
+                    foto = neues_foto,
+                    zeitstempel = timezone.now()
+                    )
+
+        # TICKET AUSSTELLEN
+        if request.POST['ereignis'] == 'ticket_ausstellen':
+            # Ticket anlegen
+            neues_ticket = Ticket.objects.using(pj.db_bezeichnung()).create(
+                aussteller_id = request.user.id,
+                zeitstempel = timezone.now()
+                )
+            neues_ticket._entlöschen(pj)
+            aktuelles_ticket_id = neues_ticket.id
+            # Verbindung zu Plan u. Koordinaten
+            plan = Plan.objects.using(pj.db_bezeichnung()).get(pk = request.POST['ticket_neu_plan_id'])
+            Ticket_Plan.objects.using(pj.db_bezeichnung()).create(
+                ticket = neues_ticket,
+                plan = plan,
+                zeitstempel = timezone.now()
+                )
+            # Ticket-Eigenschafte befüllen
+            neues_ticket._x_koordinate_ändern(pj, plan, request.POST['ticket_neu_x'])
+            neues_ticket._y_koordinate_ändern(pj, plan, request.POST['ticket_neu_y'])
+            neues_ticket._bezeichnung_ändern(pj, bezeichnung_neu = request.POST['ticket_neu_bezeichnung'])
+            neues_ticket._fälligkeitsdatum_ändern(pj, fälligkeitsdatum_neu = request.POST['ticket_neu_fälligkeitsdatum'])
+            # Empfängerfirma und Status initiieren
+            ti_empf = neues_ticket._empfängerfirma_ändern(pj, request.POST['ticket_neu_empfängerfirma_id'])
+            status_ib = Status.objects.using(pj.db_bezeichnung()).get_or_create(bezeichnung = 'In Bearbeitung')[0]
+            Ticket_Empfängerfirma_Status.objects.using(pj.db_bezeichnung()).create(
+                ticket_empfängerfirma = ti_empf,
+                status = status_ib,
+                zeitstempel = timezone.now()
+                )
+            # Ausstellerstatus initiieren
+            status_war = Status.objects.using(pj.db_bezeichnung()).get_or_create(bezeichnung = 'Warten auf Rückmeldung')[0]
+            Ticket_Ausstellerstatus.objects.using(pj.db_bezeichnung()).create(
+                ticket = neues_ticket,
+                status = status_war,
+                zeitstempel = timezone.now()
+                )
 
     # Hole alle ungelöschten Ticket für plan
     qs_ti_plan = Ticket_Plan.objects.using(pj.db_bezeichnung()).filter(plan = plan)
@@ -172,12 +274,18 @@ def übersicht_tickets_plan_view(request, projekt_id, plan_id):
     plan_dict['pfad'] = str(path.join(STATIC_URL, pfad_projekt, pfad_plaene, plan.datei.dateiname))
 
     # Packe Context und lade Template
-    aktuelles_ticket_id = request.POST['ticket_id'] if request.method == 'POST' else None
+    li_projektfirmen_dict = []
+    for f in pj.liste_projektfirmen():
+        dict_firma = f.__dict__
+        dict_firma['bezeichnung'] = f._bezeichnung()
+        li_projektfirmen_dict.append(dict_firma)
+    
     context = {
         'projekt': pj,
         'plan': plan_dict,
         'liste_tickets': li_tickets_dict,
-        'aktuelles_ticket_id': aktuelles_ticket_id
+        'aktuelles_ticket_id': aktuelles_ticket_id,
+        'liste_projektfirmen': li_projektfirmen_dict
         }
 
     return render(request, './mängel/übersicht_tickets_plan.html', context)

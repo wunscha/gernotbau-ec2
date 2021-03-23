@@ -20,11 +20,23 @@
         <ul class="my-3 list-group">
             <li class="list-group-item font-weight-bolder" style="background-color: #f8f9fa;">Ihre Projekte</li>
             {% for projekt in liste_projekte_user %}
-                <li class="list-group-item"><a href="{% url 'dokab:übersicht_ordnerinhalt_root' projekt.id %}">{{projekt.bezeichnung}}</a></li>
+                <li class="list-group-item">
+                    <p class="font-weight-bolder">{{projekt.bezeichnung}}: </p>
+                    <a href="{% url 'projektadmin:übersicht_ordnerinhalt_root' projekt.id %}">Dokumentenablage</a> |
+                    <a href="{% url 'mängel:übersicht_tickets' projekt.id %}">Mängelmanagement</a> |
+                    <a href="{% url 'projektadmin:übersicht_firmen' projekt.id %}">Projektadmin-Bereich</a>
+                </li>
             {% endfor %}
         </ul>
     {% endif %}
 
+    <ul class="my-3 list-group">
+        <li class="list-group-item font-weight-bolder" style="background-color: #f8f9fa;">Nachrichten</li>
+        <li class="list-group-item">
+            <p>Sie haben {{anzahl_neue_nachrichten}} neue Nachrichten</p>
+            <a href="{% url 'kommunikation:übersicht_eingang' %}">Zum Nachrichteneingang</a>
+        </li>
+    </ul>
 
     {% if liste_projekte_user_projektadmin %}
         <!-- Liste Projektadmin-Bereiche -->

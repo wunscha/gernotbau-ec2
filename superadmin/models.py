@@ -309,6 +309,8 @@ class Mitarbeiter(AbstractUser):
     def ist_firmenadmin(self):
         return Mitarbeiter_Ist_Firmenadmin.objects.using(DB_SUPER).filter(mitarbeiter = self).latest('zeitstempel').ist_firmenadmin
 
+    '''
+    ---> Superadmin-Funktionen (Projekt anlegen) noch einrichten
     # MITARBEITER SUPERADMIN
     def ist_superadmin_ändern(self, ist_superadmin):
         Mitarbeiter_Ist_Superadmin.objects.using(DB_SUPER).create(
@@ -319,7 +321,7 @@ class Mitarbeiter(AbstractUser):
 
     def ist_superadmin(self):
         return Mitarbeiter_Ist_Firmenadmin.objects.using(DB_SUPER).filter(mitarbeiter = self).latest('zeitstempel').ist_superadmin
-
+    '''
     # MITARBEITER PROJEKTADMIN
     def projektadmin_ernennen(self, projekt):
         verbindung_pj_fa = Projekt_Firma.objects.using(DB_SUPER).get(projekt = projekt, firma = self.firma)

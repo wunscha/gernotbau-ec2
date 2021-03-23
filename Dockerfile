@@ -10,7 +10,9 @@ WORKDIR /code
 
 # Dependencies
 COPY Pipfile Pipfile.lock /code/
-RUN pip install pipenv && pipenv install --system
+RUN pip install --trusted-host pypi.python.org --trusted-host files.pythonhosted.org --trusted-host pypi.org --upgrade pip
+RUN pip install --trusted-host pypi.python.org --trusted-host files.pythonhosted.org --trusted-host pypi.org pipenv
+RUN pipenv install --trusted-host pypi.python.org --trusted-host files.pythonhosted.org --trusted-host pypi.org --system
 
 # Code Kopieren
 COPY . /code/

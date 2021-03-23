@@ -400,7 +400,8 @@ def detailansicht_dokument_view(request, projekt_id, dokument_id):
     dict_ordner = dokument._ordner(projekt).__dict__
     dict_ordner['bezeichnung'] = dokument._ordner(projekt).bezeichnung(projekt)
     dict_dokument = dokument._dokument_dict(projekt)
-    dict_dokument['wfsch'] = dokument._workflow(projekt).wfsch._bezeichnung(projekt)
+    if dokument._workflow(projekt):
+        dict_dokument['wfsch'] = dokument._workflow(projekt).wfsch._bezeichnung(projekt)
 
     context = {
         'projekt': projekt,

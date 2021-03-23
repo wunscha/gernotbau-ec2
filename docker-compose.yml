@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+
+ web:
+  image: 451964186044.dkr.ecr.eu-west-3.amazonaws.com/gernotbau-ec2:latest
+  command: python /code/manage.py runserver 0.0.0.0:8000
+  volumes:
+   - .:/code
+  ports:
+   - 8000:8000
+  depends_on:
+   - db
+  networks:
+   - netzwerk
+
+ db:
+  image: postgres:11
+  volumes:
+   - postgres_data:/var/lib/postgresql/data/
+  ports:
+   - 5432:5432
+  environment:
+   - "POSTGRES_HOST_AUTH_METHOD=trust"
+  networks:
+   - netzwerk
+
+ pgAdmin:
+  image: dpage/pgadmin4
+  ports:
+   - 8080:80
+  environment:
+   - "PGADMIN_DEFAULT_EMAIL=user@domain.com"
+   - "PGADMIN_DEFAULT_PASSWORD=testpass123"
+  networks:
+   - netzwerk
+
+volumes:
+ postgres_data:
+
+networks:
+ netzwerk:
+  external: true

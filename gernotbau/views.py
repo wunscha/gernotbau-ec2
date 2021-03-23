@@ -1,9 +1,12 @@
+from gernotbau.settings import DB_SUPER
 from django.shortcuts import render
 from django.http import HttpResponseRedirect
 from django.conf import settings
 from django.contrib.auth import authenticate, login
 from django.urls import reverse
 from funktionen import hole_dicts
+from projektadmin.models import liste_projekte_mitarbeiter
+from kommunikation.models import Nachricht_Empfänger
 
 def home_view(request):
     
@@ -12,22 +15,31 @@ def home_view(request):
         return render(request, './registration/login.html')
     else:
         # Wenn Firmenadmin Weiterleitung zu Firmenadmin-Bereich
-        if request.user.ist_firmenadmin:
-            return HttpResponseRedirect(reverse('firmenadmin:übersicht_mitarbeiter'))
+        # if request.user.ist_firmenadmin:
+        #    return HttpResponseRedirect(reverse('firmenadmin:übersicht_mitarbeiter', args=[request.user.firma_id]))
+        # else:
 
-        else:
-            # Projekte holen, für die der User Projektadmin ist
-            liste_projekte_user_projektadmin = hole_dicts.projekte_user_projektadmin(request.user)
-            
-            # Projekte holen, denen der User zugeordnet sind
-            liste_projekte_user = hole_dicts.projekte_user(request.user)
-            
-            context={
-                'liste_projekte_user_projektadmin': liste_projekte_user_projektadmin,
-                'liste_projekte_user': liste_projekte_user
-            }
+        # Projekte holen
+        li_pj = []
+        for pj in liste_projekte_mitarbeiter(request.user):
+            dict_pj = pj.__dict__
+            dict_pj['bezeichnung'] = pj.bezeichnung()
+            li_pj.append(dict_pj)
 
-            return render(request, 'home.html', context)
+        # Neue Nachrichten zählen
+        anzahl_nr_neu = 0
+        qs_nr_empf = Nachricht_Empfänger.objects.using(DB_SUPER).filter(empfänger = request.user)
+        for nr_empf in qs_nr_empf:
+            if not nr_empf._gelesen():
+                anzahl_nr_neu += 1
+
+        context={
+            'liste_projekte_user_projektadmin': '',
+            'liste_projekte_user': li_pj,
+            'anzahl_neue_nachrichten': anzahl_nr_neu
+        }
+
+        return render(request, 'home.html', context)
 
 def login_view(request):
 

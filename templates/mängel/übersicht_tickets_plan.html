@@ -1,0 +1,439 @@
+<!-- Vererbung -->
+{% extends './_base_mängel.html' %}
+
+<!-- Titel -->
+{% block titel %}
+    Übersicht Tickets
+{% endblock titel %}
+
+<!-- nav-tab aktiv -->
+{% block tickets_active %}
+    active
+{% endblock tickets_active %}
+
+<!-- leaflet für Plan einbinden-->
+{% load static %}
+
+{% block css_leaflet %}
+<link rel="stylesheet" href="{% static '/leaflet/leaflet.css' %}"/>
+{% endblock css_leaflet %}
+
+<!-- Seiteninhalt -->
+{% block inhalt %}
+
+<!-- BUTTONLEISTE DOKAB INHALTSANSICHT -->
+<nav class="navbar border-bottom">
+    <div class="ml-auto mr-0">
+        <a class="btn btn-outline-success" role="button" href="{% url 'mängel:ticket_ausstellen' projekt.id %}">Ticket Ausstellen</a>
+    </div>
+</nav>
+
+<div class="container">
+    
+    <h1 class="mb-5 text-center">Übersicht Tickets</h1>
+    <h2 class="text-center" id="aktuelles_ticket_id">{{aktuelles_ticket_id}}</h2>
+
+    <!-- Karte -->
+    <div id="karte"></div>
+
+    <!-- Button Neues Ticket -->
+    <button class="m-2 btn btn-outline-dark" id="button_neues_ticket" value="AUS">AUS</button>
+
+    <!-- Formular Neues Ticket -->
+    <ul class="my-2 list-group" id="formular_ticket_ausstellen" style="display: none;">
+        <li class="list-group-item text-center font-weight-bolder" style="background-color: f8f9fa; font-size: large;">Neues Ticket</li>
+        <li class="list-group-item">
+            <form action="{% url 'mängel:übersicht_tickets_plan' projekt.id plan.id %}" method="POST">
+                {% csrf_token %}
+                <!-- Plan -->
+                <input hidden type="text" name="ticket_neu_plan_id" value="{{plan.id}}">
+                <!-- Koordinaten -->
+                <label for="ticket_neu_x">X: </label>
+                <input type="text" name="ticket_neu_x" id="ticket_neu_x">
+                <label for="ticket_neu_y">Y: </label>
+                <input type="text" name="ticket_neu_y" id="ticket_neu_y">
+                <!-- Bezeichnung -->
+                <div class="form-group">
+                    <label for="ticket_neu_bezeichnung">Bezeichnung: </label>
+                    <input type="text" class="form-control" name="ticket_neu_bezeichnung" id="ticket_neu_bezeichnung">
+                </div>
+                <!-- Fälligkeitsdatum -->
+                <div class="form-group">
+                    <label for="ticket_neu_fälligkeitsdatum">Fälligkeitsdatum: </label>
+                    <input type="date" class="form-control" name="ticket_neu_fälligkeitsdatum" id="ticket_neu_fälligkeitsdatum">
+                </div>
+                <!-- Empfängerfirma -->
+                <div class="form-group">
+                    <label for="ticket_neu_empfängerfirma">Empfängerfirma: </label>
+                    <select class="form-control" name="ticket_neu_empfängerfirma_id">
+                        {% for firma in liste_projektfirmen %}
+                        <option value="{{firma.id}}">{{firma.bezeichnung}}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <!-- Submit -->
+                <button type="submit" class="btn btn-primary" name="ereignis" value="ticket_ausstellen">Ticket Ausstellen</button>
+            </form>
+        </li>
+    </ul>
+
+    <!-- Formular Kommentar -->
+    <ul class="my-2 list-group" id="formular_kommentar" style="display: none;">
+        <li class="list-group-item text-center font-weight-bolder" style="background-color: #f8f9fa; font-size: large;">Kommentar verfassen</li>
+        <li class="list-group-item">
+            <form action="{% url 'mängel:übersicht_tickets_plan' projekt.id plan.id %}" enctype="multipart/form-data" method="POST">
+                {% csrf_token %}
+                <textarea class="form-control" name="text"></textarea>
+                <label for="fotos">Fotos hinzufügen: </label>
+                <input class="my-2" type="file" multiple name="fotos" id="fotos">
+                <input type="text" name="ticket_id" id="ticket_id_kommentar">
+                <button type="submit" class="m-2 btn btn-outline-primary" name="ereignis" value="kommentar" style="float: right;">Kommentar verfassen</button>
+            </form>
+        </li>
+    </ul>
+
+    <!-- Formular Ausstellerstatus -->
+    <ul class="my-2 list-group" id="formular_ausstellerstatus" style="display: none;">
+        <li class="list-group-item text-center font-weight-bolder" style="background-color: #f8f9fa; font-size: large;">Ausstellerstatus</li>
+        
+        <li class="list-group-item">
+            <form class="form-inline" action="{% url 'mängel:übersicht_tickets_plan' projekt.id plan.id %}" method="POST">
+                {% csrf_token %}
+                <input type="text" name="ticket_id" id="ticket_id_ausstellerstatus">
+                <button type="submit" class="m-2 btn btn-outline-success" name="ereignis" value="ausstellerstatus_freigegeben">Freigegeben</button>
+                <button type="submit" class="m-2 btn btn-outline-danger" name="ereignis" value="ausstellerstatus_abgelehnt">Abgelehnt</button>
+                <button type="submit" class="m-2 btn btn-outline-primary" name="ereignis" value="ausstellerstatus_nachbesserung">Nachbesserung</button>
+                <button type="submit" class="m-2 btn btn-outline-dark" name="ereignis" value="ausstellerstatus_zurückgezogen">Zurückgezogen</button>
+            </form>
+        </li>
+    </ul>
+
+    <!-- Formular Empfängerstatus -->
+    <ul class="my-2 list-group" id="formular_empfängerstatus" style="display: none;">
+        <li class="list-group-item text-center font-weight-bolder" style="background-color: #f8f9fa; font-size: large;">Empfängerstatus</li>
+
+        <li class="list-group-item">
+            <form class="form-inline" action="{% url 'mängel:übersicht_tickets_plan' projekt.id plan.id %}" method="POST">
+                {% csrf_token %}
+                <input type="text" name="ticket_id" id="ticket_id_empfängerstatus">
+                <button type="submit" class="m-2 btn btn-outline-success" name="ereignis" value="empfängerstatus_behoben">Behoben</button>
+                <button type="submit" class="m-2 btn btn-outline-danger" name="ereignis" value="empfängerstatus_zurückgewiesen">Zurückgewiesen</button>
+            </form>
+        </li>
+    </ul>
+
+    <!-- Ausklappbare Anzeige für Ticketeigenschaften -->
+    <ul id="ticket_eigenschaften" class="my-2 list-group" style="display: none;">
+        <li class="list-group-item font-weight-bolder text-center" style="background-color: #f8f9fa; font-size: large;">
+            <span id="ticket_bezeichnung"></span>
+        </li> 
+        <li class="list-group-item">
+            <p><strong>ID: </strong><span id="ticket_id"></span></p>
+            <p><strong>Aussteller: </strong><span id="ticket_aussteller"></span></p>
+            <p><strong>Ausstellerstatus: </strong><span id="ticket_ausstellerstatus"></span></p>
+            <p><strong>Empfängerfirma: </strong><span id="ticket_empfängerfirma"></span></p>
+            <p><strong>Empfängerstatus: </strong><span id="ticket_empfängerstatus"></span></p>
+            <p><strong>Gelesen: </strong><span id="ticket_gelesen"></span></p>
+            <p><strong>Fälligkeitsdatum: </strong><span id="ticket_fälligkeitsdatum"></span></p>
+            <p><strong>User Ist Aussteller: </strong><span id="ticket_useristaussteller"></span></p>
+            <p><strong>Userfirma Ist Empfängerfirma: </strong><span id="ticket_userfirmaistempfängerfirma"></span></p>
+        </li>
+        <li class="list-group-item font-weight-bolder text-center" style="background-color: #f8f9fa; font-size: large;">Historie</li>
+        <li class="list-group-item">
+            <table class="table" id="ticket_historie">
+                <thead>
+                    <th>Ereignis</th>
+                    <th>Mitarbeiter</th>
+                    <th>Zeitstempel</th>
+                    <th>Text</th>
+                    <th>Fotos</th>
+                </thead>
+                <tbody id="tbody_ticket_historie">
+                </tbody>
+            </div>
+        </li>
+    </ul>
+
+    {% load static %}
+    {% for ticket in liste_tickets %}
+        <ticket hidden>
+            <div>{{ticket.id}}</div>
+            <div>{{ticket.x_koordinate}}</div>
+            <div>{{ticket.y_koordinate}}</div>
+            <div>{{ticket.aussteller}}</div>
+            <div>{{ticket.ausstellerstatus}}</div>
+            <div>{{ticket.empfängerfirma.bezeichnung}}</div>
+            <div>{{ticket.empfängerstatus}}</div>
+            <div>{{ticket.gelesen}}</div>
+            <div>{{ticket.fälligkeitsdatum}}</div>
+            <div>{{ticket.bezeichnung}}</div>
+            <div>{{ticket.user_ist_aussteller}}</div>
+            <div>{{ticket.userfirma_ist_empfängerfirma}}</div>
+            <div>
+                {% for eintrag in ticket.historie %}
+                    <div>
+                        <div>{{eintrag.ereignis}}</div>
+                        <div>{{eintrag.mitarbeiter_firma}}</div>
+                        <div>{{eintrag.zeitstempel}}</div>
+                        <div>{{eintrag.text}}</div>
+                        <div>
+                            {% for foto in eintrag.liste_fotos %}
+                            <div>{% static foto.dateipfad %}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </ticket>
+    {% endfor %}
+
+    <plan hidden>
+        <div>{{plan.id}}</div>
+        <div>{{plan.breite}}</div>
+        <div>{{plan.hoehe}}</div>
+        <div>{{plan.pfad}}</div>
+    </plan>
+
+</div>
+{% endblock inhalt %}
+
+<!-- leaflet Javascript einbinden -->
+{% block js_leaflet %}
+<script src="{% static '/leaflet/leaflet.js' %}"></script>
+<script>
+    "use strict"
+    document.addEventListener('DOMContentLoaded', () => {
+        // Plan holen
+        const element_plan = document.getElementsByTagName('plan')[0]
+        const plan = {
+            id: element_plan.children[0].innerText,
+            breite: element_plan.children[1].innerText.replace(/,/g, '.'),
+            hoehe: element_plan.children[2].innerText.replace(/,/g, '.'),
+            pfad: element_plan.children[3].innerText
+            }
+
+        // Liste Tickets
+        var json_tickets = {}
+        for (const ticket of document.getElementsByTagName('ticket')) {
+            // Historie für Ticket-JSON vorbereiten --> wird später von API übernommen
+            var liste_historie = []
+            for (const eintrag of ticket.children[12].children) {
+                
+                // Liste Fotos
+                var li_fotos = []
+                for (const foto of eintrag.children[4].children) {
+                    li_fotos.push(foto.innerText)
+                }
+                // Eintrag Historie
+                const eintrag_historie = {
+                    ereignis: eintrag.children[0].innerText,
+                    mitarbeiter: eintrag.children[1].innerText,
+                    zeitstempel: eintrag.children[2].innerText,
+                    text: eintrag.children[3].innerText,
+                    liste_fotos: li_fotos
+                }
+                liste_historie.push(eintrag_historie)
+            }
+            
+            // Tickets als JSON (Key = ID) --> wird später von API übernommen
+            const json_ticket_value = {
+                id: ticket.children[0].innerText,
+                x_koordinate: ticket.children[1].innerText.replace(/,/g, '.'),
+                y_koordinate: ticket.children[2].innerText.replace(/,/g, '.'),
+                aussteller: ticket.children[3].innerText,
+                ausstellerstatus: ticket.children[4].innerText,
+                empfängerfirma: ticket.children[5].innerText,
+                empfängerstatus: ticket.children[6].innerText,
+                gelesen: ticket.children[7].innerText,
+                fälligkeitsdatum: ticket.children[8].innerText,
+                bezeichnung: ticket.children[9].innerText,
+                user_ist_aussteller: ticket.children[10].innerText,
+                userfirma_ist_empfängerfirma: ticket.children[11].innerText,
+                historie: liste_historie
+            }
+            const ticket_id = ticket.children[0].innerText
+            json_tickets[ticket_id] = json_ticket_value
+        }
+        console.dir(json_tickets)
+
+        // Marker vorbereiten
+        const mein_icon = L.icon({
+            iconUrl: '/static/images/marker-icon_bearbeitet.png',
+            iconSize: [25,41],
+            iconAnchor: [12.5,41]
+            })
+        const default_icon = L.icon({
+            iconUrl: '/static/images/marker-icon.png',
+            iconSize: [25,41],
+            iconAnchor: [12.5,41]
+            })
+        var aktiver_marker = ''
+        
+        // Karte initialisieren
+        var map = L.map('karte',{
+            crs: L.CRS.Simple
+            });
+        var bounds = [[0, 0], [parseFloat(plan.hoehe), parseFloat(plan.breite)]];
+        var image = L.imageOverlay(plan.pfad, bounds).addTo(map);
+        map.fitBounds(bounds);
+        
+        // Funktion Anzeige Formular Kommentar
+        function zeige_formular_kommentar(ticket_id) {
+            const ticket = json_tickets[ticket_id]
+            var element_formular = document.getElementById('formular_kommentar')
+            document.getElementById('ticket_id_kommentar').value = ticket_id
+            element_formular.style.display = 'block'
+        }
+
+        // Funktion Anzeige Formular Ausstellerstatus
+        function zeige_formular_ausstellerstatus(ticket_id) {
+            const ticket = json_tickets[ticket_id]
+            var element_formular = document.getElementById('formular_ausstellerstatus')
+            if (ticket.user_ist_aussteller == 'True') {
+                element_formular.style.display = 'block'
+                document.getElementById('ticket_id_ausstellerstatus').value = ticket_id
+            } else {
+                element_formular.style.display = 'none'
+            }
+        }
+
+        // Funktion Anzeige Formular Empfängerstatus
+        function zeige_formular_empfängerstatus(ticket_id) {
+            const ticket = json_tickets[ticket_id]
+            var element_formular = document.getElementById('formular_empfängerstatus')
+            if (ticket.userfirma_ist_empfängerfirma == 'True') {
+                element_formular.style.display = 'block'
+                document.getElementById('ticket_id_empfängerstatus').value = ticket_id
+            } else {
+                element_formular.style.display = 'none'
+            }
+        }
+
+        // Funktion Darstellung Ticket-Daten
+        function zeige_ticket_details(ticket_id) {
+            const ticket = json_tickets[ticket_id]
+            
+            // Ticket Eigenschaften
+            document.getElementById('ticket_eigenschaften').style.display = 'block'
+            document.getElementById('ticket_bezeichnung').innerText = ticket.bezeichnung
+            document.getElementById('ticket_id').innerText = ticket.id
+            document.getElementById('ticket_aussteller').innerText = ticket.aussteller
+            document.getElementById('ticket_ausstellerstatus').innerText = ticket.ausstellerstatus
+            document.getElementById('ticket_empfängerfirma').innerText = ticket.empfängerfirma
+            document.getElementById('ticket_empfängerstatus').innerText = ticket.empfängerstatus
+            document.getElementById('ticket_gelesen').innerText = ticket.gelesen
+            document.getElementById('ticket_fälligkeitsdatum').innerText = ticket.fälligkeitsdatum
+            document.getElementById('ticket_useristaussteller').innerText = ticket.user_ist_aussteller
+            document.getElementById('ticket_userfirmaistempfängerfirma').innerText = ticket.userfirma_ist_empfängerfirma
+            
+            // Ticket Historie
+            var element_tbody = document.getElementById('tbody_ticket_historie')
+            element_tbody.innerHTML = ''
+            for (const eintrag of ticket.historie) {
+                var element_tr_eintrag = document.createElement('tr')
+                // Ereignis
+                var element_td_ereignis = document.createElement('td')
+                element_td_ereignis.innerText = eintrag.ereignis
+                element_tr_eintrag.appendChild(element_td_ereignis)
+                // Mitarbeiter
+                var element_td_mitarbeiter = document.createElement('td')
+                element_td_mitarbeiter.innerText = eintrag.mitarbeiter
+                element_tr_eintrag.appendChild(element_td_mitarbeiter)
+                // Zeitstempel
+                var element_td_zeitstempel = document.createElement('td')
+                element_td_zeitstempel.innerText = eintrag.zeitstempel
+                element_tr_eintrag.appendChild(element_td_zeitstempel)
+                // Text
+                var element_td_text = document.createElement('td')
+                element_td_text.innerText = eintrag.text
+                element_tr_eintrag.appendChild(element_td_text)
+                // Fotos
+                var element_td_fotos = document.createElement('td')
+                for (const foto of eintrag.liste_fotos) {
+                    var element_img = document.createElement('img')
+                    element_img.setAttribute('src', foto)
+                    element_img.setAttribute('style', 'height: 100px;')
+                    element_img.setAttribute('class', 'm-2')
+                    element_td_fotos.appendChild(element_img)
+                }
+                element_tr_eintrag.appendChild(element_td_fotos)
+
+                element_tbody.appendChild(element_tr_eintrag)
+            }
+        }
+        
+        // Marker setzen
+        const akt_ticket_id = document.getElementById('aktuelles_ticket_id').innerText
+        for (const t in json_tickets) {
+            var hochwert = json_tickets[t].y_koordinate * plan.hoehe
+            var rechtswert = json_tickets[t].x_koordinate * plan.breite
+            var position = L.latLng(hochwert, rechtswert)
+            var pin_ticket = L.marker(position)
+            pin_ticket.addTo(map)
+            if (t == akt_ticket_id) {
+                pin_ticket.setIcon(mein_icon)
+                zeige_formular_kommentar(t)
+                zeige_formular_ausstellerstatus(t)
+                zeige_formular_empfängerstatus(t)
+                zeige_ticket_details(t)
+            }
+
+            pin_ticket.addEventListener('click', (e) => {
+                zeige_formular_kommentar(t)
+                zeige_formular_ausstellerstatus(t)
+                zeige_formular_empfängerstatus(t)
+                zeige_ticket_details(t)
+                // Darstellung Marker
+                if (aktiver_marker != '') {
+                    aktiver_marker.setIcon(default_icon)
+                }
+                aktiver_marker = e.target
+                aktiver_marker.setIcon(mein_icon)
+            })
+        }
+        
+        
+        // Event-Handler neues Ticket
+        var pin_neues_ticket = ''
+        function eventhandler_neues_ticket(e) {
+            // Marker
+            const position = e.latlng
+            const pin_neu = L.marker(position, {icon: mein_icon})
+            if (pin_neues_ticket == '') {
+                pin_neues_ticket = L.marker(position, {icon: mein_icon})
+                pin_neues_ticket.addTo(map)
+            } else {
+                pin_neues_ticket.setLatLng(position)
+            }
+            // Formular neues Ticket
+            console.dir(position)
+            document.getElementById('ticket_neu_x').value = position.lng / plan.hoehe
+            document.getElementById('ticket_neu_y').value = position.lat / plan.breite
+        }
+
+        // Neues Ticket
+        var button_neues_ticket = document.getElementById('button_neues_ticket')
+        const element_karte = document.getElementById('karte')
+        const default_cursor = element_karte.style.cursor
+        button_neues_ticket.addEventListener('click', (e) => {
+            if (e.target.value == 'AUS') {
+                e.target.value = 'AN'
+                e.target.innerText = 'AN'
+                element_karte.style.cursor = 'crosshair'
+                map.addEventListener('click', eventhandler_neues_ticket)
+                document.getElementById('formular_ticket_ausstellen').style.display = 'block'
+            } else {
+                e.target.value = 'AUS'
+                e.target.innerText = 'AUS'
+                element_karte.style.cursor = default_cursor
+                map.removeEventListener('click', eventhandler_neues_ticket)
+                document.getElementById('formular_ticket_ausstellen').style.display = 'none'
+            }
+            console.log(e.target.value)
+        })
+
+    })
+    
+</script>
+
+{% endblock js_leaflet %}

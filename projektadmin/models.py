@@ -1,6 +1,7 @@
 import io
 from datetime import time
 from zipfile import ZipFile
+from os import path
 
 from django import db
 from django.db import models
@@ -2298,10 +2299,8 @@ class Dokument(models.Model):
 
     # DOKUMENT DATEIEN
     def _datei_anlegen(self, projekt, f):
-        projektpfad = Pfad.objects.using(projekt.db_bezeichnung()).latest('zeitstempel')
         neue_datei = Datei.objects.using(projekt.db_bezeichnung()).create(
             dateiname = f.name,
-            pfad = projektpfad,
             zeitstempel = timezone.now()
             )
         # Verbindung Dokument-Datei anlegen
@@ -2310,8 +2309,15 @@ class Dokument(models.Model):
             datei = neue_datei,
             zeitstempel = timezone.now()
             )
+        
         # Datei hochladen
-        neue_datei._hochladen(projekt, f)
+        projektpfad = Pfad.objects.using(projekt.db_bezeichnung()).latest('zeitstempel').pfad
+        zielpfad = path.join(MEDIA_ROOT, projektpfad, f'{neue_datei.id}_{neue_datei.dateiname}')
+        with open(zielpfad, 'wb+') as ziel:
+            for chunk in f.chunks():
+                ziel.write(chunk)
+            ziel.close()
+        
         # Wenn Datei erfolreich hochgeladen --> Einträge in DB speichern
         neue_datei.save(using = projekt.db_bezeichnung())
         neue_verbindung_dok_dat.save(using = projekt.db_bezeichnung())

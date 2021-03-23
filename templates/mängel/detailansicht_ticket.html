@@ -1,0 +1,142 @@
+<!-- Vererbung -->
+{% extends './_base_mängel.html' %}
+
+<!-- Titel -->
+{% block titel %}
+    Detailansicht Ticket
+{% endblock titel %}
+
+<!-- nav-tab aktiv -->
+{% block tickets_active %}
+    active
+{% endblock tickets_active %}
+
+<!-- Seiteninhalt -->
+{% block inhalt %}
+
+<div class="container">
+
+    <!-- Seitenüberschrift -->
+    <h1 class="mb-5 text-center">Detailansicht Ticket "{{ticket.bezeichnung}}"</h1>
+    
+    <!-- Wenn User Ticketaussteller: Ticket kann geändert werden -->
+    {% if user_ist_aussteller %}
+    
+    <form class="mb-5" action="{% url 'mängel:detailansicht_ticket' projekt.id ticket.id %}" method="POST">
+        {% csrf_token %}
+        <!-- Bezeichnung -->
+        <div class="form-group">
+            <label class="font-weight-bolder" for="bezeichnung">Bezeichnung:</label>
+            <input class="form-control" type="text" name="bezeichnung" value="{{ticket.bezeichnung}}" id="bezeichnung">
+        </div>
+        <!-- X-Koordinate -->
+        <div class="form-group">
+            <label class="font-weight-bolder" for="x_koordinate">X-Koordinate:</label>
+            <input class="form-control" type="number" step="0.01" name="x_koordinate" value="{{ticket.x_koordinate}}" id="x_koordinate">
+        </div>
+        <!-- Y-Koordinate -->
+        <div class="form-group">
+            <label class="font-weight-bolder" for="y_koordinate">Y-Koordinate:</label>
+            <input class="form-control" type="number" step="0.01" name="y_koordinate" value="{{ticket.y_koordinate}}" id="y_koordinate">
+        </div>
+        <!-- Empfängerfirma -->
+        <div class="form-group">
+            <label class="font-weight-bolder" for="empfängerfirma_id">Empfängerfirma</label>
+            <select class="form-control" name="empfängerfirma_id" id="empfängerfirma_id">
+                {% for firma in liste_projektfirmen %}
+                <option value={{firma.id}} {% if firma.id == ticket.empfängerfirma.id %}selected{% endif %}>{{firma.bezeichnung}}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <!-- Plan -->
+        <div class="form-group">
+            <label class="font-weight-bolder" for="plan">Plan: </label>
+            <input class="form-control" type="text" value="{{ticket.plan}}" readonly>
+        </div>
+        <!-- Submit-Button -->
+        <button class="my-2 btn btn-outline-primary" type="submit" name="ereignis" value="ticket_aktualisieren" style="float: right;">Ticket Aktualisieren</button>
+    
+    </form>
+    
+    <!-- Wenn User nicht Aussteller: Nur Anzeig der Daten -->
+    {% else %}
+
+    <p><strong>Bezeichnung: </strong>{{ticket.bezeichnung}}</p>
+    <p><strong>X-Koordinate: </strong>{{ticket.x_koordinate}}</p>
+    <p><strong>Y-Koordinate: </strong>{{ticket.y_koordinate}}</p>
+    <p><strong>Plan: </strong>{{ticket.plan}}</p>
+
+    {% endif %}
+
+    <!-- Status Empfänger -->
+    <p><strong>Status Empfängerfirma: </strong>{{ticket.empfängerstatus}}</p>
+    {% if userfirma_ist_empfängerfirma %}
+        <form action="{% url 'mängel:detailansicht_ticket' projekt.id ticket.id %}" method="POST">
+            {% csrf_token %}
+            <button type="submit" class="m-2 btn btn-outline-success" name="ereignis" value="empfängerstatus_behoben">Behoben</button>
+            <button type="submit" class="m-2 btn btn-outline-danger" name="ereignis" value="empfängerstatus_zurückgewiesen">Zurückgewiesen</button>
+        </form>
+    {% endif %}
+
+    <!-- Status Aussteller -->
+    <p><strong>Status Aussteller: </strong>{{ticket.ausstellerstatus}}</p>
+    {% if user_ist_aussteller %}
+        <form action="{% url 'mängel:detailansicht_ticket' projekt.id ticket.id %}" method="POST">
+            {% csrf_token %}
+            <button type="submit" class="m-2 btn btn-outline-success" name="ereignis" value="ausstellerstatus_freigegeben">Freigegeben</button>
+            <button type="submit" class="m-2 btn btn-outline-primary" name="ereignis" value="ausstellerstatus_nachbesserung">Nachbesserung</button>
+            <button type="submit" class="m-2 btn btn-outline-dark" name="ereignis" value="ausstellerstatus_zurückgezogen">Zurückgezogen</button>
+            <button type="submit" class="m-2 btn btn-outline-danger" name="ereignis" value="ausstellerstatus_abgelehnt">Abgelehnt</button>
+        </form>
+    {% endif %}
+
+    <!-- Kommentare -->
+    <h2 class="my-5">Historie</h2>
+    
+    <form action="{% url 'mängel:detailansicht_ticket' projekt.id ticket.id %}" enctype="multipart/form-data" method="POST">
+        {% csrf_token %}
+        <textarea class="form-control" name="text"></textarea>
+        <div class="form-group">
+            <label for="anhänge">Dateianhänge hinzufügen: </label>
+            <input class="my-2" type="file" name="anhänge" id="anhänge">
+        </div>
+        <div class="form-group">
+            <label for="fotos">Fotos hinzufügen: </label>
+            <input multiple class="my-2" type="file" name="fotos" id="fotos">
+        </div>
+        <button type="submit" class="m-2 btn btn-outline-primary" name="ereignis" value="kommentar" style="float: right;">Kommentar Verfassen</button>
+    </form>
+
+    <table class="mt-5 table">
+        <thead>
+            <tr>
+                <th>Ereignis</th>
+                <th>Mitarbeiter</th>
+                <th>Datum</th>
+                <th>Text</th>
+                <th>Fotos</th>
+            </tr>
+        </thead>
+        {% load static %}
+        <tbody>
+            {% for eintrag in liste_historie %}
+            <tr>
+                <td>{{eintrag.ereignis}}</td>
+                <td>{{eintrag.mitarbeiter_firma}}</td>
+                <td>{{eintrag.zeitstempel}}</td>
+                <td>{{eintrag.text}}</td>
+                <td>
+                    <ul>
+                        {% for foto in eintrag.liste_fotos %}
+                        <img src="{% static foto.dateipfad %}" style="height: 100px;">
+                        {% endfor %}
+                    </ul>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+</div>
+
+{% endblock inhalt %}
